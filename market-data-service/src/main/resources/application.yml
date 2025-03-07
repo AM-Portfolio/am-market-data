@@ -1,0 +1,38 @@
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NiN2M0OWYwODNkYzZlOWNhOTZlMDgiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxMzg4ODczLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE0NzEyMDB9.lDhBvQuvdB5HBSAdSfM_um8A3GxoyGjncoTrPCRqrKw
+
+server:
+  port: 8083
+spring:
+  influx:
+    url: http://localhost:8086
+    token: my-super-secret-auth-token
+    org: org
+    bucket: investment_data
+  datasource:
+    url: jdbc:postgresql://localhost:5432/portfolio
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+
+
+upstox:
+  auth:
+    base-url: https://api.upstox.com/v2
+    code: ${UPSTOX_CODE:Ho4sGF}
+    api-key: ${UPSTOX_API_KEY:48d1e335-09ad-4dc0-b955-4505c350d10b}
+    secret-key: ${UPSTOX_SECRET_KEY:jqre481zf0}
+    access-token: ${UPSTOX_ACCESS_TOKEN:your-default-token}
+    redirect-uri: http://localhost:8080
+    authorization-url: https://api-v2.upstox.com/login/authorization/dialog
+    token-url: https://api-v2.upstox.com/login/authorization/token
+    token-refresh-interval: 3600000
+    scope: orders feed portfolio
