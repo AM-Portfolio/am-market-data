@@ -30,9 +30,9 @@ public class UpStockClient {
         return executeGet(url, MarketQuoteResponse.class, "symbol", formatSymbols(symbols));
     }
 
-    public OHLCResponse getOHLCData(List<String> symbols) {
+    public OHLCResponse getOHLCData(List<String> symbols, String interval) {
         String url = BASE_URL + "/market-quote/ohlc";
-        return executeGet(url, OHLCResponse.class, "symbol", formatSymbols(symbols));
+        return executeGet(url, OHLCResponse.class, "symbol", formatSymbols(symbols), "interval", interval);
     }
 
     // Historical Data APIs
@@ -101,6 +101,15 @@ public class UpStockClient {
     private <T> void logResponse(HttpResponse<T> response) {
         log.info("Response Status: {}", response.getStatus());
         log.info("Response Headers: {}", response.getHeaders());
-        log.info("Response Body: {}", response.getBody());
+        //log.info("Raw Response Body: {}", response.getRawBody());
+        log.info("Parsed Response Body: {}", response.getBody());
+        if (response.getBody() instanceof OHLCResponse) {
+            OHLCResponse ohlcResponse = (OHLCResponse) response.getBody();
+            if (ohlcResponse.getData() != null) {
+                ohlcResponse.getData().forEach((key, value) -> {
+                    log.info("Key: {}, Value: {}", key, value);
+                });
+            }
+        }
     }
 } 

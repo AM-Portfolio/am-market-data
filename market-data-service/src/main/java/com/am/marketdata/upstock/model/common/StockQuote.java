@@ -12,6 +12,7 @@ public class StockQuote {
     private String isin;
     private String exchange;
     private String instrumentId;
+    private String instrument_token;
     
     // Price Information
     private Double lastPrice;

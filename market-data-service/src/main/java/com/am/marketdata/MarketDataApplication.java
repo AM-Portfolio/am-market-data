@@ -10,11 +10,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @ComponentScans({
     @ComponentScan("com.am.common.amcommondata.service"),
+    @ComponentScan("com.am.common.amcommondata.repository.portfolio"),
+    @ComponentScan("com.am.common.amcommondata.mapper"),
     @ComponentScan("com.am.common.investment.*"),
     @ComponentScan("com.am.marketdata")
 })
 @EnableJpaRepositories(basePackages = {
-    "com.am.common.amcommondata.repository.asset"
+    "com.am.common.amcommondata.repository.asset",
+    "com.am.common.amcommondata.repository.portfolio"
 })
 @EntityScan(basePackages = {
     "com.am.common.amcommondata.domain",

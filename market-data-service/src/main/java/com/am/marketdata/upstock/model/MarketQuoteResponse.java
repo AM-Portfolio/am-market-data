@@ -1,6 +1,5 @@
 package com.am.marketdata.upstock.model;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.am.marketdata.upstock.model.common.StockQuote;
 

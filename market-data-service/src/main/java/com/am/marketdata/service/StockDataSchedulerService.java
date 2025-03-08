@@ -53,7 +53,7 @@ public class StockDataSchedulerService {
             List<EquityPrice> allUpdatedStocks = new ArrayList<>();
             for (List<String> batch : batches) {
                 try {
-                    var equityPrices = upStockAdapter.getStocks(batch);
+                    var equityPrices = upStockAdapter.getStocksOHLC(batch);
                     if (!equityPrices.isEmpty()) {
                         // Calculate price changes and save to database
                         //quotes.forEach(quote -> marketDataService.calculatePriceChanges(quote));
