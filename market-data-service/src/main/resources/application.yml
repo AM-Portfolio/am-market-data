@@ -3,9 +3,9 @@ server:
   port: 8083
 spring:
   influx:
-    url: http://localhost:8086
-    token: my-super-secret-auth-token
-    org: am_investment
+    url: https://us-east-1-1.aws.cloud2.influxdata.com
+    token: 4Fc5No-DoOyj9q8hbAGjOQsAlgxFYOztiBWvWDwyHDJ2mnkh_LYYv9jZFEscKziP_pzXxCIozwHCsxwX3CbHcQ==
+    org: Dev
     bucket: market_data
   datasource:
     url: jdbc:postgresql://localhost:5432/portfolio
@@ -20,8 +20,15 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: am-market-data-service
+      auto-offset-reset: earliest
 
-
+app:
+  kafka:
+    topic: am-stock-price-update
 
 upstox:
   interval: I1
