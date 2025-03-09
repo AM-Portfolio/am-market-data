@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.am.common.amcommondata.service.AssetService;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.service.EquityService;
+import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.upstock.adapter.UpStockAdapter;
 
 @Slf4j
@@ -25,6 +26,7 @@ public class StockDataSchedulerService {
     private final UpStockAdapter upStockAdapter;
     private final AssetService assetService;
     private final EquityService equityService;
+    private final KafkaProducerService kafkaProducerService;
 
     private static final int BATCH_SIZE = 50;
     private static final String NSE_PREFIX = "NSE_EQ|";
@@ -65,11 +67,7 @@ public class StockDataSchedulerService {
                 }
             }
 
-            // Broadcast updates via WebSocket
-            // if (!allUpdatedStocks.isEmpty()) {
-            //     log.info("Broadcasting {} updated stocks", allUpdatedStocks.size());
-            //     webSocketService.broadcastStockUpdates(allUpdatedStocks);
-            // }
+            kafkaProducerService.sendEquityPriceUpdates(allUpdatedStocks);
 
         } catch (Exception e) {
             log.error("Error in stock data scheduler: {}", e.getMessage(), e);
