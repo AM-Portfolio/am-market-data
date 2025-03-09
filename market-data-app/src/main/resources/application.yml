@@ -43,3 +43,9 @@ upstox:
     token-url: https://api-v2.upstox.com/login/authorization/token
     token-refresh-interval: 3600000
     scope: orders feed portfolio
+
+
+
+scraper:
+  urls:
+    - https://www.nseindia.com/

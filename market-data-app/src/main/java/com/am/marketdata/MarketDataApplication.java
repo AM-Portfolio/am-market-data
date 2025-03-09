@@ -6,14 +6,18 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.retry.annotation.EnableRetry;
 
+@SpringBootApplication
 @ComponentScans({
     @ComponentScan("com.am.common.amcommondata.service"),
     @ComponentScan("com.am.common.amcommondata.repository.portfolio"),
     @ComponentScan("com.am.common.amcommondata.mapper"),
     @ComponentScan("com.am.common.investment.*"),
-    @ComponentScan("com.am.marketdata")
+    @ComponentScan("com.am.marketdata.service"),
+    @ComponentScan("com.am.marketdata.kafka"),
+    @ComponentScan("com.am.marketdata.scraper"),
+    @ComponentScan("com.am.marketdata.config")
 })
 @EnableJpaRepositories(basePackages = {
     "com.am.common.amcommondata.repository.asset",
@@ -21,12 +25,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 })
 @EntityScan(basePackages = {
     "com.am.common.amcommondata.domain",
-    "com.am.common.amcommondata.domain.asset",
+    "com.am.common.amcommondata.domain.asset"
 })
-@SpringBootApplication
-@EnableScheduling
+@EnableRetry
 public class MarketDataApplication {
-    
     public static void main(String[] args) {
         SpringApplication.run(MarketDataApplication.class, args);
     }
