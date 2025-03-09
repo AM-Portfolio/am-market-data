@@ -29,6 +29,7 @@ spring:
 app:
   kafka:
     topic: am-stock-price-update
+    nse-indices-topic: nse-indices-update
 
 upstox:
   interval: I1

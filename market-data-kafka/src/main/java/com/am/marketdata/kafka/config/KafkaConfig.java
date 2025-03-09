@@ -1,5 +1,6 @@
 package com.am.marketdata.kafka.config;
 
+import com.am.marketdata.kafka.model.NSEIndicesEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -28,9 +29,17 @@ public class KafkaConfig {
     @Value("${app.kafka.topic}")
     private String topicName;
 
+    @Value("${app.kafka.nse-indices-topic}")
+    private String nseIndicesTopic;
+
     @Bean
     public NewTopic createTopic() {
         return new NewTopic(topicName, 1, (short) 1);
+    }
+
+    @Bean
+    public NewTopic createNseIndicesTopic() {
+        return new NewTopic(nseIndicesTopic, 1, (short) 1);
     }
 
     @Bean
@@ -43,8 +52,22 @@ public class KafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, NSEIndicesEvent> nseIndicesProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public KafkaTemplate<String, NSEIndicesEvent> nseIndicesKafkaTemplate() {
+        return new KafkaTemplate<>(nseIndicesProducerFactory());
     }
 
     @Bean

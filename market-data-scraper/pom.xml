@@ -14,12 +14,28 @@
     <description>Module for scraping website cookies using Selenium</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+         <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         
+        <!-- Caffeine Cache -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <!-- Selenium -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>

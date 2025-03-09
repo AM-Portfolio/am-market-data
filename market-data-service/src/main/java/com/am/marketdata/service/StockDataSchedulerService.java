@@ -12,7 +12,6 @@ import java.util.stream.IntStream;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-
 import com.am.common.amcommondata.service.AssetService;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.service.EquityService;
@@ -31,7 +30,7 @@ public class StockDataSchedulerService {
     private static final int BATCH_SIZE = 50;
     private static final String NSE_PREFIX = "NSE_EQ|";
 
-    @Scheduled(fixedRate = 10000)
+    //@Scheduled(fixedRate = 10000)
     @Transactional
     public void fetchAndPersistStockData() {
         log.info("=== Starting scheduled stock data fetch and persist job ===");
@@ -53,21 +52,31 @@ public class StockDataSchedulerService {
             log.info("Processing {} stocks in {} batches", isins.size(), batches.size());
 
             List<EquityPrice> allUpdatedStocks = new ArrayList<>();
+            boolean hasErrors = false;
+
             for (List<String> batch : batches) {
                 try {
                     var equityPrices = upStockAdapter.getStocksOHLC(batch);
                     if (!equityPrices.isEmpty()) {
-                        // Calculate price changes and save to database
-                        //quotes.forEach(quote -> marketDataService.calculatePriceChanges(quote));
                         equityService.saveAllPrices(equityPrices);
                         allUpdatedStocks.addAll(equityPrices);
+                    } else {
+                        log.warn("Received empty response for batch. Skipping Kafka event.");
+                        hasErrors = true;
                     }
                 } catch (Exception e) {
                     log.error("Error processing batch: {}", e.getMessage(), e);
+                    hasErrors = true;
                 }
             }
 
-            kafkaProducerService.sendEquityPriceUpdates(allUpdatedStocks);
+            // Only send Kafka events if we have data and no errors occurred
+            if (!allUpdatedStocks.isEmpty() && !hasErrors) {
+                log.info("Sending Kafka events for {} updated stocks", allUpdatedStocks.size());
+                kafkaProducerService.sendEquityPriceUpdates(allUpdatedStocks);
+            } else {
+                log.warn("Skipping Kafka events due to errors or no data");
+            }
 
         } catch (Exception e) {
             log.error("Error in stock data scheduler: {}", e.getMessage(), e);
@@ -84,4 +93,4 @@ public class StockDataSchedulerService {
             .mapToObj(i -> list.subList(i * size, Math.min(list.size(), (i + 1) * size)))
             .collect(Collectors.toList());
     }
-} 
+}

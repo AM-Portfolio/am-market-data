@@ -20,8 +20,8 @@ public class UpstoxAuthConfig {
     private String scope;
     private String baseUrl;
     
-     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
+    // @Bean(name = "upStockRestTemplate")
+    // public RestTemplate restTemplate() {
+    //     return new RestTemplate();
+    // }
 } 

@@ -69,11 +69,17 @@ public class CookieScraperService {
             String title = webDriver.getTitle();
             log.debug("Page title: {}", title);
 
-            return WebsiteCookies.builder()
+            // Create WebsiteCookies object with raw cookie string
+            WebsiteCookies websiteCookies = WebsiteCookies.builder()
                     .websiteUrl(url)
                     .websiteName(title)
                     .cookies(cookies)
                     .build();
+            
+            // Generate and set the formatted cookie string
+            websiteCookies.setCookiesString(websiteCookies.generateCookiesString());
+            
+            return websiteCookies;
                     
         } catch (TimeoutException e) {
             log.error("Timeout while loading URL: " + url, e);

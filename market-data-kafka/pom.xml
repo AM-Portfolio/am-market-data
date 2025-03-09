@@ -15,6 +15,11 @@
     <description>Kafka consumer module for processing market data messages</description>
 
     <dependencies>
+    <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
          <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-model</artifactId>
