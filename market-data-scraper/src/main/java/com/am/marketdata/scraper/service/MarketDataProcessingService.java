@@ -1,12 +1,15 @@
 package com.am.marketdata.scraper.service;
 
+import com.am.common.investment.model.equity.ETFIndies;
 import com.am.common.investment.model.equity.MarketIndexIndices;
 import com.am.common.investment.service.MarketIndexIndicesService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NseETFResponse;
 import com.am.marketdata.common.model.NseETF;
+import com.am.marketdata.kafka.producer.ETFIndiesKafkaProducer;
 import com.am.marketdata.kafka.producer.MarketIndiciesPriceKafkaProducer;
 import com.am.marketdata.scraper.client.NSEApiClient;
+import com.am.marketdata.scraper.mapper.ETFIndicesMapper;
 import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -53,6 +56,7 @@ public class MarketDataProcessingService {
 
     private final NSEApiClient nseApiClient;
     private final MarketIndiciesPriceKafkaProducer kafkaProducer;
+    private final ETFIndiesKafkaProducer etfIndiesKafkaProducer;
     private final MarketIndexIndicesService indexIndicesService;
     private final MeterRegistry meterRegistry;
 
@@ -320,12 +324,8 @@ public class MarketDataProcessingService {
         log.info("Processing {} ETFs", etfs.size());
 
         try {
-            // TODO: Add ETF processing logic here
-            // For example:
-            // 1. Save ETFs to database
-            // 2. Send ETF updates to Kafka
-            // 3. Update market status if needed
-
+            List<ETFIndies> etfIndies = ETFIndicesMapper.convertToETFIndices(etfs);
+            etfIndiesKafkaProducer.sendETFUpdate(etfIndies);
             log.info("Successfully processed ETF data. Market Status: {}, Advances: {}, Declines: {}", 
                 etfResponse.getMarketStatus() != null ? etfResponse.getMarketStatus().getMarketStatus() : "N/A",
                 etfResponse.getAdvances(),

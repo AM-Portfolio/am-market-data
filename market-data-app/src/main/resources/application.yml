@@ -1,6 +1,6 @@
 UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NkZmVmOGE0MGViNDBkODA2MmVjYmMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNTUzNDAwLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE1NTc2MDB9.aRPnBLdVagaOnMvQC9nObeo1hgYLYXQlISzqqX2DvxY
 server:
-  port: 8083
+  port: 8084
 spring:
   influx:
     url: http://localhost:8086
@@ -30,6 +30,7 @@ app:
   kafka:
     topic: am-stock-price-update
     nse-indices-topic: nse-indices-update
+    nse-etf-topic: nse-etf-update
 
 upstox:
   interval: I1
