@@ -1,15 +1,15 @@
-package com.am.marketdata.kafka.model;
+// package com.am.marketdata.kafka.model;
 
-import lombok.Builder;
-import lombok.Data;
-import java.time.LocalDateTime;
-import java.util.List;
+// import lombok.Builder;
+// import lombok.Data;
+// import java.time.LocalDateTime;
+// import java.util.List;
 
-import com.am.marketdata.common.model.NSEIndex;
+// import com.am.common.investment.model.equity.MarketIndexIndices;
 
-@Data
-@Builder
-public class NSEIndicesEvent {
-    private List<NSEIndex> indices;
-    private LocalDateTime timestamp;
-}
+// @Data
+// @Builder
+// public class NSEIndicesEvent {
+//     private List<MarketIndexIndices> indices;
+//     private LocalDateTime timestamp;
+// }

@@ -1,11 +1,11 @@
-UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NiY2E5MWYwODNkYzZlOWNhOTcwNmIiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNDA4OTEzLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE0NzEyMDB9.yX2cJQrItOIYuLm_y4EWoB1Ol0LjS7_YOeyZvQAgOQs
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NkZmVmOGE0MGViNDBkODA2MmVjYmMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNTUzNDAwLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE1NTc2MDB9.aRPnBLdVagaOnMvQC9nObeo1hgYLYXQlISzqqX2DvxY
 server:
   port: 8083
 spring:
   influx:
-    url: https://us-east-1-1.aws.cloud2.influxdata.com
-    token: 4Fc5No-DoOyj9q8hbAGjOQsAlgxFYOztiBWvWDwyHDJ2mnkh_LYYv9jZFEscKziP_pzXxCIozwHCsxwX3CbHcQ==
-    org: Dev
+    url: http://localhost:8086
+    token: my-super-secret-auth-token
+    org: am_investment
     bucket: market_data
   datasource:
     url: jdbc:postgresql://localhost:5432/portfolio
@@ -35,7 +35,7 @@ upstox:
   interval: I1
   auth:
     base-url: https://api.upstox.com/v2
-    code: ${UPSTOX_CODE:uQsNUf}
+    code: ${UPSTOX_CODE:xCLCfJ}
     api-key: ${UPSTOX_API_KEY:48d1e335-09ad-4dc0-b955-4505c350d10b}
     secret-key: ${UPSTOX_SECRET_KEY:jqre481zf0}
     access-token: ${UPSTOX_ACCESS_TOKEN:your-default-token}
@@ -50,3 +50,9 @@ upstox:
 scraper:
   urls:
     - https://www.nseindia.com/
+
+
+# logging:
+#   level:
+#     root: DEBUG
+#     com.am.common.investment: INFO

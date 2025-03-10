@@ -1,6 +1,5 @@
 package com.am.marketdata.kafka.config;
 
-import com.am.marketdata.kafka.model.NSEIndicesEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -51,24 +50,24 @@ public class KafkaConfig {
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
-    @Bean
-    public ProducerFactory<String, NSEIndicesEvent> nseIndicesProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
+    // @Bean
+    // public ProducerFactory<String, Object> nseIndicesProducerFactory() {
+    //     Map<String, Object> configProps = new HashMap<>();
+    //     configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    //     configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    //     configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+    //     return new DefaultKafkaProducerFactory<>(configProps);
+    // }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 
-    @Bean
-    public KafkaTemplate<String, NSEIndicesEvent> nseIndicesKafkaTemplate() {
-        return new KafkaTemplate<>(nseIndicesProducerFactory());
-    }
+    // @Bean
+    // public KafkaTemplate<String, Object> nseIndicesKafkaTemplate() {
+    //     return new KafkaTemplate<>(producerFactory());
+    // }
 
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {

@@ -8,12 +8,13 @@ import java.util.List;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.am.common.investment.model.equity.EquityPrice;
-import com.am.marketdata.kafka.model.EquityPriceUpdateEvent;
+import com.portfolio.kafka.model.EquityPriceUpdateEvent;
 
 @Slf4j
 @Service
