@@ -29,7 +29,7 @@ public class MarketIndiciesPriceKafkaProducer {
         var marketIndexIndicesPriceUpdateEvent = MarketIndexIndicesPriceUpdateEvent.builder()
             .eventType("EQUITY_PRICE_UPDATE")
             .timestamp(LocalDateTime.now())
-            .indexIndices(marketIndexIndices)
+            .marketIndices(marketIndexIndices)
             .build();
         
         sendEquityPriceUpdates(marketIndexIndicesPriceUpdateEvent);
