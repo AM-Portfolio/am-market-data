@@ -1,6 +1,6 @@
-UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NiY2E5MWYwODNkYzZlOWNhOTcwNmIiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNDA4OTEzLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE0NzEyMDB9.yX2cJQrItOIYuLm_y4EWoB1Ol0LjS7_YOeyZvQAgOQs
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NkZmVmOGE0MGViNDBkODA2MmVjYmMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNTUzNDAwLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE1NTc2MDB9.aRPnBLdVagaOnMvQC9nObeo1hgYLYXQlISzqqX2DvxY
 server:
-  port: 8083
+  port: 8084
 spring:
   influx:
     url: http://localhost:8086
@@ -20,14 +20,23 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: am-market-data-service
+      auto-offset-reset: earliest
 
-
+app:
+  kafka:
+    topic: am-stock-price-update
+    nse-indices-topic: nse-indices-update
+    nse-etf-topic: nse-etf-update
 
 upstox:
   interval: I1
   auth:
     base-url: https://api.upstox.com/v2
-    code: ${UPSTOX_CODE:uQsNUf}
+    code: ${UPSTOX_CODE:xCLCfJ}
     api-key: ${UPSTOX_API_KEY:48d1e335-09ad-4dc0-b955-4505c350d10b}
     secret-key: ${UPSTOX_SECRET_KEY:jqre481zf0}
     access-token: ${UPSTOX_ACCESS_TOKEN:your-default-token}
@@ -36,3 +45,15 @@ upstox:
     token-url: https://api-v2.upstox.com/login/authorization/token
     token-refresh-interval: 3600000
     scope: orders feed portfolio
+
+
+
+scraper:
+  urls:
+    - https://www.nseindia.com/
+
+
+# logging:
+#   level:
+#     root: DEBUG
+#     com.am.common.investment: INFO
