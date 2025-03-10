@@ -6,8 +6,7 @@ import com.am.common.investment.service.MarketIndexIndicesService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NseETFResponse;
 import com.am.marketdata.common.model.NseETF;
-import com.am.marketdata.kafka.producer.ETFIndiesKafkaProducer;
-import com.am.marketdata.kafka.producer.MarketIndiciesPriceKafkaProducer;
+import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.mapper.ETFIndicesMapper;
 import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
@@ -55,8 +54,7 @@ public class MarketDataProcessingService {
     private static final String TAG_OPERATION = "operation";
 
     private final NSEApiClient nseApiClient;
-    private final MarketIndiciesPriceKafkaProducer kafkaProducer;
-    private final ETFIndiesKafkaProducer etfIndiesKafkaProducer;
+    private final KafkaProducerService kafkaProducer;
     private final MarketIndexIndicesService indexIndicesService;
     private final MeterRegistry meterRegistry;
 
@@ -325,7 +323,7 @@ public class MarketDataProcessingService {
 
         try {
             List<ETFIndies> etfIndies = ETFIndicesMapper.convertToETFIndices(etfs);
-            etfIndiesKafkaProducer.sendETFUpdate(etfIndies);
+            kafkaProducer.sendETFUpdate(etfIndies);
             log.info("Successfully processed ETF data. Market Status: {}, Advances: {}, Declines: {}", 
                 etfResponse.getMarketStatus() != null ? etfResponse.getMarketStatus().getMarketStatus() : "N/A",
                 etfResponse.getAdvances(),

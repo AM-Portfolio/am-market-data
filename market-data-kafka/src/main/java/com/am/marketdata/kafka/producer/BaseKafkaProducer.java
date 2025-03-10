@@ -14,9 +14,8 @@ import java.time.ZoneId;
 public abstract class BaseKafkaProducer<T> {
     
     protected final KafkaTemplate<String, Object> kafkaTemplate;
-    protected final String topic;
 
-    protected void sendEvent(T event, String eventType, LocalDateTime timestamp) {
+    protected void sendEvent(T event, String topic,String eventType, LocalDateTime timestamp) {
         try {
             log.info("Sending event to Kafka. EventType: {}, Timestamp: {}", eventType, timestamp);
             
