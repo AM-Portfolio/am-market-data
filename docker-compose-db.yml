@@ -1,5 +1,11 @@
 version: '3.8'
 
+# Environment Variables Used:
+# POSTGRES_USERNAME - PostgreSQL username (required)
+# POSTGRES_PASSWORD - PostgreSQL password (required)
+# POSTGRES_DATABASE - PostgreSQL database name (required)
+# These variables are shared with the main service in docker-compose.yml
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -7,6 +13,15 @@ services:
       POSTGRES_USER: ${POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DATABASE}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "=== PostgreSQL Environment Variables ==="
+        echo "Database: $${POSTGRES_DB}"
+        echo "User: $${POSTGRES_USER}"
+        echo "Port: 5455 (mapped from 5432)"
+        echo "=== Starting PostgreSQL ==="
+        docker-entrypoint.sh postgres
     ports:
       - "5455:5432"
     volumes:
@@ -15,7 +30,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME}"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
 
 volumes:

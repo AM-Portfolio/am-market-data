@@ -1,5 +1,6 @@
 version: '3.8'
 
+
 services:
   market-data-service:
     build:
@@ -53,15 +54,28 @@ services:
       - UPSTOX_AUTH_REDIRECT_URI=http://localhost:8080
       - UPSTOX_AUTH_TOKEN_REFRESH_INTERVAL=3600000
       - UPSTOX_INTERVAL=I1
+    entrypoint: ["/bin/sh", "-c"]
+    command: 
+      - |
+        echo "=== Market Data Service Environment Variables ==="
+        echo "Database URL: $${SPRING_DATASOURCE_URL}"
+        echo "Database User: $${SPRING_DATASOURCE_USERNAME}"
+        echo "InfluxDB URL: $${SPRING_INFLUXDB_URL}"
+        echo "InfluxDB Org: $${SPRING_INFLUXDB_ORG}"
+        echo "Kafka Servers: $${SPRING_KAFKA_BOOTSTRAP_SERVERS}"
+        echo "Kafka Group: $${SPRING_KAFKA_CONSUMER_GROUP_ID}"
+        echo "Max Retries: $${APP_RETRY_MAX_ATTEMPTS}"
+        echo "Thread Pool Size: $${APP_THREAD_POOL_SIZE}"
+        echo "=== Starting Market Data Service ==="
+        java -jar app.jar
     ports:
       - "8084:8084"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: "host"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 3s
-      retries: 3
+      retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
 
 volumes:
