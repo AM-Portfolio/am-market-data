@@ -30,11 +30,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Configure Maven settings
-        run: |
-          mkdir -p ~/.m2
-          cp settings.template.xml ~/.m2/settings.xml
-
       - name: Build with Maven
         env:
           GITHUB_USERNAME: ${{ github.actor }}
@@ -57,10 +52,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=sha,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
-            type=ref,event=branch,prefix=feature/
-            type=sha,format=long
+            type=ref,event=branch,prefix=feature-,enable=${{ startsWith(github.ref, 'refs/heads/feature/') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -78,7 +73,8 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          scan-type: 'image'
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results.sarif'
 
