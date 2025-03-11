@@ -1,0 +1,23 @@
+# Ignore everything
+*
+
+# Allow specific files and directories
+!.mvn/
+!mvnw
+!pom.xml
+!market-data-*/pom.xml
+!market-data-*/src/
+!prometheus/
+!settings.template.xml
+
+# Ignore unnecessary files in allowed directories
+**/*.log
+**/*.gz
+**/*.class
+**/target/
+**/.settings/
+**/.classpath
+**/.project
+**/.idea/
+**/*.iml
+**/.vscode/

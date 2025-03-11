@@ -4,6 +4,7 @@
 # Log files
 *.log
 logs/
+log/
 
 # BlueJ files
 *.ctxt
@@ -26,6 +27,9 @@ replay_pid*
 
 # Maven
 target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -34,20 +38,16 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
 
 # IDE files
 .idea/
 *.iml
 *.iws
 *.ipr
-.settings/
-.project
-.classpath
-.factorypath
 .vscode/
-*.sublime-workspace
-*.sublime-project
+.settings/
+.classpath
+.project
 
 # OS generated files
 .DS_Store
@@ -82,3 +82,59 @@ coverage.xml
 *~
 *.swp
 *.swo
+
+# Environment and Secrets
+.env
+settings.xml
+
+# Docker
+.docker/
+
+# Docker volumes and data
+prometheus_data/
+grafana_data/
+/monitoring/grafana/data/
+/monitoring/prometheus/data/
+
+# Generated Docker files
+docker-compose.override.yml
+
+# Monitoring stack
+/monitoring/grafana/provisioning/datasources/*
+!/monitoring/grafana/provisioning/datasources/*.example
+/monitoring/grafana/provisioning/dashboards/*
+!/monitoring/grafana/provisioning/dashboards/*.example
+
+# Cache files
+.gradle/
+.npm/
+node_modules/
+.sass-cache/
+
+# Build output
+dist/
+build/
+out/
+bin/
+
+# Temp files
+*.tmp
+*.temp
+.temp/
+temp/
+
+# Local configuration
+*.local
+*.local.*
+config.local.*
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+secrets/
+credentials/

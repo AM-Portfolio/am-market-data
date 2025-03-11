@@ -53,9 +53,9 @@
         </repository>
     
         <repository>
-            <id>github 1</id>
+            <id>github-investment</id>
             <name>GitHub AM Common Data Model Apache Maven Packages</name>
-            <url>https://github.com/ssd2658/am-common-investment-data</url>
+            <url>https://maven.pkg.github.com/ssd2658/am-common-investment-data</url>
         </repository>
     </repositories>
 
