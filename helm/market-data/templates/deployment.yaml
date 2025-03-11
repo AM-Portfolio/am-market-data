@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "market-data.fullname" . }}
+  labels:
+    {{- include "market-data.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "market-data.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Prometheus annotations for metrics collection
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8084"
+        # Add checksum annotations to force pod restart on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/vault-secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "market-data.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "market-data.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Load all environment variables from ConfigMap and Secrets
+          envFrom:
+            - configMapRef:
+                name: {{ include "market-data.fullname" . }}-config
+            - secretRef:
+                name: {{ include "market-data.fullname" . }}-secrets
+          ports:
+            - name: http
+              containerPort: 8084
+              protocol: TCP
+          # Health checks based on our memory about metrics and monitoring
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+          # Resource limits from values file
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # Volume mounts for any additional configurations
+          volumeMounts:
+            {{- if .Values.vault.enabled }}
+            - name: vault-token
+              mountPath: /vault/token
+              readOnly: true
+            {{- end }}
+      {{- if .Values.vault.enabled }}
+      volumes:
+        - name: vault-token
+          secret:
+            secretName: vault-token
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
