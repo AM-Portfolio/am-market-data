@@ -12,6 +12,8 @@ WORKDIR /app
 
 # Copy POM files first for better layer caching
 COPY pom.xml .
+COPY market-data-api/pom.xml market-data-api/
+COPY market-data-app/pom.xml market-data-app/
 COPY market-data-common/pom.xml market-data-common/
 COPY market-data-kafka/pom.xml market-data-kafka/
 COPY market-data-scraper/pom.xml market-data-scraper/
@@ -21,6 +23,8 @@ COPY market-data-service/pom.xml market-data-service/
 RUN mvn dependency:go-offline -B
 
 # Copy source code
+COPY market-data-api/src market-data-api/src
+COPY market-data-app/src market-data-app/src
 COPY market-data-common/src market-data-common/src
 COPY market-data-kafka/src market-data-kafka/src
 COPY market-data-scraper/src market-data-scraper/src
@@ -46,7 +50,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /app
 
 # Copy JAR from builder stage
-COPY --from=builder /app/market-data-service/target/*.jar app.jar
+COPY --from=builder /app/market-data-app/target/*.jar app.jar
 
 # Environment variables
 ENV SPRING_PROFILES_ACTIVE=docker
