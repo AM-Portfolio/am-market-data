@@ -25,15 +25,15 @@ public class KafkaConfig {
     @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
 
-    @Value("${app.kafka.topic}")
-    private String topicName;
+    @Value("${app.kafka.stock-price-topic}")
+    private String stockPriceTopic;
 
     @Value("${app.kafka.nse-indices-topic}")
     private String nseIndicesTopic;
 
     @Bean
     public NewTopic createTopic() {
-        return new NewTopic(topicName, 1, (short) 1);
+        return new NewTopic(stockPriceTopic, 1, (short) 1);
     }
 
     @Bean

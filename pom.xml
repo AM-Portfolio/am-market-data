@@ -31,7 +31,7 @@
         <lombok.version>1.18.24</lombok.version>
         <kong-unirest.version>3.14.5</kong-unirest.version>
         <investment-model.version>1.5.2-SNAPSHOT</investment-model.version>
-        <am-common.version>1.1.6-SNAPSHOT</am-common.version>
+        <am-common.version>1.1.8-SNAPSHOT</am-common.version>
     </properties>
 
     <dependencyManagement>
