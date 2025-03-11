@@ -12,7 +12,7 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.MarketIndexIndices;
 import com.am.common.investment.model.events.ETFIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.MarketIndexIndicesPriceUpdateEvent;
-import com.portfolio.kafka.model.EquityPriceUpdateEvent;
+import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 
 @Slf4j
 @Service

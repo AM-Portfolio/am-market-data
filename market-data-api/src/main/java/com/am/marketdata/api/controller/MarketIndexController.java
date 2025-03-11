@@ -2,12 +2,9 @@ package com.am.marketdata.api.controller;
 
 import com.am.common.investment.model.equity.MarketIndexIndices;
 import com.am.common.investment.service.MarketIndexIndicesService;
-import com.am.marketdata.api.model.MarketIndex;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController

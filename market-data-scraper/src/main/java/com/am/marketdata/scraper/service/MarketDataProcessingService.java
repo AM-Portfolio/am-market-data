@@ -10,10 +10,12 @@ import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.mapper.ETFIndicesMapper;
 import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
+import com.am.marketdata.scraper.exception.DataFetchException;
+import com.am.marketdata.scraper.exception.DataValidationException;
+import com.am.marketdata.scraper.exception.MarketDataException;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import io.micrometer.core.instrument.Timer.Sample;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,11 +49,10 @@ public class MarketDataProcessingService {
     private static final String METRIC_PREFIX = "market.data.";
     private static final String METRIC_FETCH_TIME = METRIC_PREFIX + "fetch.time";
     private static final String METRIC_PROCESS_TIME = METRIC_PREFIX + "process.time";
-    private static final String METRIC_RETRY_COUNT = METRIC_PREFIX + "retry.count";
     private static final String METRIC_SUCCESS_COUNT = METRIC_PREFIX + "success.count";
     private static final String METRIC_FAILURE_COUNT = METRIC_PREFIX + "failure.count";
+    private static final String METRIC_RETRY_COUNT = METRIC_PREFIX + "retry.count";
     private static final String TAG_DATA_TYPE = "data.type";
-    private static final String TAG_OPERATION = "operation";
 
     private final NSEApiClient nseApiClient;
     private final KafkaProducerService kafkaProducer;
@@ -133,9 +134,9 @@ public class MarketDataProcessingService {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while fetching market data", e);
+            throw new MarketDataException("Interrupted while fetching market data", e);
         } catch (ExecutionException e) {
-            throw new RuntimeException("Error fetching market data", e.getCause());
+            throw new MarketDataException("Error fetching market data", e.getCause());
         }
     }
 
@@ -159,10 +160,14 @@ public class MarketDataProcessingService {
                         return true;
                     } else {
                         log.warn("Skipping invalid or stale indices data");
+                        throw new DataValidationException("indices", "Invalid or stale data");
                     }
+                } catch (DataValidationException e) {
+                    throw e;
                 } catch (Exception e) {
                     log.error("Failed to process indices data", e);
                     meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "indices").increment();
+                    throw new MarketDataException("Failed to process indices data", e);
                 }
             }
             return false;
@@ -186,10 +191,14 @@ public class MarketDataProcessingService {
                         return true;
                     } else {
                         log.warn("Skipping invalid or stale ETF data");
+                        throw new DataValidationException("etf", "Invalid or stale data");
                     }
+                } catch (DataValidationException e) {
+                    throw e;
                 } catch (Exception e) {
                     log.error("Failed to process ETF data", e);
                     meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "etf").increment();
+                    throw new MarketDataException("Failed to process ETF data", e);
                 }
             }
             return false;
@@ -202,10 +211,9 @@ public class MarketDataProcessingService {
                 log.info("Fetching NSE indices data...");
                 return nseApiClient.getAllIndices();
             } catch (Exception e) {
-                log.error("Failed to fetch indices data", e);
-                return null;
+                throw new DataFetchException("indices", maxRetries, "Failed to fetch indices data", e);
             }
-        }, "indices", maxRetries);
+        }, maxRetries, retryDelayMs);
     }
 
     private NseETFResponse fetchETFsWithRetry() {
@@ -214,10 +222,34 @@ public class MarketDataProcessingService {
                 log.info("Fetching NSE ETF data...");
                 return nseApiClient.getETFs();
             } catch (Exception e) {
-                log.error("Failed to fetch ETF data", e);
-                return null;
+                throw new DataFetchException("etf", maxRetries, "Failed to fetch ETF data", e);
             }
-        }, "etf", maxRetries);
+        }, maxRetries, retryDelayMs);
+    }
+
+    private <T> T retryOnFailure(Supplier<T> operation, int maxRetries, long retryDelayMs) {
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return operation.get();
+            } catch (Exception e) {
+                lastException = e;
+                meterRegistry.counter(METRIC_RETRY_COUNT, TAG_DATA_TYPE, 
+                    e instanceof DataFetchException ? ((DataFetchException) e).getDataType() : "unknown").increment();
+                
+                if (attempt < maxRetries) {
+                    long delay = retryDelayMs * (long) Math.pow(2, attempt - 1);
+                    log.warn("Attempt {} failed, retrying in {} ms", attempt, delay, e);
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new MarketDataException("Retry interrupted", ie);
+                    }
+                }
+            }
+        }
+        throw new MarketDataException("Operation failed after " + maxRetries + " retries", lastException);
     }
 
     private void logProcessingStatus(boolean indicesProcessed, boolean etfProcessed) {
@@ -230,43 +262,6 @@ public class MarketDataProcessingService {
         } else {
             log.info("Successfully processed both indices and ETF data");
         }
-    }
-
-    private <T> T retryOnFailure(Supplier<T> operation, String operationType, int maxRetries) {
-        int retryCount = 0;
-        T result = null;
-        Exception lastException = null;
-
-        while (retryCount < maxRetries && result == null) {
-            if (retryCount > 0) {
-                try {
-                    log.info("Retrying {} data fetch, attempt {} of {}", operationType, retryCount + 1, maxRetries);
-                    TimeUnit.MILLISECONDS.sleep(retryDelayMs * retryCount); // Exponential backoff
-                    meterRegistry.counter(METRIC_RETRY_COUNT, TAG_DATA_TYPE, operationType).increment();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Interrupted during retry delay", e);
-                }
-            }
-
-            try {
-                result = operation.get();
-                if (result != null && retryCount > 0) {
-                    log.info("Successfully fetched {} data after {} retries", operationType, retryCount);
-                }
-            } catch (Exception e) {
-                lastException = e;
-                log.warn("Attempt {} failed for {} data: {}", retryCount + 1, operationType, e.getMessage());
-            }
-
-            retryCount++;
-        }
-
-        if (result == null && lastException != null) {
-            log.error("All {} retries failed for {} data", maxRetries, operationType, lastException);
-        }
-
-        return result;
     }
 
     private boolean validateIndicesData(NSEIndicesResponse response) {
