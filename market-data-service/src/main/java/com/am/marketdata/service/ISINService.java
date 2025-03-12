@@ -4,6 +4,7 @@ import com.am.marketdata.config.ISINConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -17,22 +18,35 @@ public class ISINService {
 
     @PostConstruct
     public void init() {
-        List<String> isins = isinConfig.list();
-        if (isins == null || isins.isEmpty()) {
-            log.warn("No ISINs found in configuration during initialization");
-        } else {
-            log.info("Loaded {} ISINs during initialization", isins.size());
-            log.debug("Loaded ISINs: {}", isins);
+        MDC.put("service", "isin-service");
+        try {
+            List<String> isins = isinConfig.list();
+            if (isins == null || isins.isEmpty()) {
+                log.warn("No ISINs found in configuration during initialization");
+            } else {
+                log.info("Loaded {} ISINs from configuration", isins.size());
+                log.debug("Configured ISINs: {}", isins);
+            }
+        } finally {
+            MDC.remove("service");
         }
     }
 
     public List<String> findDistinctIsins() {
-        List<String> isins = isinConfig.list();
-        if (isins == null || isins.isEmpty()) {
-            log.warn("No ISINs found in configuration. Please check isin.yml configuration.");
-            return Collections.emptyList();
+        MDC.put("service", "isin-service");
+        MDC.put("operation", "find-distinct");
+        try {
+            List<String> isins = isinConfig.list();
+            if (isins == null || isins.isEmpty()) {
+                log.warn("No ISINs found in configuration. Please check isin.yml configuration.");
+                return Collections.emptyList();
+            }
+            log.info("Retrieved {} distinct ISINs", isins.size());
+            log.debug("Found {} ISINs in configuration", isins.size());
+            return isins;
+        } finally {
+            MDC.remove("service");
+            MDC.remove("operation");
         }
-        log.debug("Found {} ISINs in configuration", isins.size());
-        return isins;
     }
 }

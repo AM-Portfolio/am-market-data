@@ -1,12 +1,5 @@
 version: '3.8'
 
-# Infrastructure services for Market Data Service
-# Required Environment Variables:
-# - Database: POSTGRES_USERNAME, POSTGRES_PASSWORD, POSTGRES_DATABASE
-# - InfluxDB: INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN
-# - Metrics: MARKET_DATA_MAX_RETRIES
-# - Optional: GRAFANA_ADMIN_USER, GRAFANA_ADMIN_PASSWORD
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -115,57 +108,9 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
 
-  grafana:
-    image: grafana/grafana:latest
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      # Enable Prometheus and InfluxDB
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,grafana-influxdb-datasource
-      # Auto-configure datasources
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      # Add provisioning configuration
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - influxdb
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: ${MARKET_DATA_MAX_RETRIES}
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9091:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    depends_on:
-      - kafka
-      - influxdb
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: ${MARKET_DATA_MAX_RETRIES}
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   influxdb_data:
   kafka_data:
   zookeeper_data:
   zookeeper_log:
-  grafana_data:
-  prometheus_data:

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="app.name" source="spring.application.name"/>
+
+    <!-- Loki Appender -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>https://logs-prod-ap-south-1.grafana.net/loki/api/v1/push</url>
+            <auth>
+                <username>1109403</username>
+                <password>XXXXXXXX</password>
+            </auth>
+        </http>
+        <format>
+            <label>
+                <pattern>app=${app.name},host=${HOSTNAME},level=%level,logger=%logger{36}</pattern>
+            </label>
+            <message>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - scheduler=%X{scheduler:-none} execution_time=%X{execution_time:-none} - %msg%n</pattern>
+            </message>
+            <sortByTime>true</sortByTime>
+        </format>
+    </appender>
+
+    <!-- Loki4j Debug Logging -->
+    <logger name="com.github.loki4j" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- Stock Data Scheduler -->
+    <logger name="com.am.marketdata.scheduler.StockDataSchedulerService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- Cookie Scheduler -->
+    <logger name="com.am.marketdata.scheduler.CookieSchedulerService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- ISIN Service -->
+    <logger name="com.am.marketdata.service.ISINService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- Market Hours Check -->
+    <logger name="com.am.marketdata.util.MarketHoursUtil" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </root>
+
+</configuration>

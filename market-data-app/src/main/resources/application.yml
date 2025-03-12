@@ -11,8 +11,8 @@ INFLUXDB_BUCKET: market_data
 INFLUXDB_URL: http://localhost:8087
 
 # Grafana Configuration
-GRAFANA_ADMIN_USER: admin
-GRAFANA_ADMIN_PASSWORD: your_grafana_password
+GRAFANA_ADMIN_USER: 1109403
+GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
 # Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS: localhost:9092
@@ -44,16 +44,34 @@ server:
   port: 8084
 
 spring:
-  influx:
-    url: ${INFLUXDB_URL}
-    token: ${INFLUXDB_TOKEN}
-    org: ${INFLUXDB_ORG}
-    bucket: ${INFLUXDB_BUCKET}
+  application:
+    name: market-data-service
+  
+  # Database Configuration
   datasource:
     url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
     username: ${POSTGRES_USERNAME}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    
+  # InfluxDB Configuration
+  influx:
+    url: ${INFLUXDB_URL}
+    token: ${INFLUXDB_TOKEN}
+    org: ${INFLUXDB_ORG}
+    bucket: ${INFLUXDB_BUCKET}
+    
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
+  
+  config:
+    import:
+      - classpath:isin.yml
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -62,37 +80,32 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      group-id: am-market-data-service
-      auto-offset-reset: earliest
-  config:
-    import:
-      - classpath:isin.yml
 
 app:
   kafka:
     stock-price-topic: ${STOKUPATE_TOPIC_NAME}
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
     nse-etf-topic: ${NSE_ETF_TOPIC_NAME}
+  
   retry:
-    max-attempts: ${market.data.max.retries:3}
-    base-delay-ms: ${market.data.retry.delay.ms:1000}
+    max-attempts: ${MARKET_DATA_MAX_RETRIES}
+    base-delay-ms: ${MARKET_DATA_RETRY_DELAY_MS}
+  
   thread-pool:
-    size: ${market.data.thread.pool.size:5}
-    queue-capacity: ${market.data.thread.queue.capacity:10}
+    size: ${MARKET_DATA_THREAD_POOL_SIZE}
+    queue-capacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY}
+  
   validation:
-    max-age-minutes: ${market.data.max.age.minutes:15}
+    max-age-minutes: ${MARKET_DATA_MAX_AGE_MINUTES}
 
 upstox:
   interval: I1
   auth:
     base-url: https://api.upstox.com/v2
-    code: ${UPSTOX_CODE:SeG3X0}
-    api-key: ${UPSTOX_API_KEY:48d1e335-09ad-4dc0-b955-4505c350d10b}
-    secret-key: ${UPSTOX_SECRET_KEY:jqre481zf0}
-    access-token: ${UPSTOX_ACCESS_TOKEN:your-default-token}
+    code: ${UPSTOX_CODE}
+    api-key: ${UPSTOX_API_KEY}
+    secret-key: ${UPSTOX_SECRET_KEY}
+    access-token: ${UPSTOX_ACCESS_TOKEN}
     redirect-uri: http://localhost:8080
     authorization-url: https://api-v2.upstox.com/login/authorization/dialog
     token-url: https://api-v2.upstox.com/login/authorization/token
@@ -103,7 +116,11 @@ scraper:
   urls:
     - https://www.nseindia.com/
 
-# logging:
-#   level:
-#     root: DEBUG
-#     com.am.common.investment: INFO
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata.scheduler]': INFO
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

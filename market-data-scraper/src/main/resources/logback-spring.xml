@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="app.name" source="spring.application.name"/>
+
+    <!-- Loki Appender -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>https://logs-prod-028.grafana.net/loki/api/v1/push</url>
+            <auth>
+                <username>1109403</username>
+                <password>glc_eyJvIjoiMTMzMDczMiIsIm4iOiJzdGFjay0xMTUxNjA0LWhsLXJlYWQtbG9jYWx0ZXN0aW5nIiwiayI6IjU0cFg0MTkzNFRPSHE1cDJwOVlURG1SaCIsIm0iOnsiciI6InByb2QtYXAtc291dGgtMSJ9fQ</password>
+            </auth>
+        </http>
+        <format>
+            <label>
+                <pattern>app=${app.name},host=${HOSTNAME},level=%level,logger=%logger{36}</pattern>
+            </label>
+            <message>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - scheduler=%X{scheduler:-none} execution_time=%X{execution_time:-none} - %msg%n</pattern>
+            </message>
+            <sortByTime>true</sortByTime>
+        </format>
+    </appender>
+
+    <!-- Loki4j Debug Logging -->
+    <logger name="com.github.loki4j" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- Cookie Scheduler -->
+    <logger name="com.am.marketdata.scraper.service.CookieSchedulerService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- Market Data Processing -->
+    <logger name="com.am.marketdata.scraper.service.MarketDataProcessingService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <!-- NSE API Client -->
+    <logger name="com.am.marketdata.scraper.client.NSEApiClient" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </root>
+
+</configuration>

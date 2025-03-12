@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
@@ -30,18 +31,26 @@ public class StockDataSchedulerService {
     @Scheduled(cron = "5 */2 * * * *")  // Runs at 5 seconds past every 2 minutes
     @Transactional
     public void fetchAndPersistStockData() {
-        if (!isWithinTradingHours()) {
-            log.debug("Outside trading hours, skipping stock data processing");
-            return;
-        }
-
-        log.info("=== Starting scheduled stock data fetch and persist job ===");
+        MDC.put("scheduler", "stock-data");
+        MDC.put("execution_time", LocalDateTime.now().toString());
+        
         try {
+            if (!isWithinTradingHours()) {
+                log.info("Outside trading hours (9:15 AM - 3:35 PM IST), skipping stock data fetch");
+                return;
+            }
+
             List<String> isins = isinService.findDistinctIsins();
+            log.info("Starting stock data fetch for {} ISINs at {}", isins.size(), LocalDateTime.now());
+            
             boolean success = equityPriceProcessingService.processEquityPrices(isins);
             log.info("=== Completed scheduled stock data fetch and persist job. Success: {} ===", success);
+            log.info("Completed stock data fetch for {} ISINs", isins.size());
         } catch (Exception e) {
             log.error("Error in stock data scheduler: {}", e.getMessage(), e);
+        } finally {
+            MDC.remove("scheduler");
+            MDC.remove("execution_time");
         }
     }
 

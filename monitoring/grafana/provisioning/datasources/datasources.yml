@@ -1,0 +1,30 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: InfluxDB
+  - name: Prometheus
+  - name: Loki
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://market-data-loki:3100
+    jsonData:
+      maxLines: 1000
+    editable: true
+    isDefault: false  # <-- Ensure Loki is not default
+
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://market-data-influxdb:8086
+    jsonData:
+      version: Flux
+      organization: ${INFLUXDB_ORG}
+      defaultBucket: ${INFLUXDB_BUCKET}
+      tlsSkipVerify: true
+    secureJsonData:
+      token: ${INFLUXDB_TOKEN}
+    isDefault: true  # <-- Only one datasource should be default
+    editable: true
