@@ -1,17 +1,58 @@
-UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2NmYjM2NmQ4MGZiMDM1MDBjZmUyZTEiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQxNjY1MTI2LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDE3MzA0MDB9.g3mIz1jfVCVE1wjcHa6G6kWttFO3FK-ZsOxLPDT7KL0
+# PostgreSQL Configuration
+POSTGRES_PASSWORD: password
+POSTGRES_USERNAME: postgres
+POSTGRES_URL: jdbc:postgresql://localhost:5432
+POSTGRES_DATABASE: portfolio
+
+# InfluxDB Configuration
+INFLUXDB_TOKEN: my-super-secret-auth-token
+INFLUXDB_ORG: am_investment
+INFLUXDB_BUCKET: market_data
+INFLUXDB_URL: http://localhost:8086
+
+# Grafana Configuration
+GRAFANA_ADMIN_USER: admin
+GRAFANA_ADMIN_PASSWORD: your_grafana_password
+
+# Kafka Configuration
+KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+KAFKA_CONSUMER_GROUP_ID: am-market-data-service
+KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
+
+# Application Configuration
+STOKUPATE_TOPIC_NAME: am-stock-price-update
+NSE_INDICES_TOPIC_NAME: nse-indices-update
+NSE_ETF_TOPIC_NAME: nse-etf-update
+
+MARKET_DATA_MAX_RETRIES: 3
+MARKET_DATA_RETRY_DELAY_MS: 1000
+MARKET_DATA_THREAD_POOL_SIZE: 5
+MARKET_DATA_THREAD_QUEUE_CAPACITY: 10
+MARKET_DATA_MAX_AGE_MINUTES: 15
+
+# Upstox Configuration
+UPSTOX_ACCESS_TOKEN: XXXXXXXXXXXXXXXXXXXXXXXXX
+UPSTOX_API_KEY: XXXXXXXXXXXXXXXXXXXXXXXXX
+UPSTOX_SECRET_KEY: XXXXXXXXXXXXXXXXX
+UPSTOX_CODE: XXXXXXXXX 
 
 server:
   port: 8084
+
 spring:
   influx:
-    url: http://localhost:8086
-    token: my-super-secret-auth-token
-    org: am_investment
-    bucket: market_data
+    url: ${INFLUXDB_URL}
+    token: ${INFLUXDB_TOKEN}
+    org: ${INFLUXDB_ORG}
+    bucket: ${INFLUXDB_BUCKET}
   datasource:
-    url: jdbc:postgresql://localhost:5432/portfolio
-    username: postgres
-    password: password
+    url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -22,16 +63,24 @@ spring:
         format_sql: true
     show-sql: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       group-id: am-market-data-service
       auto-offset-reset: earliest
 
 app:
   kafka:
-    topic: am-stock-price-update
-    nse-indices-topic: nse-indices-update
-    nse-etf-topic: nse-etf-update
+    stock-price-topic: ${STOKUPATE_TOPIC_NAME}
+    nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
+    nse-etf-topic: ${NSE_ETF_TOPIC_NAME}
+  retry:
+    max-attempts: ${market.data.max.retries:3}
+    base-delay-ms: ${market.data.retry.delay.ms:1000}
+  thread-pool:
+    size: ${market.data.thread.pool.size:5}
+    queue-capacity: ${market.data.thread.queue.capacity:10}
+  validation:
+    max-age-minutes: ${market.data.max.age.minutes:15}
 
 upstox:
   interval: I1
@@ -47,12 +96,9 @@ upstox:
     token-refresh-interval: 3600000
     scope: orders feed portfolio
 
-
-
 scraper:
   urls:
     - https://www.nseindia.com/
-
 
 # logging:
 #   level:

@@ -22,8 +22,8 @@ public class KafkaProducerService {
     private final BaseKafkaProducer<ETFIndicesPriceUpdateEvent> etfProducer;
     private final BaseKafkaProducer<MarketIndexIndicesPriceUpdateEvent> indicesProducer;
 
-    @Value("${app.kafka.topic}")
-    private String topic;
+    @Value("${app.kafka.stock-price-topic}")
+    private String stockPriceTopic;
 
     @Value("${app.kafka.nse-etf-topic}")
     private String nseEtfTopic;
@@ -44,7 +44,7 @@ public class KafkaProducerService {
             .equityPrices(equityPrices)
             .build();
         
-        equityProducer.sendEvent(event, topic, event.getEventType(), event.getTimestamp());
+        equityProducer.sendEvent(event, stockPriceTopic, event.getEventType(), event.getTimestamp());
     }
 
     public void sendETFUpdate(List<ETFIndies> etfIndies) {

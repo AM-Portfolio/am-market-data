@@ -23,7 +23,7 @@
          <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-model</artifactId>
-            <version>1.5.1-SNAPSHOT</version>
+            <version>${investment-model.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.kafka</groupId>
