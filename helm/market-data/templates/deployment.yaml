@@ -1,52 +1,63 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "market-data.fullname" . }}
+  name: {{ include "am-market-data.fullname" . }}
   labels:
-    {{- include "market-data.labels" . | nindent 4 }}
+    {{- include "am-market-data.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
   selector:
     matchLabels:
-      {{- include "market-data.selectorLabels" . | nindent 6 }}
+      {{- include "am-market-data.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
         # Prometheus annotations for metrics collection
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/actuator/prometheus"
-        prometheus.io/port: "8084"
-        # Add checksum annotations to force pod restart on config changes
+        prometheus.io/scrape: "{{ .Values.monitoring.prometheus.scrape }}"
+        prometheus.io/path: "{{ .Values.monitoring.prometheus.path }}"
+        prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
+        # Add checksum annotations for config changes
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
-        checksum/secrets: {{ include (print $.Template.BasePath "/vault-secrets.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "market-data.selectorLabels" . | nindent 8 }}
+        {{- include "am-market-data.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "market-data.serviceAccountName" . }}
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Load all environment variables from ConfigMap and Secrets
+          # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
-                name: {{ include "market-data.fullname" . }}-config
-            - secretRef:
-                name: {{ include "market-data.fullname" . }}-secrets
+                name: {{ include "am-market-data.fullname" . }}-config
+          env:
+            # Thread Pool Configuration (from memory)
+            - name: MARKET_DATA_THREAD_POOL_SIZE
+              value: "{{ .Values.config.marketData.threadPoolSize }}"
+            - name: MARKET_DATA_THREAD_QUEUE_CAPACITY
+              value: "{{ .Values.config.marketData.threadQueueCapacity }}"
+            # Retry Configuration (from memory)
+            - name: MARKET_DATA_MAX_RETRIES
+              value: "{{ .Values.config.marketData.maxRetries }}"
+            - name: MARKET_DATA_RETRY_DELAY_MS
+              value: "{{ .Values.config.marketData.retryDelayMs }}"
+            # Data Validation (from memory)
+            - name: MARKET_DATA_MAX_AGE_MINUTES
+              value: "{{ .Values.config.marketData.maxAgeMinutes }}"
+            # Metrics Configuration (from memory)
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,metrics,prometheus"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+              value: "always"
+            - name: MANAGEMENT_METRICS_TAGS_APPLICATION
+              value: "market-data-{{ .Values.environment }}"
           ports:
             - name: http
               containerPort: 8084
               protocol: TCP
-          # Health checks based on our memory about metrics and monitoring
+          # Health checks with retry-based thresholds
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -66,28 +77,3 @@ spec:
           # Resource limits from values file
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          # Volume mounts for any additional configurations
-          volumeMounts:
-            {{- if .Values.vault.enabled }}
-            - name: vault-token
-              mountPath: /vault/token
-              readOnly: true
-            {{- end }}
-      {{- if .Values.vault.enabled }}
-      volumes:
-        - name: vault-token
-          secret:
-            secretName: vault-token
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
