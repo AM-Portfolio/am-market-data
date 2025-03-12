@@ -1,14 +1,14 @@
 # PostgreSQL Configuration
 POSTGRES_PASSWORD: password
 POSTGRES_USERNAME: postgres
-POSTGRES_URL: jdbc:postgresql://localhost:5432
+POSTGRES_URL: jdbc:postgresql://localhost:5456
 POSTGRES_DATABASE: portfolio
 
 # InfluxDB Configuration
 INFLUXDB_TOKEN: my-super-secret-auth-token
 INFLUXDB_ORG: am_investment
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://localhost:8086
+INFLUXDB_URL: http://localhost:8087
 
 # Grafana Configuration
 GRAFANA_ADMIN_USER: admin
@@ -67,6 +67,9 @@ spring:
     consumer:
       group-id: am-market-data-service
       auto-offset-reset: earliest
+  config:
+    import:
+      - classpath:isin.yml
 
 app:
   kafka:

@@ -41,7 +41,7 @@ public class CookieSchedulerService {
     }
 
     // Run every hour for cookie refresh
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "10 0 * * * *")  // Runs at 10 seconds past every hour
     public void scheduledCookieRefresh() {
         try {
             log.info("Starting scheduled cookie refresh");
@@ -60,16 +60,16 @@ public class CookieSchedulerService {
     }
 
     // Run every 2 minutes between 9:15 AM and 3:35 PM IST on weekdays
-    @Scheduled(cron = "0 */2 9-15 * * MON-FRI", zone = "Asia/Kolkata")
+    @Scheduled(cron = "15 */2 9-15 * * MON-FRI", zone = "Asia/Kolkata")  // Runs at 15 seconds past every 2 minutes
     public void scheduleMarketDataProcessing() {
         try {
             // Only process between 9:15 AM and 3:35 PM
-            if (isWithinTradingHours()) {
-                log.info("Starting scheduled market data processing");
-                marketDataProcessingService.fetchAndProcessMarketData();
-            } else {
+            if (!isWithinTradingHours()) {
                 log.debug("Outside trading hours, skipping market data processing");
+                return;
             }
+            log.info("Starting scheduled market data processing");
+            marketDataProcessingService.fetchAndProcessMarketData();
         } catch (Exception e) {
             log.error("Failed to process market data: {}", e.getMessage(), e);
         }

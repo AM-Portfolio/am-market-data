@@ -58,7 +58,7 @@ public class UpStockClient {
 
             HttpResponse<T> response = request.asObject(responseType);
             log.info("Request successful. Status: {}", response.getStatus());
-            logResponse(response);
+            //logResponse(response);
             return response.getBody();
         } catch (Exception e) {
             log.error("Failed to execute GET request. URL: {}, Error: {}", url, e.getMessage(), e);

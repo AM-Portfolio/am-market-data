@@ -120,7 +120,7 @@ public class NSEApiClient {
                 throw new NSEApiException(endpoint, response.getStatusCode(), "null", "Empty response from NSE API");
             }
 
-            logApiResponse(endpoint, response, responseLogger);
+            //logApiResponse(endpoint, response, responseLogger);
             return response.getBody();
 
         } catch (HttpClientErrorException.Unauthorized e) {
