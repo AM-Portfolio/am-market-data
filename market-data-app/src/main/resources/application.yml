@@ -35,10 +35,10 @@ MARKET_DATA_THREAD_QUEUE_CAPACITY: 10
 MARKET_DATA_MAX_AGE_MINUTES: 15
 
 # Upstox Configuration
-UPSTOX_ACCESS_TOKEN: XXXXXXXXXXXXXXXXXXXXXXXXX
-UPSTOX_API_KEY: XXXXXXXXXXXXXXXXXXXXXXXXX
-UPSTOX_SECRET_KEY: XXXXXXXXXXXXXXXXX
-UPSTOX_CODE: XXXXXXXXX 
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2RiNDUwZjNkZGQ3YTZhM2Q0MDdmMmEiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQyNDIzMzExLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDI1MDgwMDB9.trE87ksuZgTY_Isx9bYAxECeStUVgGtWxVNzjtcp0Mk
+UPSTOX_API_KEY: 48d1e335-09ad-4dc0-b955-4505c350d10b
+UPSTOX_SECRET_KEY: jqre481zf0
+UPSTOX_CODE: rNLu2Q 
 
 server:
   port: 8084
@@ -87,6 +87,64 @@ app:
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
     nse-etf-topic: ${NSE_ETF_TOPIC_NAME}
   
+  scheduler:
+    # Trading hours configuration (from StockDataSchedulerService)
+    trading:
+      start-time: "00:00"
+      end-time: "23:59"
+      timezone: "Asia/Kolkata"
+      days: "MON-FRI"
+    
+    # CookieSchedulerService schedules
+    cookie:
+      refresh: "0 */30 * * * *"  # Cookie refresh every 30 minutes
+      retry: "0 */5 * * * *"     # Retry failed cookie refresh every 5 minutes
+    
+    # MarketDataProcessingService schedules
+    market-data:
+      # Thread pool configuration from memory
+      thread-pool:
+        size: ${MARKET_DATA_THREAD_POOL_SIZE}         # Default: 5
+        queue-capacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY} # Default: 10
+        prefix: "market-data-"
+      
+      # Stock data processing (from StockDataSchedulerService)
+      stock:
+        fetch: "5 */2 * * * *"           # Runs at 5 seconds past every 2 minutes
+        validate: "0 */15 * * * *"       # Validate every 15 minutes (max age check)
+      
+      # ETF data processing (with retry mechanism)
+      etf:
+        fetch: "0 */5 * * * *"          # Every 5 minutes, trading hours check in service
+        validate: "0 */15 * * * *"      # 15min freshness validation
+        retry:
+          max-attempts: ${MARKET_DATA_MAX_RETRIES}    # Default: 3
+          delay-ms: ${MARKET_DATA_RETRY_DELAY_MS}     # Default: 1000ms
+      
+      # Indices data processing
+      indices:
+        fetch: "0 */2 * * * *"          # Every 2 minutes, trading hours check in service
+        validate: "0 */15 * * * *"      # Data integrity check
+    
+    # Retry mechanism schedules (3 retries, 1000ms delay)
+    retry:
+      failed-operations: "0 */1 * * * *"  # Check and retry failed operations
+      cleanup: "0 0 * * * *"             # Clean up retry history hourly
+    
+    # Data management
+    data:
+      cleanup: "0 0 18 * * *"            # Daily cleanup at 6 PM
+      refresh: "0 0 7 * * MON-FRI"       # Refresh at 7 AM weekdays
+    
+    # Metrics collection (for Micrometer)
+    metrics:
+      performance: "0 */1 * * * *"        # Collect performance metrics
+      health: "0 */1 * * * *"            # Health checks
+      counters: "0 */5 * * * *"          # Update success/failure counters
+    
+    # Health check schedule (every minute)
+    health-check: "0 */1 * * * *"
+  
   retry:
     max-attempts: ${MARKET_DATA_MAX_RETRIES}
     base-delay-ms: ${MARKET_DATA_RETRY_DELAY_MS}
@@ -94,6 +152,7 @@ app:
   thread-pool:
     size: ${MARKET_DATA_THREAD_POOL_SIZE}
     queue-capacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY}
+    prefix: "market-data-"
   
   validation:
     max-age-minutes: ${MARKET_DATA_MAX_AGE_MINUTES}
@@ -112,6 +171,8 @@ upstox:
     token-refresh-interval: 3600000
     scope: orders feed portfolio
 
+stock-data-scheduler: false
+nse-scraper-scheduler: true
 scraper:
   urls:
     - https://www.nseindia.com/
@@ -120,7 +181,8 @@ scraper:
 logging:
   level:
     root: INFO
+    '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': INFO
-
+    '[com.am.marketdata.service]': INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'

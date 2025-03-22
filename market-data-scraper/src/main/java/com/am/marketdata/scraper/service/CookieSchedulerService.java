@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(value="nse-scraper-scheduler", havingValue ="true", matchIfMissing = true)
 public class CookieSchedulerService {
     private final NSEApiClient nseApiClient;
     private final CookieCacheService cacheService;
@@ -39,7 +41,7 @@ public class CookieSchedulerService {
     }
 
     // Run every hour for cookie refresh at 10 seconds past the hour
-    @Scheduled(cron = "10 0 * * * *")
+    @Scheduled(cron = "${app.scheduler.cookie.refresh}")
     public void scheduledCookieRefresh() {
         MDC.put("scheduler", "cookie-refresh");
         MDC.put("execution_time", LocalDateTime.now().toString());
@@ -55,7 +57,7 @@ public class CookieSchedulerService {
     }
 
     // Run every 2 minutes continuously, 24/7, at 15 seconds past
-    @Scheduled(cron = "15 */2 * * * *")
+    @Scheduled(cron = "${app.scheduler.market-data.indices.fetch}")
     public void scheduleMarketDataProcessing() {
         MDC.put("scheduler", "market-data");
         MDC.put("execution_time", LocalDateTime.now().toString());

@@ -10,7 +10,8 @@ data:
   TZ: Asia/Kolkata
 
   # Database Configuration
-  POSTGRES_URL: jdbc:postgresql://{{ .Values.postgresql.fullname }}:{{ .Values.postgresql.primary.service.port }}/{{ .Values.postgresql.auth.database }}
+  POSTGRES_URL: jdbc:postgresql://{{ .Values.postgresql.fullname }}:{{ .Values.postgresql.primary.service.port }}
+  POSTGRES_DATABASE: {{ .Values.postgresql.auth.database }}
   POSTGRES_USERNAME: {{ .Values.postgresql.auth.username }}
   POSTGRES_PASSWORD: {{ .Values.postgresql.auth.password }}
 

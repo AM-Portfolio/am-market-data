@@ -5,6 +5,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
@@ -16,9 +18,19 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(value="stock-data-scheduer", havingValue ="true", matchIfMissing = true)
 public class StockDataSchedulerService {
     private final ISINService isinService;
     private final EquityPriceProcessingService equityPriceProcessingService;
+
+    @Value("${app.scheduler.trading.start-time}")
+    private String startTime;
+
+    @Value("${app.scheduler.trading.end-time}")
+    private String endTime;
+
+    @Value("${app.scheduler.trading.timezone}")
+    private String timeZone;
 
     @PostConstruct
     public void initialize() {
@@ -27,8 +39,8 @@ public class StockDataSchedulerService {
             fetchAndPersistStockData();
         }
     }
-
-    @Scheduled(cron = "5 */2 * * * *")  // Runs at 5 seconds past every 2 minutes
+    
+    @Scheduled(cron = "${app.scheduler.market-data.stock.fetch}")  // Runs at 5 seconds past every 2 minutes
     @Transactional
     public void fetchAndPersistStockData() {
         MDC.put("scheduler", "stock-data");
@@ -55,7 +67,7 @@ public class StockDataSchedulerService {
     }
 
     private boolean isWithinTradingHours() {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(timeZone));
         DayOfWeek day = now.getDayOfWeek();
         
         // Only run on weekdays (Monday to Friday)
@@ -64,8 +76,8 @@ public class StockDataSchedulerService {
         }
 
         LocalTime time = now.toLocalTime();
-        LocalTime marketOpen = LocalTime.of(9, 15);  // 9:15 AM IST
-        LocalTime marketClose = LocalTime.of(15, 35); // 3:35 PM IST
+        LocalTime marketOpen = LocalTime.parse(startTime);  // 9:15 AM IST
+        LocalTime marketClose = LocalTime.parse(endTime); // 3:35 PM IST
 
         return !time.isBefore(marketOpen) && !time.isAfter(marketClose);
     }
