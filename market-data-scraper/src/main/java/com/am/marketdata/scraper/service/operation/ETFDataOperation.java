@@ -12,6 +12,8 @@ import com.am.marketdata.scraper.service.common.DataValidator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +29,7 @@ public class ETFDataOperation extends AbstractMarketDataOperation<NseETFResponse
     
     private final NSEApi nseApi;
     private final KafkaProducerService kafkaProducer;
+    @Qualifier("etfProcessingTimer")
     private final Timer fetchTimer;
     
     @Value("${market.data.max.retries:3}")
@@ -37,8 +40,8 @@ public class ETFDataOperation extends AbstractMarketDataOperation<NseETFResponse
     
     public ETFDataOperation(
             DataFetcher dataFetcher,
-            DataValidator<NseETFResponse> validator,
-            DataProcessor<NseETFResponse, List<ETFIndies>> processor,
+            @Qualifier("etfDataValidator") DataValidator<NseETFResponse> validator,
+            @Qualifier("etfDataProcessor") DataProcessor<NseETFResponse, List<ETFIndies>> processor,
             MeterRegistry meterRegistry,
             Executor executor,
             NSEApi nseApi,

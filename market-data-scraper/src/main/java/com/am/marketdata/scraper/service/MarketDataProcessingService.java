@@ -1,11 +1,9 @@
 package com.am.marketdata.scraper.service;
 
-import com.am.marketdata.common.model.NSEStockInsidicesData;
 import com.am.marketdata.scraper.exception.MarketDataException;
 import com.am.marketdata.scraper.service.operation.ETFDataOperation;
 import com.am.marketdata.scraper.service.operation.IndicesDataOperation;
 import com.am.marketdata.scraper.service.operation.StockIndicesDataOperation;
-import com.am.marketdata.scraper.service.validator.StockIndicesValidator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -47,6 +47,9 @@ spring:
   application:
     name: market-data-service
   
+  main:
+    allow-bean-definition-overriding: true
+    
   # Database Configuration
   datasource:
     url: ${POSTGRES_URL}/${POSTGRES_DATABASE}

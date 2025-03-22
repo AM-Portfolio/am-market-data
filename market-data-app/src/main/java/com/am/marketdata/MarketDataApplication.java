@@ -20,6 +20,7 @@ import com.am.marketdata.config.ISINConfig;
     @ComponentScan("com.am.marketdata.service"),
     @ComponentScan("com.am.marketdata.kafka"),
     @ComponentScan("com.am.marketdata.api"),
+    @ComponentScan("com.am.marketdata.client"),
     @ComponentScan("com.am.marketdata.common"),
     @ComponentScan("com.am.marketdata.config"),
     @ComponentScan("com.am.marketdata.repository"),
@@ -30,6 +31,7 @@ import com.am.marketdata.config.ISINConfig;
     @ComponentScan("com.am.common.amcommondata.service"),
     @ComponentScan("com.am.common.amcommondata.domain"),
     @ComponentScan("com.am.common.amcommondata.domain.asset"),
+    @ComponentScan("com.am.marketdata.scraper.client.config")
 })
 @EnableJpaRepositories(
     basePackages = {

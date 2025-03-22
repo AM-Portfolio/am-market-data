@@ -5,7 +5,6 @@ import com.am.marketdata.scraper.service.common.DataValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -15,7 +14,6 @@ import java.time.format.DateTimeFormatter;
  * Validator for NSE ETF data
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class ETFDataValidator implements DataValidator<NseETFResponse> {
     

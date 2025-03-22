@@ -9,7 +9,7 @@ import java.time.Duration;
 @Configuration
 public class WebClientConfig {
     
-    @Bean(name = "nseApiRestTemplate")
+    @Bean(name = "nseRestTemplate")
     public RestTemplate nseApiRestTemplate(RestTemplateBuilder builder) {
         return builder
             .setConnectTimeout(Duration.ofSeconds(10))

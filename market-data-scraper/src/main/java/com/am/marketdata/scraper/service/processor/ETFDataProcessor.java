@@ -10,6 +10,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,22 +19,13 @@ import java.util.List;
  * Processor for NSE ETF data
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class ETFDataProcessor implements DataProcessor<NseETFResponse, List<ETFIndies>> {
     
     private final KafkaProducerService kafkaProducer;
     private final MeterRegistry meterRegistry;
+    @Qualifier("etfProcessingTimer")
     private final Timer processTimer;
-    
-    public ETFDataProcessor(KafkaProducerService kafkaProducer, MeterRegistry meterRegistry) {
-        this.kafkaProducer = kafkaProducer;
-        this.meterRegistry = meterRegistry;
-        this.processTimer = Timer.builder("market.data.process.time")
-            .tag("data.type", getDataTypeName())
-            .description("Time taken to process ETF data")
-            .register(meterRegistry);
-    }
     
     @Override
     public List<ETFIndies> process(NseETFResponse data) throws MarketDataException {
@@ -56,7 +48,7 @@ public class ETFDataProcessor implements DataProcessor<NseETFResponse, List<ETFI
             return etfIndies;
         } catch (Exception e) {
             log.error("Failed to process ETF data", e);
-            throw new MarketDataException("Error processing ETF data", e);
+            throw new MarketDataException("Failed to process ETF data", e);
         }
     }
     

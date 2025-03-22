@@ -9,11 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Generic data fetcher with retry capabilities
  */
 @Slf4j
 @RequiredArgsConstructor
+@Component
 public class DataFetcher {
     
     private final MeterRegistry meterRegistry;

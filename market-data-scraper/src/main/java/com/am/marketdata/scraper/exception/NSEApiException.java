@@ -33,14 +33,11 @@ public class NSEApiException extends MarketDataException {
         return responseBody;
     }
 
-    /**
-     * Get the error type based on the status code.
-     * @return The error type as a string
-     */
     public String getErrorType() {
         if (statusCode == null) {
-            return "unexpected_error";
+            return "unknown";
         }
+        
         int status = statusCode.value();
         if (status == 401) {
             return "unauthorized";
@@ -48,7 +45,8 @@ public class NSEApiException extends MarketDataException {
             return "client_error";
         } else if (status >= 500) {
             return "server_error";
+        } else {
+            return "network_error";
         }
-        return "unexpected_error";
     }
 }

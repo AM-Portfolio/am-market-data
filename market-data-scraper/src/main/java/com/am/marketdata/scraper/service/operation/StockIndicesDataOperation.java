@@ -12,6 +12,8 @@ import com.am.marketdata.scraper.service.common.DataValidator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +29,7 @@ public class StockIndicesDataOperation extends AbstractMarketDataOperation<NSESt
     
     private final NSEApi nseApi;
     private final KafkaProducerService kafkaProducer;
+    @Qualifier("stockIndicesProcessingTimer")
     private final Timer fetchTimer;
     private NSEStockInsidicesData lastFetchedData;
     
@@ -38,16 +41,16 @@ public class StockIndicesDataOperation extends AbstractMarketDataOperation<NSESt
     
     public StockIndicesDataOperation(
             DataFetcher dataFetcher,
-            DataValidator<NSEStockInsidicesData> validator,
-            DataProcessor<NSEStockInsidicesData, List<StockInsidicesData>> processor,
+            DataValidator<NSEStockInsidicesData> stockIndicesDataValidator,
+            DataProcessor<NSEStockInsidicesData, List<StockInsidicesData>> stockIndicesDataProcessor,
             MeterRegistry meterRegistry,
             Executor executor,
             NSEApi nseApi,
             KafkaProducerService kafkaProducer) {
-        super(dataFetcher, validator, processor, meterRegistry, executor);
+        super(dataFetcher, stockIndicesDataValidator, stockIndicesDataProcessor, meterRegistry, executor);
         this.nseApi = nseApi;
         this.kafkaProducer = kafkaProducer;
-        this.fetchTimer = Timer.builder("market.data.fetch.time")
+        this.fetchTimer = Timer.builder("stock-indices.fetch.time")
             .tag("data.type", getDataTypeName())
             .description("Time taken to fetch stock indices data")
             .register(meterRegistry);

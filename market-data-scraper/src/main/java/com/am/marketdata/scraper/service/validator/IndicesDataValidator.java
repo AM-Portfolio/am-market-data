@@ -3,13 +3,11 @@ package com.am.marketdata.scraper.service.validator;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.scraper.service.common.DataValidator;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * Validator for NSE indices data
  */
 @Slf4j
-@Component
 public class IndicesDataValidator implements DataValidator<NSEIndicesResponse> {
     
     @Override

@@ -8,31 +8,35 @@ import com.am.marketdata.scraper.mapper.StockIndicesMapper;
 import com.am.marketdata.scraper.service.common.DataProcessor;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Processor for NSE Stock Indices data
  * Transforms raw NSE stock indices data into domain model and publishes to Kafka
  */
 @Slf4j
-@Component
-public class StockIndicesProcessor implements DataProcessor<NSEStockInsidicesData, StockInsidicesData> {
+@RequiredArgsConstructor
+public class StockIndicesProcessor implements DataProcessor<NSEStockInsidicesData, List<StockInsidicesData>> {
     
     private final KafkaProducerService kafkaProducer;
+    private final MeterRegistry meterRegistry;
+    @Qualifier("stockIndicesProcessingTimer")
     private final Timer processTimer;
     
-    public StockIndicesProcessor(KafkaProducerService kafkaProducer, MeterRegistry meterRegistry) {
-        this.kafkaProducer = kafkaProducer;
-        this.processTimer = meterRegistry.timer("stock_indices.process.time");
-    }
-    
     @Override
-    public StockInsidicesData process(NSEStockInsidicesData data) throws MarketDataException {
+    public List<StockInsidicesData> process(NSEStockInsidicesData data) throws MarketDataException {
         if (data == null || data.getData() == null) {
             log.warn("Received null or empty stock indices response");
             throw new MarketDataException("Null or empty stock indices data");
         }
+
+        log.info("Processing {} stock indices", data.getData().size());
 
         try {
             // Convert NSE stock indices data to domain model
@@ -54,7 +58,7 @@ public class StockIndicesProcessor implements DataProcessor<NSEStockInsidicesDat
             }
             
             log.info("Successfully published stock indices data to Kafka");
-            return stockIndices;
+            return Collections.singletonList(stockIndices);
         } catch (Exception e) {
             log.error("Error processing stock indices data for index: {}", data.getName(), e);
             throw new MarketDataException("Failed to process stock indices data", e);

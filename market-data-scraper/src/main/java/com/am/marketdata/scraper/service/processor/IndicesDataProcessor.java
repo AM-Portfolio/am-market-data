@@ -10,6 +10,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,26 +19,18 @@ import java.util.List;
  * Processor for NSE indices data
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class IndicesDataProcessor implements DataProcessor<NSEIndicesResponse, List<MarketIndexIndices>> {
     
     private final MarketIndexIndicesService indexIndicesService;
     private final MeterRegistry meterRegistry;
+    @Qualifier("indicesProcessingTimer")
     private final Timer processTimer;
-    
-    public IndicesDataProcessor(MarketIndexIndicesService indexIndicesService, MeterRegistry meterRegistry) {
-        this.indexIndicesService = indexIndicesService;
-        this.meterRegistry = meterRegistry;
-        this.processTimer = Timer.builder("market.data.process.time")
-            .tag("data.type", getDataTypeName())
-            .description("Time taken to process indices data")
-            .register(meterRegistry);
-    }
     
     @Override
     public List<MarketIndexIndices> process(NSEIndicesResponse data) throws MarketDataException {
         log.info("Processing indices data...");
+        Timer.Sample sample = Timer.start();
         try {
             List<MarketIndexIndices> indices = NSEMarketIndexIndicesMapper.convertToMarketIndexIndices(data.getData());
             
@@ -49,8 +42,10 @@ public class IndicesDataProcessor implements DataProcessor<NSEIndicesResponse, L
             log.info("Successfully processed {} indices", indices.size());
             return indices;
         } catch (Exception e) {
-            log.error("Error processing indices data: {}", e.getMessage(), e);
+            log.error("Failed to process indices data", e);
             throw new MarketDataException("Failed to process indices data", e);
+        } finally {
+            sample.stop(processTimer);
         }
     }
     

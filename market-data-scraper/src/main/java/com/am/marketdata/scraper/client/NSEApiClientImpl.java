@@ -10,10 +10,16 @@ import com.am.marketdata.scraper.client.handler.IndicesRequestHandler;
 import com.am.marketdata.scraper.client.handler.StockIndicesRequestHandler;
 import com.am.marketdata.scraper.exception.NSEApiException;
 import com.am.marketdata.scraper.service.cookie.CookieCacheService;
+import com.am.marketdata.scraper.service.cookie.CookieScraperService;
+import com.am.marketdata.scraper.model.WebsiteCookies;
+import com.am.marketdata.scraper.model.CookieInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -23,206 +29,132 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Implementation of NSE API client
- * Uses Strategy Pattern for different request types and Template Method Pattern for request execution
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class NSEApiClientImpl implements NSEApi {
 
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36";
-    private static final String METRIC_PREFIX = "nse.api.";
-    private static final String METRIC_ERROR_COUNT = METRIC_PREFIX + "error.count";
-    private static final String TAG_ENDPOINT = "endpoint";
-    private static final String TAG_ERROR_TYPE = "error_type";
-    private static final String COOKIE_ENDPOINT = "cookie";
+    private static final String ETF_ENDPOINT = "/api/etf";
+    private static final String INDICES_ENDPOINT = "/api/allIndices";
+    private static final String STOCK_INDICES_ENDPOINT = "/api/equity-stockIndices";
 
-    @Qualifier("nseApiRestTemplate")
-    private final RestTemplate restTemplate;
-    private final CookieCacheService cookieCacheService;
+    private final RequestExecutor requestExecutor;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
-    
-    // Request handlers
-    private final ETFRequestHandler etfRequestHandler;
-    private final IndicesRequestHandler indicesRequestHandler;
-    private final StockIndicesRequestHandler stockIndicesRequestHandler;
-    
+    private final CookieCacheService cookieCacheService;
+    private final CookieScraperService cookieScraperService;
+
+    @Autowired
+    @Qualifier("nseRestTemplate")
+    private RestTemplate restTemplate;
+
     @Value("${nse.api.base-url:https://www.nseindia.com}")
     private String baseUrl;
 
-    /**
-     * Create a new NSE API client
-     */
-    public NSEApiClientImpl(
-            @Qualifier("nseApiRestTemplate") RestTemplate restTemplate,
-            CookieCacheService cookieCacheService,
-            ObjectMapper objectMapper,
-            MeterRegistry meterRegistry,
-            ETFRequestHandler etfRequestHandler,
-            IndicesRequestHandler indicesRequestHandler,
-            StockIndicesRequestHandler stockIndicesRequestHandler) {
-        this.restTemplate = restTemplate;
-        this.cookieCacheService = cookieCacheService;
-        this.objectMapper = objectMapper;
-        this.meterRegistry = meterRegistry;
-        this.etfRequestHandler = etfRequestHandler;
-        this.indicesRequestHandler = indicesRequestHandler;
-        this.stockIndicesRequestHandler = stockIndicesRequestHandler;
-    }
+    private ETFRequestHandler etfRequestHandler;
+    private IndicesRequestHandler indicesRequestHandler;
+    private StockIndicesRequestHandler stockIndicesRequestHandler;
 
     @PostConstruct
-    public void initialize() {
+    public void init() {
         log.info("Initializing NSE API Client with base URL: {}", baseUrl);
+        
+        etfRequestHandler = new ETFRequestHandler(objectMapper);
+        indicesRequestHandler = new IndicesRequestHandler(objectMapper);
+        stockIndicesRequestHandler = new StockIndicesRequestHandler(objectMapper);
     }
 
     @Override
-    public NseETFResponse getETFs() {
-        return createExecutor().execute(etfRequestHandler);
+    public NseETFResponse getETFs() throws NSEApiException {
+        return requestExecutor.execute(etfRequestHandler);
     }
 
     @Override
-    public NSEStockInsidicesData getStockbyInsidices(String indexSymbol) {
-        return createExecutor().execute(
-            stockIndicesRequestHandler.withIndexSymbol(indexSymbol)
+    public NSEStockInsidicesData getStockbyInsidices(String index) throws NSEApiException {
+        return requestExecutor.execute(
+            stockIndicesRequestHandler.withIndexSymbol(index)
         );
     }
 
     @Override
-    public NSEIndicesResponse getAllIndices() {
-        return createExecutor().execute(indicesRequestHandler);
+    public NSEIndicesResponse getAllIndices() throws NSEApiException {
+        return requestExecutor.execute(indicesRequestHandler);
     }
 
     @Override
-    public HttpHeaders fetchCookies() {
+    public HttpHeaders fetchCookies() throws NSEApiException {
         try {
-            log.info("Fetching cookies from NSE homepage");
-            HttpEntity<String> entity = new HttpEntity<>(createBasicHeaders());
+            // First try to get cookies from cache
+            String cachedCookies = cookieCacheService.getCookies();
             
-            ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl, 
-                HttpMethod.GET, 
-                entity, 
-                String.class
-            );
+            if (cachedCookies != null) {
+                log.info("Found cookies in cache");
+                
+                // Check if cookies are expired
+                HttpHeaders cachedHeaders = new HttpHeaders();
+                cachedHeaders.set(HttpHeaders.COOKIE, cachedCookies);
+                
+                // Try to use cached cookies by making a test request
+                try {
+                    ResponseEntity<String> testResponse = restTemplate.exchange(
+                        baseUrl,
+                        HttpMethod.GET,
+                        new HttpEntity<>(cachedHeaders),
+                        String.class
+                    );
+                    
+                    if (testResponse.getStatusCode().is2xxSuccessful()) {
+                        log.info("Cached cookies are valid");
+                        return cachedHeaders;
+                    }
+                } catch (Exception e) {
+                    log.warn("Cached cookies are invalid, will fetch fresh cookies");
+                }
+            }
             
-            log.info("Received response from NSE homepage - Status: {}", response.getStatusCode());
-            return response.getHeaders();
+            // If no valid cached cookies, fetch fresh cookies using scraper
+            log.info("Fetching fresh cookies from scraper service");
+            WebsiteCookies freshCookies = cookieScraperService.scrapeCookies(baseUrl);
             
+            if (freshCookies != null && freshCookies.getCookies() != null) {
+                // Store fresh cookies in cache
+                String cookiesString = freshCookies.generateCookiesString();
+                cookieCacheService.storeCookies(cookiesString);
+                
+                HttpHeaders headers = new HttpHeaders();
+                headers.set(HttpHeaders.COOKIE, cookiesString);
+                log.info("Successfully fetched and cached fresh cookies");
+                
+                // Log each cookie
+                List<CookieInfo> cookies = freshCookies.getCookies();
+                log.info("Cookie count: {}", cookies.size());
+                cookies.forEach(cookie -> log.info("Cookie: {}={}", cookie.getName(), cookie.getValue()));
+                
+                return headers;
+            } else {
+                throw new NSEApiException("homepage", HttpStatus.INTERNAL_SERVER_ERROR, "", "Failed to fetch fresh cookies", null);
+            }
         } catch (HttpClientErrorException e) {
-            recordError(COOKIE_ENDPOINT, "client_error");
-            log.error("Client error fetching cookies - Status: {}, Body: {}", 
-                e.getStatusCode(), e.getResponseBodyAsString(), e);
-            throw new NSEApiException("/", e.getStatusCode(), e.getResponseBodyAsString(), 
-                "Client error fetching cookies", e);
-                
+            throw new NSEApiException("homepage", e.getStatusCode(), e.getResponseBodyAsString(), "Client error fetching cookies", e);
         } catch (HttpServerErrorException e) {
-            recordError(COOKIE_ENDPOINT, "server_error");
-            log.error("Server error fetching cookies - Status: {}, Body: {}", 
-                e.getStatusCode(), e.getResponseBodyAsString(), e);
-            throw new NSEApiException("/", e.getStatusCode(), e.getResponseBodyAsString(), 
-                "Server error fetching cookies", e);
-                
+            throw new NSEApiException("homepage", e.getStatusCode(), e.getResponseBodyAsString(), "Server error fetching cookies", e);
         } catch (ResourceAccessException e) {
-            recordError(COOKIE_ENDPOINT, "network_error");
-            log.error("Network error fetching cookies: {}", e.getMessage(), e);
-            throw new NSEApiException("/", HttpStatus.SERVICE_UNAVAILABLE, null, 
-                "Network error fetching cookies", e);
-                
+            throw new NSEApiException("homepage", HttpStatus.SERVICE_UNAVAILABLE, "", "Network error fetching cookies", e);
         } catch (Exception e) {
-            recordError(COOKIE_ENDPOINT, "unexpected_error");
-            log.error("Unexpected error fetching cookies: {}", e.getMessage(), e);
-            throw new NSEApiException("/", HttpStatus.INTERNAL_SERVER_ERROR, null, 
-                "Unexpected error fetching cookies", e);
+            throw new NSEApiException("homepage", HttpStatus.INTERNAL_SERVER_ERROR, "", "Error fetching cookies", e);
         }
     }
 
-    /**
-     * Create a request executor with current cookies
-     * 
-     * @return A configured request executor
-     */
-    private RequestExecutor createExecutor() {
-        String cookies = getCookiesOrThrow();
-        HttpHeaders headers = createHttpEntity(cookies).getHeaders();
-        return new RequestExecutor(restTemplate, meterRegistry, baseUrl, headers);
-    }
-
-    /**
-     * Record an error in metrics
-     * 
-     * @param endpoint The endpoint name
-     * @param errorType The error type
-     */
-    private void recordError(String endpoint, String errorType) {
-        meterRegistry.counter(METRIC_ERROR_COUNT,
-            TAG_ENDPOINT, endpoint,
-            TAG_ERROR_TYPE, errorType
-        ).increment();
-    }
-
-    /**
-     * Get cookies from cache or throw exception
-     * 
-     * @return The cookies string
-     * @throws NSEApiException if no cookies are available
-     */
-    private String getCookiesOrThrow() {
-        String cookies = cookieCacheService.getCookies();
-        if (cookies == null || cookies.isEmpty()) {
-            log.error("No cookies available in cache");
-            throw new NSEApiException("/", HttpStatus.UNAUTHORIZED, null, 
-                "No cookies available for NSE API request");
-        }
-        log.debug("Using cookies for request: {}", maskCookieValues(cookies));
-        return cookies;
-    }
-
-    /**
-     * Create basic headers for initial requests
-     * 
-     * @return HTTP headers
-     */
     private HttpHeaders createBasicHeaders() {
         HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.USER_AGENT, USER_AGENT);
         headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+        headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0");
         return headers;
-    }
-
-    /**
-     * Create an HTTP entity with cookies
-     * 
-     * @param cookies The cookies string
-     * @return HTTP entity with headers
-     */
-    private HttpEntity<String> createHttpEntity(String cookies) {
-        HttpHeaders headers = createBasicHeaders();
-        headers.set(HttpHeaders.COOKIE, cookies);
-        return new HttpEntity<>(headers);
-    }
-
-    /**
-     * Mask cookie values for logging
-     * 
-     * @param cookies The cookies string
-     * @return Masked cookies string
-     */
-    private String maskCookieValues(String cookies) {
-        if (cookies == null) return null;
-        // Split cookies and mask values while preserving names
-        return Stream.of(cookies.split(";"))
-            .map(cookie -> {
-                String[] parts = cookie.split("=", 2);
-                return parts.length > 1 
-                    ? parts[0].trim() + "=*****" 
-                    : cookie.trim() + "=*****";
-            })
-            .collect(Collectors.joining("; "));
     }
 }

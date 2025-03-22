@@ -1,9 +1,12 @@
 package com.am.marketdata.scraper.client.handler;
 
+import com.am.marketdata.scraper.exception.NSEApiException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 
 /**
  * Abstract base class for request handlers
@@ -18,9 +21,52 @@ public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
     protected final ObjectMapper objectMapper;
     
     @Override
-    public T processResponse(ResponseEntity<T> response) {
-        // Default implementation just returns the body
-        return response.getBody();
+    public Object getBody() {
+        return null; // Default is no body
+    }
+    
+    @Override
+    public HttpMethod getMethod() {
+        return HttpMethod.GET; // Default is GET
+    }
+    
+    @Override
+    public T processResponse(String response) {
+        try {
+            return objectMapper.readValue(response, getResponseType());
+        } catch (Exception e) {
+            log.error("Failed to parse response for endpoint {}: {}", getEndpoint(), e.getMessage(), e);
+            throw new RuntimeException("Failed to parse response", e);
+        }
+    }
+    
+    @Override
+    public String getErrorType(Exception e) {
+        if (e instanceof NSEApiException) {
+            return ((NSEApiException) e).getErrorType();
+        }
+        return "unexpected_error";
+    }
+    
+    @Override
+    public HttpStatusCode getHttpStatus(Exception e) {
+        if (e instanceof NSEApiException) {
+            return ((NSEApiException) e).getStatusCode();
+        }
+        return HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+    
+    @Override
+    public String getResponseBody(Exception e) {
+        if (e instanceof NSEApiException) {
+            return ((NSEApiException) e).getResponseBody();
+        }
+        return "";
+    }
+    
+    @Override
+    public String getErrorMessage(Exception e) {
+        return e.getMessage();
     }
     
     /**
