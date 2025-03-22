@@ -97,6 +97,7 @@ app:
     
     # CookieSchedulerService schedules
     cookie:
+      enable: true
       refresh: "0 */30 * * * *"  # Cookie refresh every 30 minutes
       retry: "0 */5 * * * *"     # Retry failed cookie refresh every 5 minutes
     
@@ -110,11 +111,13 @@ app:
       
       # Stock data processing (from StockDataSchedulerService)
       stock:
+        enable: false
         fetch: "5 */2 * * * *"           # Runs at 5 seconds past every 2 minutes
         validate: "0 */15 * * * *"       # Validate every 15 minutes (max age check)
       
       # ETF data processing (with retry mechanism)
       etf:
+        enable: false
         fetch: "0 */5 * * * *"          # Every 5 minutes, trading hours check in service
         validate: "0 */15 * * * *"      # 15min freshness validation
         retry:
@@ -123,6 +126,13 @@ app:
       
       # Indices data processing
       indices:
+        enable: false
+        fetch: "0 */2 * * * *"          # Every 2 minutes, trading hours check in service
+        validate: "0 */15 * * * *"      # Data integrity check
+      
+      # NSE Indices data processing
+      nse-indices:
+        enable: true
         fetch: "0 */2 * * * *"          # Every 2 minutes, trading hours check in service
         validate: "0 */15 * * * *"      # Data integrity check
     

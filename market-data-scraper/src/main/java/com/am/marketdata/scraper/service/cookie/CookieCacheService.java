@@ -1,4 +1,4 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.service.cookie;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

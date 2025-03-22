@@ -12,6 +12,8 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.MarketIndexIndices;
 import com.am.common.investment.model.events.ETFIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.MarketIndexIndicesPriceUpdateEvent;
+import com.am.marketdata.common.model.equity.StockInsidicesData;
+import com.am.marketdata.kafka.model.StockIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 
 @Slf4j
@@ -21,6 +23,7 @@ public class KafkaProducerService {
     private final BaseKafkaProducer<EquityPriceUpdateEvent> equityProducer;
     private final BaseKafkaProducer<ETFIndicesPriceUpdateEvent> etfProducer;
     private final BaseKafkaProducer<MarketIndexIndicesPriceUpdateEvent> indicesProducer;
+    private final BaseKafkaProducer<StockIndicesPriceUpdateEvent> stockIndicesProducer;
 
     @Value("${app.kafka.stock-price-topic}")
     private String stockPriceTopic;
@@ -35,6 +38,7 @@ public class KafkaProducerService {
         this.equityProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
         this.etfProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
         this.indicesProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
+        this.stockIndicesProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
     }
 
     public void sendEquityPriceUpdates(List<EquityPrice> equityPrices) {
@@ -59,11 +63,21 @@ public class KafkaProducerService {
 
     public void sendIndicesUpdate(List<MarketIndexIndices> marketIndexIndices) {
         var event = MarketIndexIndicesPriceUpdateEvent.builder()
-            .eventType("MARKET_INDICES_PRICE_UPDATE")  
+            .eventType("INDICES_PRICE_UPDATE")  
             .timestamp(LocalDateTime.now())
             .marketIndices(marketIndexIndices)
             .build();
         
         indicesProducer.sendEvent(event, nseIndicesTopic, event.getEventType(), event.getTimestamp());
+    }
+
+    public void sendStockIndicesUpdate(StockInsidicesData stockIndices) {
+        var event = StockIndicesPriceUpdateEvent.builder()
+            .eventType("STOCK_INDICES_PRICE_UPDATE")  
+            .timestamp(LocalDateTime.now())
+            .stockIndices(stockIndices)
+            .build();
+        
+        stockIndicesProducer.sendEvent(event, nseIndicesTopic, event.getEventType(), event.getTimestamp());
     }
 }

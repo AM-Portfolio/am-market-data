@@ -2,7 +2,8 @@ package com.am.marketdata.scraper.controller;
 
 import com.am.marketdata.scraper.config.ScraperConfig;
 import com.am.marketdata.scraper.model.WebsiteCookies;
-import com.am.marketdata.scraper.service.CookieScraperService;
+import com.am.marketdata.scraper.service.cookie.CookieScraperService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

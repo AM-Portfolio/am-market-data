@@ -1,7 +1,9 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.service.cookie;
 
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.exception.CookieException;
+import com.am.marketdata.scraper.service.MarketDataProcessingService;
+
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,7 @@ public class CookieSchedulerService {
     }
 
     // Run every hour for cookie refresh at 10 seconds past the hour
+    @ConditionalOnProperty(value="app.scheduler.cookie.enable", havingValue = "true", matchIfMissing = true)
     @Scheduled(cron = "${app.scheduler.cookie.refresh}")
     public void scheduledCookieRefresh() {
         MDC.put("scheduler", "cookie-refresh");
@@ -57,6 +60,7 @@ public class CookieSchedulerService {
     }
 
     // Run every 2 minutes continuously, 24/7, at 15 seconds past
+    @ConditionalOnProperty(value="app.scheduler.market-data.indices.enable", havingValue = "true", matchIfMissing = true)
     @Scheduled(cron = "${app.scheduler.market-data.indices.fetch}")
     public void scheduleMarketDataProcessing() {
         MDC.put("scheduler", "market-data");
@@ -67,6 +71,23 @@ public class CookieSchedulerService {
             log.info("Completed market data processing");
         } catch (Exception e) {
             log.error("Failed to process market data: {}", e.getMessage(), e);
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    // Run every 2 minutes continuously, 24/7, at 15 seconds past
+    @ConditionalOnProperty(value="app.scheduler.market-data.nse-indices.enable", havingValue = "true", matchIfMissing = true)
+    @Scheduled(cron = "${app.scheduler.market-data.nse-indices.fetch}")
+    public void scheduleNseMarketDataProcessing() {
+        MDC.put("scheduler", "nse-market-data");
+        MDC.put("execution_time", LocalDateTime.now().toString());
+        try {
+            log.info("Starting nse market data processing");
+            marketDataProcessingService.fetchAndProcessNseMarketData();
+            log.info("Completed nse market data processing");
+        } catch (Exception e) {
+            log.error("Failed to process nse market data: {}", e.getMessage(), e);
         } finally {
             MDC.clear();
         }

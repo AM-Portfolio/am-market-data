@@ -1,4 +1,4 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.service.cookie;
 
 import com.am.marketdata.scraper.model.CookieInfo;
 import com.am.marketdata.scraper.model.WebsiteCookies;
