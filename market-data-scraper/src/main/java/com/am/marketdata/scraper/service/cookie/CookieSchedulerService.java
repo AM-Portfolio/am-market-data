@@ -1,6 +1,6 @@
 package com.am.marketdata.scraper.service.cookie;
 
-import com.am.marketdata.scraper.client.NSEApiClient;
+import com.am.marketdata.scraper.client.api.NSEApi;
 import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.service.MarketDataProcessingService;
 
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @ConditionalOnProperty(value="nse-scraper-scheduler", havingValue ="true", matchIfMissing = true)
 public class CookieSchedulerService {
-    private final NSEApiClient nseApiClient;
+    private final NSEApi nseApi;
     private final CookieCacheService cacheService;
     private final MarketDataProcessingService marketDataProcessingService;
 
@@ -79,15 +79,15 @@ public class CookieSchedulerService {
     // Run every 2 minutes continuously, 24/7, at 15 seconds past
     @ConditionalOnProperty(value="app.scheduler.market-data.nse-indices.enable", havingValue = "true", matchIfMissing = true)
     @Scheduled(cron = "${app.scheduler.market-data.nse-indices.fetch}")
-    public void scheduleNseMarketDataProcessing() {
-        MDC.put("scheduler", "nse-market-data");
+    public void scheduleNseStockIndicesProcessing() {
+        MDC.put("scheduler", "nse-stock-indices");
         MDC.put("execution_time", LocalDateTime.now().toString());
         try {
-            log.info("Starting nse market data processing");
-            marketDataProcessingService.fetchAndProcessNseMarketData();
-            log.info("Completed nse market data processing");
+            log.info("Starting nse stock indices processing");
+            marketDataProcessingService.fetchAndProcessMarketData();
+            log.info("Completed nse stock indices processing");
         } catch (Exception e) {
-            log.error("Failed to process nse market data: {}", e.getMessage(), e);
+            log.error("Failed to process nse stock indices: {}", e.getMessage(), e);
         } finally {
             MDC.clear();
         }
@@ -98,7 +98,7 @@ public class CookieSchedulerService {
             String currentCookies = cacheService.getCookies();
             log.info("Current cookies before refresh: {}", maskCookieValues(currentCookies));
             
-            HttpHeaders headers = nseApiClient.fetchCookies();
+            HttpHeaders headers = nseApi.fetchCookies();
             if (headers == null || !headers.containsKey(HttpHeaders.SET_COOKIE)) {
                 String msg = "No cookies received from NSE API";
                 log.error(msg);

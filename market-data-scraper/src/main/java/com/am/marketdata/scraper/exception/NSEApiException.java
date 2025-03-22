@@ -32,4 +32,23 @@ public class NSEApiException extends MarketDataException {
     public String getResponseBody() {
         return responseBody;
     }
+
+    /**
+     * Get the error type based on the status code.
+     * @return The error type as a string
+     */
+    public String getErrorType() {
+        if (statusCode == null) {
+            return "unexpected_error";
+        }
+        int status = statusCode.value();
+        if (status == 401) {
+            return "unauthorized";
+        } else if (status >= 400 && status < 500) {
+            return "client_error";
+        } else if (status >= 500) {
+            return "server_error";
+        }
+        return "unexpected_error";
+    }
 }

@@ -30,7 +30,6 @@ public class MarketDataProcessingService {
     private final IndicesDataOperation indicesDataOperation;
     private final ETFDataOperation etfDataOperation;
     private final StockIndicesDataOperation stockIndicesDataOperation;
-    private final StockIndicesValidator stockIndicesValidator;
 
     /**
      * Initialize the service
