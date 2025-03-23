@@ -32,11 +32,5 @@ public interface NSEApi {
      * @return All indices data
      */
     NSEIndicesResponse getAllIndices();
-    
-    /**
-     * Fetch cookies from NSE API
-     * 
-     * @return HTTP headers containing cookies
-     */
-    HttpHeaders fetchCookies();
+
 }

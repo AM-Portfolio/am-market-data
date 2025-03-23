@@ -31,11 +31,13 @@ public class ClientConfig {
     }
 
     @Bean
-    public RequestExecutor requestExecutor(@Qualifier("nseObjectMapper") ObjectMapper objectMapper, RestTemplate restTemplate) {
+    public RequestExecutor requestExecutor(
+            @Qualifier("nseObjectMapper") ObjectMapper objectMapper,
+            RestTemplate restTemplate) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
         headers.set("User-Agent", "Mozilla/5.0");
         
-        return new RequestExecutor(restTemplate, meterRegistry, baseUrl, headers);
+        return new RequestExecutor(restTemplate, meterRegistry, cookieCacheService, baseUrl, headers);
     }
 }

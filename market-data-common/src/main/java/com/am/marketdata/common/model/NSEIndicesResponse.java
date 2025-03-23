@@ -1,43 +1,53 @@
 package com.am.marketdata.common.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.List;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class NSEIndicesResponse {
     private List<NSEIndex> data;
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class NSEIndex {
-        private String key;
         private String index;
-        private String indexSymbol;
-        private double last;
-        private double variation;
-        private double percentChange;
-        private double open;
-        private double high;
-        private double low;
-        private double previousClose;
-        private double yearHigh;
-        private double yearLow;
-        private double indicativeClose;
+        private String variation;
+        private String last;
+        private String previousDay;
+        private String open;
+        private String high;
+        private String low;
+        private String yearHigh;
+        private String yearLow;
+        private String percentChange;
+        private String advances;
+        private String declines;
+        private String unchanged;
         private String pe;
         private String pb;
         private String dy;
-        private String declines;
-        private String advances;
-        private String unchanged;
-        private double percentChange365d;
-        private String date365dAgo;
-        private String chart365dPath;
+        private String oneWeekAgo;
+        private String oneMonthAgo;
+        private String oneYearAgo;
         private String date30dAgo;
-        private double percentChange30d;
-        private String chart30dPath;
+        private String date365dAgo;
         private String chartTodayPath;
-        private double previousDay;
-        private double oneWeekAgo;
-        private double oneMonthAgo;
-        private double oneYearAgo;
-}
+        private String chart30dPath;
+        private String chart365dPath;
+        private String percentChange30d;
+        private String percentChange365d;
+        private String perChange365d;
+        private String key;
+        private String indexSymbol;
+    }
 }

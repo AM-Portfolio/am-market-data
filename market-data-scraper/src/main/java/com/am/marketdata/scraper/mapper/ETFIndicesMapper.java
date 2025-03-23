@@ -3,7 +3,7 @@ package com.am.marketdata.scraper.mapper;
 import com.am.common.investment.model.equity.ETFIndies;
 import com.am.common.investment.model.equity.MarketData;
 import com.am.common.investment.model.equity.MetaData;
-import com.am.marketdata.common.model.NseETF;
+import com.am.marketdata.common.model.EtfMetadata;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,15 +16,15 @@ import java.util.stream.Collectors;
 @Component("etfIndicesMapper")
 public class ETFIndicesMapper {
 
-    public static List<ETFIndies> convertToETFIndices(List<NseETF> data) {
+    public static List<ETFIndies> convertToETFIndices(List<EtfMetadata> data) {
         return data.stream()
             .map(ETFIndicesMapper::convertToMarketIndices)
             .collect(Collectors.toList());
     }
     
-    public static ETFIndies convertToMarketIndices(NseETF data) {
+    public static ETFIndies convertToMarketIndices(EtfMetadata data) {
         return ETFIndies.builder()
-            .assets(data.getAssets())
+            //.assets(data.getAssets())
             .symbol(data.getSymbol())
             .timestamp(LocalDateTime.now()) // Using current time instead of fixed timestamp
             .marketData(MarketData.builder()

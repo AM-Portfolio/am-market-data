@@ -11,6 +11,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.springframework.stereotype.Service;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 
 import java.time.Duration;
@@ -27,13 +28,21 @@ public class CookieScraperService {
     private static final Duration PAGE_LOAD_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration WAIT_TIMEOUT = Duration.ofSeconds(10);
 
+    @Value("${nse.api.base-url:https://www.nseindia.com}")
+    private String baseUrl;
+
+    public WebsiteCookies scrapeCookies(String baseUrl) {
+        this.baseUrl = baseUrl;
+        return scrapeCookies();
+    }
+
     @Retryable(
         value = {NoSuchSessionException.class, WebDriverException.class},
         maxAttempts = 3,
         backoff = @Backoff(delay = 1000)
     )
-    public WebsiteCookies scrapeCookies(String url) {
-        log.info("Starting to scrape cookies from URL: {}", url);
+    public WebsiteCookies scrapeCookies() {
+        log.info("Starting to scrape cookies from URL: {}", baseUrl);
         ChromeDriver webDriver = null;
         try {
             webDriver = scraperConfig.webDriver();
@@ -46,8 +55,8 @@ public class CookieScraperService {
             log.debug("Cleared existing cookies");
 
             // Navigate to the URL
-            log.debug("Navigating to URL: {}", url);
-            webDriver.get(url);
+            log.debug("Navigating to URL: {}", baseUrl);
+            webDriver.get(baseUrl);
 
             // Wait for page to be in ready state
             waitForPageLoad(webDriver);
@@ -56,10 +65,10 @@ public class CookieScraperService {
             // Get cookies after page load
             Set<Cookie> cookieSet = webDriver.manage().getCookies();
             List<Cookie> seleniumCookies = new ArrayList<>(cookieSet);
-            log.info("Found {} cookies for URL: {}", seleniumCookies.size(), url);
+            log.info("Found {} cookies for URL: {}", seleniumCookies.size(), baseUrl);
 
             if (seleniumCookies.isEmpty()) {
-                log.warn("No cookies found for URL: {}. This might indicate blocking or incorrect page load.", url);
+                log.warn("No cookies found for URL: {}. This might indicate blocking or incorrect page load.", baseUrl);
             }
 
             List<CookieInfo> cookies = seleniumCookies.stream()
@@ -71,7 +80,7 @@ public class CookieScraperService {
 
             // Create WebsiteCookies object with raw cookie string
             WebsiteCookies websiteCookies = WebsiteCookies.builder()
-                    .websiteUrl(url)
+                    .websiteUrl(baseUrl)
                     .websiteName(title)
                     .cookies(cookies)
                     .build();
@@ -82,17 +91,17 @@ public class CookieScraperService {
             return websiteCookies;
                     
         } catch (TimeoutException e) {
-            log.error("Timeout while loading URL: " + url, e);
-            throw new RuntimeException("Page load timeout for URL: " + url, e);
+            log.error("Timeout while loading URL: " + baseUrl, e);
+            throw new RuntimeException("Page load timeout for URL: " + baseUrl, e);
         } catch (NoSuchSessionException e) {
-            log.error("Invalid session while scraping URL: " + url + ". Will retry with new session.", e);
+            log.error("Invalid session while scraping URL: " + baseUrl + ". Will retry with new session.", e);
             throw e; // Let @Retryable handle it
         } catch (WebDriverException e) {
-            log.error("WebDriver error while scraping cookies from URL: " + url, e);
+            log.error("WebDriver error while scraping cookies from URL: " + baseUrl, e);
             throw e; // Let @Retryable handle it
         } catch (Exception e) {
-            log.error("Unexpected error while scraping cookies from URL: " + url, e);
-            throw new RuntimeException("Failed to scrape cookies from: " + url, e);
+            log.error("Unexpected error while scraping cookies from URL: " + baseUrl, e);
+            throw new RuntimeException("Failed to scrape cookies from: " + baseUrl, e);
         }
     }
 

@@ -5,7 +5,7 @@ import java.util.List;
 
 @Data
 public class NseETFResponse {
-    private List<NseETF> data;
+    private List<EtfMetadata> data;
     private Integer advances;
     private Integer declines;
     private Integer unchanged;

@@ -4,12 +4,37 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.am.marketdata.common.util.NumberDeserializer;
 import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
-public class NseETF {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class EtfMetadata {
     private String symbol;
-    private String assets;
-    
+    private String companyName;
+    private String series;
+    private String isin;
+    private String debtSeries;
+    private String isCASec;
+    private String isETFSec;
+    private String isMunicipalBond;
+    private String isFNOSec;
+    private String isSLBSec;
+    private String isSuspended;
+    private String activeSeries;
+    private String tempSuspendedSeries;
+    private String isDelisted;
+    private String listingDate;
+    private String isDebtSec;
+    private String isHybridSymbol;
+    private String quotePreOpenStatus;
+    private String industry;  // New field
+
     @JsonDeserialize(using = NumberDeserializer.class)
     private Double open;
     
@@ -88,30 +113,39 @@ public class NseETF {
     private Double perChange30d;
     
     private String chart30dPath;
-    private EtfMetadata meta;
+    private EtfMeta meta;
 
     @Data
-    public static class EtfMetadata {
-        private String symbol;
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class EtfMeta {
         private String companyName;
-        private String[] activeSeries;
-        private String[] debtSeries;
-        private Boolean isFNOSec;
-        private Boolean isCASec;
-        private Boolean isSLBSec;
-        private Boolean isDebtSec;
-        private Boolean isSuspended;
-        private String[] tempSuspendedSeries;
-        private Boolean isETFSec;
-        private Boolean isDelisted;
+        private String symbol;
         private String isin;
+        private String debtSeries;
+        private String isCASec;
+        private String isETFSec;
+        private String isMunicipalBond;
+        private String isFNOSec;
+        private String isSLBSec;
+        private String isSuspended;
+        private String activeSeries;
+        private String tempSuspendedSeries;
+        private String isDelisted;
         private String listingDate;
-        private Boolean isMunicipalBond;
-        private Boolean isHybridSymbol;
-        private QuotePreOpenStatus quotePreOpenStatus;
+        private String isDebtSec;
+        private String isHybridSymbol;
+        private String quotePreOpenStatus;
+        private String industry;  // New field
     }
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class QuotePreOpenStatus {
         private String equityTime;
         private String preOpenTime;

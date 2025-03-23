@@ -2,6 +2,7 @@ package com.am.marketdata.scraper.service.cookie;
 
 import com.am.marketdata.scraper.client.api.NSEApi;
 import com.am.marketdata.scraper.exception.CookieException;
+import com.am.marketdata.scraper.model.WebsiteCookies;
 import com.am.marketdata.scraper.service.MarketDataProcessingService;
 
 import jakarta.annotation.PostConstruct;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 public class CookieSchedulerService {
     private final NSEApi nseApi;
     private final CookieCacheService cacheService;
+    private final CookieScraperService scraperService;
     private final MarketDataProcessingService marketDataProcessingService;
 
     @PostConstruct
@@ -30,11 +32,34 @@ public class CookieSchedulerService {
         MDC.put("execution_time", LocalDateTime.now().toString());
         try {
             log.info("Initializing CookieSchedulerService");
+            
+            // First fetch and store cookies
+            log.info("Fetching initial cookies");
             refreshCookiesInternal();
             
-            // Start initial market data processing
-            log.info("Starting initial market data processing");
-            marketDataProcessingService.fetchAndProcessMarketData();
+            // Schedule market data processing to start after a delay
+            log.info("Scheduling market data processing to start after 5 seconds");
+            Thread marketDataThread = new Thread(() -> {
+                try {
+                    Thread.sleep(5000); // Wait for 5 seconds
+                    MDC.put("scheduler", "market-data-init");
+                    MDC.put("execution_time", LocalDateTime.now().toString());
+                    try {
+                        log.info("Starting initial market data processing");
+                        marketDataProcessingService.fetchAndProcessMarketData();
+                        log.info("Completed initial market data processing");
+                    } catch (Exception e) {
+                        log.error("Failed initial market data processing: {}", e.getMessage(), e);
+                    } finally {
+                        MDC.clear();
+                    }
+                } catch (InterruptedException e) {
+                    log.warn("Market data processing initialization thread interrupted");
+                }
+            });
+            marketDataThread.setDaemon(true);
+            marketDataThread.start();
+            
         } catch (Exception e) {
             log.error("Failed to initialize service: {}", e.getMessage(), e);
         } finally {
@@ -42,9 +67,8 @@ public class CookieSchedulerService {
         }
     }
 
-    // Run every hour for cookie refresh at 10 seconds past the hour
     @ConditionalOnProperty(value="app.scheduler.cookie.enable", havingValue = "true", matchIfMissing = true)
-    @Scheduled(cron = "${app.scheduler.cookie.refresh}")
+    @Scheduled(cron = "${app.scheduler.cookie.refresh}")  
     public void scheduledCookieRefresh() {
         MDC.put("scheduler", "cookie-refresh");
         MDC.put("execution_time", LocalDateTime.now().toString());
@@ -59,9 +83,8 @@ public class CookieSchedulerService {
         }
     }
 
-    // Run every 2 minutes continuously, 24/7, at 15 seconds past
     @ConditionalOnProperty(value="app.scheduler.market-data.indices.enable", havingValue = "true", matchIfMissing = true)
-    @Scheduled(cron = "${app.scheduler.market-data.indices.fetch}")
+    @Scheduled(cron = "${app.scheduler.market-data.indices.fetch}")  
     public void scheduleMarketDataProcessing() {
         MDC.put("scheduler", "market-data");
         MDC.put("execution_time", LocalDateTime.now().toString());
@@ -76,36 +99,30 @@ public class CookieSchedulerService {
         }
     }
 
-    // Run every 2 minutes continuously, 24/7, at 15 seconds past
-    @ConditionalOnProperty(value="app.scheduler.market-data.nse-indices.enable", havingValue = "true", matchIfMissing = true)
-    @Scheduled(cron = "${app.scheduler.market-data.nse-indices.fetch}")
-    public void scheduleNseStockIndicesProcessing() {
-        MDC.put("scheduler", "nse-stock-indices");
-        MDC.put("execution_time", LocalDateTime.now().toString());
-        try {
-            log.info("Starting nse stock indices processing");
-            marketDataProcessingService.fetchAndProcessMarketData();
-            log.info("Completed nse stock indices processing");
-        } catch (Exception e) {
-            log.error("Failed to process nse stock indices: {}", e.getMessage(), e);
-        } finally {
-            MDC.clear();
-        }
-    }
+    // // Run every 2 minutes continuously, 24/7, at 15 seconds past
+    // @ConditionalOnProperty(value="app.scheduler.market-data.nse-indices.enable", havingValue = "true", matchIfMissing = true)
+    // @Scheduled(cron = "${app.scheduler.market-data.nse-indices.fetch}")
+    // public void scheduleNseStockIndicesProcessing() {
+    //     MDC.put("scheduler", "nse-stock-indices");
+    //     MDC.put("execution_time", LocalDateTime.now().toString());
+    //     try {
+    //         log.info("Starting nse stock indices processing");
+    //         marketDataProcessingService.fetchAndProcessMarketData();
+    //         log.info("Completed nse stock indices processing");
+    //     } catch (Exception e) {
+    //         log.error("Failed to process nse stock indices: {}", e.getMessage(), e);
+    //     } finally {
+    //         MDC.clear();
+    //     }
+    // }
 
     private void refreshCookiesInternal() {
         try {
             String currentCookies = cacheService.getCookies();
             log.info("Current cookies before refresh: {}", maskCookieValues(currentCookies));
             
-            HttpHeaders headers = nseApi.fetchCookies();
-            if (headers == null || !headers.containsKey(HttpHeaders.SET_COOKIE)) {
-                String msg = "No cookies received from NSE API";
-                log.error(msg);
-                throw new CookieException(msg);
-            }
-
-            String cookies = String.join("; ", headers.get(HttpHeaders.SET_COOKIE));
+            WebsiteCookies websiteCookies = scraperService.scrapeCookies();
+            String cookies = String.join("; ", websiteCookies.getCookiesString());
             log.info("Successfully fetched new cookies: {}", maskCookieValues(cookies));
             cacheService.storeCookies(cookies);
             
