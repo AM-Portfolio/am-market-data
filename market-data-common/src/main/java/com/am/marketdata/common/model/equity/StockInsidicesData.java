@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -18,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StockInsidicesData {
     
     private String name;
@@ -31,15 +34,20 @@ public class StockInsidicesData {
 
     @Data
     @AllArgsConstructor
+    @SuperBuilder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Advance {
-        private String declines;
-        private String advances;
-        private String unchanged;
+        private Integer declines;
+        private Integer advances;
+        private Integer unchanged;
     }
 
     @Data
     @AllArgsConstructor
+    @SuperBuilder
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class StockData {
         private int priority;
         private String symbol;
@@ -67,8 +75,10 @@ public class StockInsidicesData {
     }
     
     @Data
+    @SuperBuilder
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Metadata {
         private String indexName;
         private Double open;
@@ -89,8 +99,10 @@ public class StockInsidicesData {
     }
 
     @Data
+    @SuperBuilder
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MarketStatus {
         private String market;
         private String marketStatus;

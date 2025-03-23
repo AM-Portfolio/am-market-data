@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Component
 public class StockIndicesRequestHandler extends AbstractRequestHandler<NSEStockInsidicesData> {
     
-    private static final String ENDPOINT_PREFIX = "/equity-stockIndices?index=";
+    private static final String ENDPOINT_PREFIX = "/api/equity-stockIndices?index=";
     private static final String METRIC_NAME = "stock-insidices";
     
     private String indexSymbol;

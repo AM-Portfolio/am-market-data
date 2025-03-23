@@ -35,7 +35,7 @@ public class IndicesDataOperation extends AbstractMarketDataOperation<NSEIndices
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
     
-    @Value("${market.data.retry.delay.ms:1000}")
+    @Value("${market.data.retry.delay.ms:10000}")
     private long retryDelayMs;
     
     public IndicesDataOperation(

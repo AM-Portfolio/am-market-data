@@ -4,6 +4,7 @@ import com.am.marketdata.scraper.exception.NSEApiException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -25,6 +26,7 @@ public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
         return null; // Default is no body
     }
     
+    
     @Override
     public HttpMethod getMethod() {
         return HttpMethod.GET; // Default is GET
@@ -33,10 +35,15 @@ public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
     @Override
     public T processResponse(String response) {
         try {
+            if (response == null || response.isEmpty()) {
+                throw new RuntimeException("Received empty response from NSE API");
+            }
+            
+            // Attempt to parse response
             return objectMapper.readValue(response, getResponseType());
         } catch (Exception e) {
             log.error("Failed to parse response for endpoint {}: {}", getEndpoint(), e.getMessage(), e);
-            throw new RuntimeException("Failed to parse response", e);
+            throw new RuntimeException("Failed to parse response from NSE API", e);
         }
     }
     

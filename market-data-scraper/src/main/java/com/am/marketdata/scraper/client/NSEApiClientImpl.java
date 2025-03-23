@@ -61,10 +61,9 @@ public class NSEApiClientImpl implements NSEApi {
 
     @Override
     public NSEStockInsidicesData getStockbyInsidices(String index) throws NSEApiException {
-        // return requestExecutor.execute(
-        //     stockIndicesRequestHandler.withIndexSymbol(index)
-        // );
-        return null;
+        return requestExecutor.execute(
+            stockIndicesRequestHandler.withIndexSymbol(index)
+        );
     }
 
     @Override

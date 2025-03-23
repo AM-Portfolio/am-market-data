@@ -21,6 +21,13 @@ public class NSEApiException extends MarketDataException {
         this.responseBody = responseBody;
     }
 
+    public NSEApiException(String endpoint, HttpStatusCode statusCode, String message, Throwable cause) {
+        super(String.format("NSE API error [%s] %s - %s", endpoint, statusCode, message), cause);
+        this.endpoint = endpoint;
+        this.statusCode = statusCode;
+        this.responseBody = null;
+    }
+
     public String getEndpoint() {
         return endpoint;
     }

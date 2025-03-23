@@ -1,6 +1,7 @@
 package com.am.marketdata.common.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class NSEStockInsidicesData {
     private String name;
     private Advance advance;
@@ -19,6 +21,7 @@ public class NSEStockInsidicesData {
     private String date365dAgo;
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Advance {
         private String declines;
         private String advances;
@@ -26,6 +29,7 @@ public class NSEStockInsidicesData {
     }
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class StockData {
         private int priority;
         private String symbol;
@@ -37,6 +41,7 @@ public class NSEStockInsidicesData {
         private Double lastPrice;
         private Double previousClose;
         private Double change;
+        @JsonProperty("pChange")
         private Double pChange;
         private long totalTradedVolume;
         private Double stockIndClosePrice;
@@ -56,6 +61,7 @@ public class NSEStockInsidicesData {
     }
     
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Metadata {
         private String indexName;
         private Double open;
@@ -76,6 +82,7 @@ public class NSEStockInsidicesData {
     }
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MarketStatus {
         private String market;
         private String marketStatus;

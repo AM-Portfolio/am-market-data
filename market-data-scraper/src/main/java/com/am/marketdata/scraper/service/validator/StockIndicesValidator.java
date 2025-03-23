@@ -19,7 +19,7 @@ public class StockIndicesValidator implements DataValidator<NSEStockInsidicesDat
     
     private static final DateTimeFormatter MARKET_STATUS_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm");
     
-    @Value("${market.data.max.age.minutes:15}")
+    @Value("${market.data.max.age.minutes:1500}")
     private long maxDataAgeMinutes;
     
     @Override

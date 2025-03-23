@@ -3,7 +3,6 @@ package com.am.marketdata.scraper.mapper;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
 import com.am.marketdata.common.model.equity.StockInsidicesData;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,7 +11,6 @@ import java.util.stream.Collectors;
  * Mapper for converting NSE stock indices data to domain model
  */
 @Slf4j
-@Component("stockIndicesMapper")
 public class StockIndicesMapper {
 
     /**
@@ -39,18 +37,18 @@ public class StockIndicesMapper {
         );
     }
 
-    private static StockInsidicesData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
+    protected static StockInsidicesData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
         if (advance == null) {
             return null;
         }
         return new StockInsidicesData.Advance(
-            advance.getDeclines(),
-            advance.getAdvances(),
-            advance.getUnchanged()
+            Integer.parseInt(advance.getDeclines()),
+            Integer.parseInt(advance.getAdvances()),
+            Integer.parseInt(advance.getUnchanged())
         );
     }
 
-    private static List<StockInsidicesData.StockData> convertStockDataList(List<NSEStockInsidicesData.StockData> stockDataList) {
+    protected static List<StockInsidicesData.StockData> convertStockDataList(List<NSEStockInsidicesData.StockData> stockDataList) {
         if (stockDataList == null) {
             return null;
         }
@@ -63,69 +61,67 @@ public class StockIndicesMapper {
         if (stockData == null) {
             return null;
         }
-        return new StockInsidicesData.StockData(
-            stockData.getPriority(),
-            stockData.getSymbol(),
-            stockData.getIdentifier(),
-            stockData.getSeries(),
-            stockData.getOpen(),
-            stockData.getDayHigh(),
-            stockData.getDayLow(),
-            stockData.getLastPrice(),
-            stockData.getPreviousClose(),
-            stockData.getChange(),
-            stockData.getPChange(),
-            stockData.getTotalTradedVolume(),
-            stockData.getStockIndClosePrice(),
-            stockData.getTotalTradedValue(),
-            stockData.getYearHigh(),
-            stockData.getFfmc(),
-            stockData.getYearLow(),
-            stockData.getNearWKH(),
-            stockData.getNearWKL(),
-            stockData.getPerChange365d(),
-            stockData.getDate365dAgo(),
-            stockData.getDate30dAgo(),
-            stockData.getPerChange30d()
-        );
+        return StockInsidicesData.StockData.builder()
+            .priority(stockData.getPriority())
+            .symbol(stockData.getSymbol())
+            .identifier(stockData.getIdentifier())
+            .series(stockData.getSeries())
+            .open(stockData.getOpen())
+            .dayHigh(stockData.getDayHigh())
+            .dayLow(stockData.getDayLow())
+            .lastPrice(stockData.getLastPrice())
+            .previousClose(stockData.getPreviousClose())
+            .change(stockData.getChange())
+            .pChange(stockData.getPChange())
+            .totalTradedVolume(stockData.getTotalTradedVolume())
+            .totalTradedValue(stockData.getTotalTradedValue())
+            .yearHigh(stockData.getYearHigh())
+            .yearLow(stockData.getYearLow())
+            .perChange365d(stockData.getPerChange365d())
+            .date365dAgo(stockData.getDate365dAgo())
+            .perChange30d(stockData.getPerChange30d())
+            .date30dAgo(stockData.getDate30dAgo())
+            .build();
     }
 
-    private static StockInsidicesData.Metadata convertMetadata(NSEStockInsidicesData.Metadata metadata) {
+    protected static StockInsidicesData.Metadata convertMetadata(NSEStockInsidicesData.Metadata metadata) {
         if (metadata == null) {
             return null;
         }
-        return new StockInsidicesData.Metadata(
-            metadata.getIndexName(),
-            metadata.getOpen(),
-            metadata.getHigh(),
-            metadata.getLow(),
-            metadata.getPreviousClose(),
-            metadata.getLast(),
-            metadata.getPercChange(),
-            metadata.getChange(),
-            metadata.getTimeVal(),
-            metadata.getYearHigh(),
-            metadata.getYearLow(),
-            metadata.getIndicativeClose(),
-            metadata.getTotalTradedVolume(),
-            metadata.getTotalTradedValue(),
-            metadata.getFfmcSum()
-        );
+        return StockInsidicesData.Metadata.builder()
+            .indexName(metadata.getIndexName())
+            .open(metadata.getOpen())
+            .high(metadata.getHigh())
+            .low(metadata.getLow())
+            .previousClose(metadata.getPreviousClose())
+            .change(metadata.getChange())
+            .percChange(metadata.getPercChange())
+            .build();   
     }
 
-    private static StockInsidicesData.MarketStatus convertMarketStatus(NSEStockInsidicesData.MarketStatus marketStatus) {
+    protected static StockInsidicesData.MarketStatus convertMarketStatus(NSEStockInsidicesData.MarketStatus marketStatus) {
         if (marketStatus == null) {
             return null;
         }
-        return new StockInsidicesData.MarketStatus(
-            marketStatus.getMarket(),
-            marketStatus.getMarketStatus(),
-            marketStatus.getTradeDate(),
-            marketStatus.getIndex(),
-            marketStatus.getLast(),
-            marketStatus.getVariation(),
-            marketStatus.getPercentChange(),
-            marketStatus.getMarketStatusMessage()
-        );
+        return StockInsidicesData.MarketStatus.builder()
+            .market(marketStatus.getMarket())
+            .marketStatus(marketStatus.getMarketStatus())
+            .tradeDate(marketStatus.getTradeDate())
+            .index(marketStatus.getIndex())
+            .variation(marketStatus.getVariation())
+            .percentChange(marketStatus.getPercentChange())
+            .build();
+    }
+
+    private static Double parseDouble(String value) {
+        if (value == null || value.isEmpty() || value.equals("-")) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse double value for field {}: value='{}'", "", value, e);
+            return null;
+        }
     }
 }

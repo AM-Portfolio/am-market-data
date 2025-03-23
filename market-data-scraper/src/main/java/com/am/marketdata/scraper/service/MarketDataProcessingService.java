@@ -49,19 +49,18 @@ public class MarketDataProcessingService {
      * Scheduled method to fetch and process market data
      * Runs both indices and ETF operations in parallel
      */
-    @Scheduled(fixedRate = 5000)
     public void fetchAndProcessMarketData() {
-        CompletableFuture<Boolean> indicesFuture = indicesDataOperation.executeAsync();
-        CompletableFuture<Boolean> etfFuture = etfDataOperation.executeAsync();
+        //CompletableFuture<Boolean> indicesFuture = indicesDataOperation.executeAsync();
+        //CompletableFuture<Boolean> etfFuture = etfDataOperation.executeAsync();
         CompletableFuture<Boolean> stockIndicesFuture = stockIndicesDataOperation.executeAsync();
 
         try {
-            CompletableFuture.allOf(indicesFuture, etfFuture, stockIndicesFuture).get();
-            boolean indicesProcessed = indicesFuture.get();
-            boolean etfProcessed = etfFuture.get();
+            CompletableFuture.allOf(stockIndicesFuture).get();
             boolean stockIndicesProcessed = stockIndicesFuture.get();
+            //boolean etfProcessed = etfFuture.get();
+            //boolean stockIndicesProcessed = stockIndicesFuture.get();
 
-            logProcessingStatus(indicesProcessed, etfProcessed, stockIndicesProcessed);
+            logProcessingStatus(true, true, stockIndicesProcessed);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

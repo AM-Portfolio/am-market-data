@@ -26,20 +26,20 @@ public class NSEMarketIndexIndicesMapper {
             .indexSymbol(data.getIndexSymbol())
             .timestamp(LocalDateTime.now())
             .marketData(MarketData.builder()
-                .open(parseDouble(data.getOpen()))
-                .high(parseDouble(data.getHigh()))
-                .low(parseDouble(data.getLow()))
-                .last(parseDouble(data.getLast()))
-                .previousClose(parseDouble(data.getPreviousDay()))
-                .percentChange(parseDouble(data.getPercentChange()))
-                .variation(parseDouble(data.getVariation()))
-                .yearHigh(parseDouble(data.getYearHigh()))
-                .yearLow(parseDouble(data.getYearLow()))
+                .open(parseDouble(data.getOpen(), "open"))
+                .high(parseDouble(data.getHigh(), "high"))
+                .low(parseDouble(data.getLow(), "low"))
+                .last(parseDouble(data.getLast(), "last"))
+                .previousClose(parseDouble(data.getPreviousDay(), "previousClose"))
+                .percentChange(parseDouble(data.getPercentChange(), "percentChange"))
+                .variation(parseDouble(data.getVariation(), "variation"))
+                .yearHigh(parseDouble(data.getYearHigh(), "yearHigh"))
+                .yearLow(parseDouble(data.getYearLow(), "yearLow"))
                 .indicativeClose(null)  // No indicative close in NSEIndex
                 .build())
             .fundamentalRatios(FundamentalRatios.builder()
-                .priceToEarningRation(parseDouble(data.getPe()))
-                .priceToBookRation(parseDouble(data.getPb()))
+                .priceToEarningRation(parseDouble(data.getPe(), "pe"))
+                .priceToBookRation(parseDouble(data.getPb(), "pb"))
                 .build())
             .build();
     }
@@ -70,14 +70,14 @@ public class NSEMarketIndexIndicesMapper {
         return result;
     }
 
-    private static Double parseDouble(String value) {
+    private static Double parseDouble(String value, String fieldName) {
         if (value == null || value.isEmpty() || value.equals("-")) {
             return null;
         }
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
-            log.warn("Failed to parse double value: {}", value, e);
+            log.warn("Failed to parse double value for field {}: value='{}'", fieldName, value, e);
             return null;
         }
     }
