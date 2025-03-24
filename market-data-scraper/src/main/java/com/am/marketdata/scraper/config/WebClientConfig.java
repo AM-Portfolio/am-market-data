@@ -12,8 +12,8 @@ public class WebClientConfig {
     @Bean(name = "nseRestTemplate")
     public RestTemplate nseApiRestTemplate(RestTemplateBuilder builder) {
         return builder
-            .setConnectTimeout(Duration.ofSeconds(10))
-            .setReadTimeout(Duration.ofSeconds(10))
+            .setConnectTimeout(Duration.ofSeconds(5))
+            .setReadTimeout(Duration.ofSeconds(5))
             .build();
     }
 }

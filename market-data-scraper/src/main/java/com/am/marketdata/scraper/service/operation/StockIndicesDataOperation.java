@@ -78,7 +78,7 @@ public class StockIndicesDataOperation extends AbstractMarketDataOperation<NSESt
     @Override
     protected NSEStockInsidicesData fetchData() {
         try {
-            lastFetchedData = nseApi.getStockbyInsidices("NIFTY 50");
+            lastFetchedData = nseApi.getStockbyInsidices("NIFTY%2050");
             return lastFetchedData;
         } catch (Exception e) {
             throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock indices data", e);
@@ -91,7 +91,7 @@ public class StockIndicesDataOperation extends AbstractMarketDataOperation<NSESt
      * @return The index symbol
      */
     public String getIndexSymbol() {
-        return "NIFTY 50";
+        return "NIFTY%2050";
     }
 
     /**

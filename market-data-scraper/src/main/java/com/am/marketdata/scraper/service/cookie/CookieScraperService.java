@@ -36,11 +36,11 @@ public class CookieScraperService {
         return scrapeCookies();
     }
 
-    @Retryable(
-        value = {NoSuchSessionException.class, WebDriverException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 1000)
-    )
+    // @Retryable(
+    //     value = {NoSuchSessionException.class, WebDriverException.class},
+    //     maxAttempts = 3,
+    //     backoff = @Backoff(delay = 1000)
+    // )
     public WebsiteCookies scrapeCookies() {
         log.info("Starting to scrape cookies from URL: {}", baseUrl);
         ChromeDriver webDriver = null;

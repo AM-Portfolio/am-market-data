@@ -11,11 +11,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -32,9 +30,7 @@ public class RequestExecutor {
     private static final String METRIC_REQUEST_COUNT = METRIC_PREFIX + "request.count";
     private static final String TAG_ENDPOINT = "endpoint";
     private static final String TAG_ERROR_TYPE = "error_type";
-    private static final int CONNECT_TIMEOUT_SECONDS = 10;
-    private static final int READ_TIMEOUT_SECONDS = 10;
-    private static final int MAX_RETRIES = 3;
+    private static final int MAX_RETRIES = 1;
     private static final long RETRY_DELAY_MS = 1000;
 
     private final RestTemplate restTemplate;
@@ -50,13 +46,6 @@ public class RequestExecutor {
         this.cookieCacheService = cookieCacheService;
         this.baseUrl = baseUrl;
         this.baseHeaders = baseHeaders;
-        
-        // Configure connection pooling
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(CONNECT_TIMEOUT_SECONDS * 1000);
-        requestFactory.setReadTimeout(READ_TIMEOUT_SECONDS * 1000);
-        requestFactory.setBufferRequestBody(false);
-        restTemplate.setRequestFactory(requestFactory);
     }
 
     private void initializeRequest(String endpoint) {
@@ -79,7 +68,7 @@ public class RequestExecutor {
     }
 
     private HttpHeaders createRequestHeaders(String cookies) {
-        HttpHeaders headers = new HttpHeaders(baseHeaders);
+        HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.COOKIE, cookies);
         return headers;
     }
@@ -100,7 +89,7 @@ public class RequestExecutor {
         log.debug("API request CURL command:\n{}", curlCommand.toString());
         log.info("API request details: method={}, endpoint={}, cookies={}, headers={}, body={}", 
             method.name(), endpoint, cookies, headers, body);
-        log.info("API request CURL command with request body:\n{} -d '{}'", curlCommand.toString(), body);
+        //log.info("API request CURL command with request body:\n{} -d '{}'", curlCommand.toString(), body);
         log.info("API request headers: {}", headers);
         log.info("API request body: {}", body);
         log.info("API request URL: {}", baseUrl + endpoint);
@@ -111,6 +100,9 @@ public class RequestExecutor {
     }
 
     private ResponseEntity<String> executeRequest(String endpoint, HttpMethod method, HttpEntity<?> request) {
+        long requestStartTime = System.currentTimeMillis();
+        log.info("Executing HTTP {} request to {}", method, baseUrl + endpoint);
+        
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                 baseUrl + endpoint,
@@ -118,12 +110,27 @@ public class RequestExecutor {
                 request,
                 String.class
             );
-            log.info("API request executed successfully. Response status code: {}", response.getStatusCode());
-            log.info("API response headers: {}", response.getHeaders());
-            log.info("API response body: {}", response.getBody());
+            
+            long requestDuration = System.currentTimeMillis() - requestStartTime;
+            log.info("HTTP request completed in {}ms with status code: {}", 
+                requestDuration, response.getStatusCode());
+            
+            // Log response details based on size
+            if (response.getBody() != null) {
+                int bodyLength = response.getBody().length();
+                if (bodyLength > 1000) {
+                    log.info("Received large response ({} characters) from {}", bodyLength, endpoint);
+                } else {
+                    log.info("Response body: {}", response.getBody());
+                }
+            } else {
+                log.info("Received empty response body from {}", endpoint);
+            }
+            
             return response;
         } catch (Exception e) {
-            log.error("API request failed. Error: {}", e.getMessage());
+            long requestDuration = System.currentTimeMillis() - requestStartTime;
+            log.error("HTTP request failed after {}ms: {}", requestDuration, e.getMessage());
             throw e;
         }
     }
@@ -176,33 +183,41 @@ public class RequestExecutor {
     }
 
     public <T> T execute(RequestHandler<T> handler) throws NSEApiException {
-        String endpoint = handler.getEndpoint();
+        String endpoint = "/api/equity-stockIndices?index=NIFTY 50";
         
         initializeRequest(endpoint);
         Exception lastException = null;
-        
+        String cookies = getValidCookies(endpoint);
+        HttpHeaders headers = createRequestHeaders(cookies);
+        HttpEntity<?> request = buildRequest(handler.getBody(), headers);
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            long startTime = System.currentTimeMillis();
+            log.info("Starting API request attempt {}/{} for endpoint {}", attempt, MAX_RETRIES, endpoint);
+            
             try {
-                String cookies = getValidCookies(endpoint);
-                HttpHeaders headers = createRequestHeaders(cookies);
-                HttpEntity<?> request = buildRequest(handler.getBody(), headers);
-                
-                //logCurlCommand(endpoint, handler.getMethod(), cookies, headers, handler.getBody());
+                logCurlCommand(endpoint, handler.getMethod(), cookies, headers, handler.getBody());
                 
                 ResponseEntity<String> response = executeRequest(endpoint, handler.getMethod(), request);
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                log.info("API request successful for endpoint {} in {}ms (attempt {}/{})", 
+                    endpoint, elapsedTime, attempt, MAX_RETRIES);
+                
                 return handler.processResponse(response.getBody());
                 
             } catch (Exception e) {
+                long elapsedTime = System.currentTimeMillis() - startTime;
                 lastException = e;
                 
-                // Record and log error
-                //recordError(endpoint, e, handler);
+                // Record and log error with timing information
+                log.error("API request failed for endpoint {} after {}ms (attempt {}/{}): {}", 
+                    endpoint, elapsedTime, attempt, MAX_RETRIES, e.getMessage());
                 logErrorDetails(endpoint, e, attempt);
-                //logFailedCurlCommand(endpoint, handler.getMethod(), cookieCacheService.getCookies(), handler.getBody());
                 
                 // Check if we should retry
                 if (shouldRetry(e)) {
                     try {
+                        log.info("Will retry in {}ms (attempt {}/{} failed after {}ms)", 
+                            RETRY_DELAY_MS, attempt, MAX_RETRIES, elapsedTime);
                         handleRetry(endpoint, attempt);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -216,12 +231,15 @@ public class RequestExecutor {
                     }
                 } else {
                     // If not retrying, throw the exception
+                    log.error("Not retrying after failure for endpoint {} (attempt {}/{} failed after {}ms)", 
+                        endpoint, attempt, MAX_RETRIES, elapsedTime);
                     throwFinalException(endpoint, e, handler);
                 }
             }
         }
         
         // If we reached here, all retries failed
+        log.error("All {} retry attempts failed for endpoint {}", MAX_RETRIES, endpoint);
         throw new NSEApiException(
             endpoint,
             HttpStatus.valueOf(500),

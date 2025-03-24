@@ -23,6 +23,8 @@ import com.am.marketdata.config.ISINConfig;
     @ComponentScan("com.am.marketdata.client"),
     @ComponentScan("com.am.marketdata.common"),
     @ComponentScan("com.am.marketdata.config"),
+
+    
     @ComponentScan("com.am.marketdata.repository"),
     @ComponentScan("com.am.marketdata.model"),
     @ComponentScan("com.am.common.investment.*"),

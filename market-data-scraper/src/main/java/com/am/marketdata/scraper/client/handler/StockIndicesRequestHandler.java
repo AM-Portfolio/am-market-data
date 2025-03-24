@@ -36,7 +36,12 @@ public class StockIndicesRequestHandler extends AbstractRequestHandler<NSEStockI
     
     @Override
     public String getEndpoint() {
-        return ENDPOINT_PREFIX + indexSymbol;
+        try {
+            return ENDPOINT_PREFIX + java.net.URLEncoder.encode(indexSymbol, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            log.error("Failed to encode index symbol: {}", indexSymbol, e);
+            return ENDPOINT_PREFIX + indexSymbol; // Fallback to unencoded
+        }
     }
     
     @Override

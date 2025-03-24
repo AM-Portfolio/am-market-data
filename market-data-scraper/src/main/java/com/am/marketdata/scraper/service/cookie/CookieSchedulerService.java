@@ -1,6 +1,5 @@
 package com.am.marketdata.scraper.service.cookie;
 
-import com.am.marketdata.scraper.client.api.NSEApi;
 import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.model.WebsiteCookies;
 import com.am.marketdata.scraper.service.MarketDataProcessingService;
@@ -9,8 +8,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpHeaders;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +20,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @ConditionalOnProperty(value="nse-scraper-scheduler", havingValue ="true", matchIfMissing = true)
 public class CookieSchedulerService {
-    private final NSEApi nseApi;
     private final CookieCacheService cacheService;
     private final CookieScraperService scraperService;
     private final MarketDataProcessingService marketDataProcessingService;
+
+    @Value("${NSE_API_MANUAL_COOKIES:}")
+    private String manualCookies;
+    
+    @Value("${NSE_API_USE_MANUAL_COOKIES:false}")
+    private boolean useManualCookies;
 
     @PostConstruct
     public void initialize() {
@@ -121,6 +125,12 @@ public class CookieSchedulerService {
             String currentCookies = cacheService.getCookies();
             log.info("Current cookies before refresh: {}", maskCookieValues(currentCookies));
             
+            // Try to use manual cookies first if available
+            if (tryUseManualCookies()) {
+                log.info("Using manually provided cookies instead of scraping");
+                return;
+            }
+            
             WebsiteCookies websiteCookies = scraperService.scrapeCookies();
             String cookies = String.join("; ", websiteCookies.getCookiesString());
             log.info("Successfully fetched new cookies: {}", maskCookieValues(cookies));
@@ -133,6 +143,35 @@ public class CookieSchedulerService {
             log.error("Failed to refresh cookies. Current cookies in cache: {}, Error: {}", 
                 maskCookieValues(currentCookies), e.getMessage(), e);
             throw new CookieException("Failed to refresh cookies: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Attempts to use manually provided cookies from application properties.
+     * This is a fallback mechanism when cookie scraping fails.
+     * 
+     * @return true if manual cookies were used, false otherwise
+     */
+    private boolean tryUseManualCookies() {
+        try {
+            // Check if manual cookies should be used
+            if (!useManualCookies) {
+                log.debug("Manual cookies are disabled by configuration");
+                return false;
+            }
+            
+            // Use cookies from configuration
+            if (manualCookies != null && !manualCookies.isEmpty()) {
+                log.info("Using manually provided cookies from configuration: {}", maskCookieValues(manualCookies));
+                cacheService.storeCookies(manualCookies);
+                return true;
+            }
+            
+            log.warn("Manual cookies are enabled but no cookies were provided in configuration");
+            return false;
+        } catch (Exception e) {
+            log.warn("Failed to use manual cookies: {}", e.getMessage());
+            return false;
         }
     }
 
