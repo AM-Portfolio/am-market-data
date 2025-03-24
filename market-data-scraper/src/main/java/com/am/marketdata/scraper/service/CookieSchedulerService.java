@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,6 +25,10 @@ public class CookieSchedulerService {
     private final CookieCacheService cacheService;
     private final CookieScraperService cookieScraperService;
     private final MarketDataProcessingService marketDataProcessingService;
+    private final CookieValidator cookieValidator;
+    
+    // Minutes before expiration to trigger refresh
+    private static final int EXPIRY_THRESHOLD_MINUTES = 10;
 
     @PostConstruct
     public void initialize() {
@@ -68,6 +73,20 @@ public class CookieSchedulerService {
         try {
             // Only process between 9:15 AM and 3:35 PM
             if (isWithinTradingHours()) {
+                String cookies = cacheService.getCookies();
+                if (cookies == null) {
+                    log.warn("No valid cookies found in cache, attempting to refresh cookies");
+                    refreshCookies();
+                } else if (cookieValidator.areAnyRequiredCookiesExpiringSoon(cookies, EXPIRY_THRESHOLD_MINUTES)) {
+                    log.info("Cookies are about to expire, refreshing them");
+                    refreshCookies();
+                } else if (!cookieValidator.areRequiredCookiesValid(cookies)) {
+                    log.warn("Invalid cookies found in cache, refreshing cookies");
+                    refreshCookies();
+                } else {
+                    log.debug("Cookies are valid and not expiring soon");
+                }
+                
                 log.info("Starting scheduled market data processing");
                 marketDataProcessingService.fetchAndProcessMarketData();
             } else {
@@ -81,10 +100,34 @@ public class CookieSchedulerService {
     public void refreshCookies() {
         try {
             log.info("Attempting to refresh cookies");
-            WebsiteCookies websiteCookies = cookieScraperService.scrapeCookies();
+            
+            // Validate current cookies before refreshing
+            String currentCookies = cacheService.getCookies();
+            if (currentCookies != null) {
+                if (cookieValidator.areRequiredCookiesValid(currentCookies) && 
+                    !cookieValidator.areAnyRequiredCookiesExpiringSoon(currentCookies, EXPIRY_THRESHOLD_MINUTES)) {
+                    log.info("Current cookies are still valid and not expiring soon, no refresh needed");
+                    return;
+                }
+                
+                // Log detailed validation results for debugging
+                Map<String, CookieValidator.ValidationResult> validationResults = 
+                    cookieValidator.validateAllCookies(currentCookies);
+                logValidationResults(validationResults);
+            }
 
+            // Attempt to refresh cookies with retry mechanism
+            WebsiteCookies websiteCookies = fetchCookiesWithRetry(3);
+            
             String cookies = websiteCookies.getCookiesString();
-            log.debug("Successfully fetched new cookies: {}", maskCookieValues(cookies));
+            if (!cookieValidator.areRequiredCookiesValid(cookies)) {
+                Map<String, CookieValidator.ValidationResult> validationResults = 
+                    cookieValidator.validateAllCookies(cookies);
+                logValidationResults(validationResults);
+                throw new CookieException("Invalid cookies received from NSE");
+            }
+            
+            log.debug("Successfully fetched and validated new cookies: {}", maskCookieValues(cookies));
             cacheService.storeCookies(cookies);
         } catch (Exception e) {
             String currentCookies = cacheService.getCookies();
@@ -92,6 +135,42 @@ public class CookieSchedulerService {
                 maskCookieValues(currentCookies), e.getMessage(), e);
             throw new CookieException("Failed to refresh cookies: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Logs detailed validation results for debugging
+     */
+    private void logValidationResults(Map<String, CookieValidator.ValidationResult> results) {
+        log.debug("Cookie validation results:");
+        for (Map.Entry<String, CookieValidator.ValidationResult> entry : results.entrySet()) {
+            CookieValidator.ValidationResult result = entry.getValue();
+            if (!result.isValid()) {
+                log.warn("Cookie '{}' validation failed: {}", entry.getKey(), result);
+            } else {
+                log.debug("Cookie '{}': {}", entry.getKey(), result);
+            }
+        }
+    }
+
+    private WebsiteCookies fetchCookiesWithRetry(int maxAttempts) throws Exception {
+        int attempt = 0;
+        while (attempt < maxAttempts) {
+            attempt++;
+            try {
+                WebsiteCookies cookies = cookieScraperService.scrapeCookies();
+                if (cookies != null && !cookies.getCookiesString().isEmpty()) {
+                    return cookies;
+                }
+            } catch (Exception e) {
+                if (attempt == maxAttempts) {
+                    throw e;
+                }
+                log.warn("Cookie fetch attempt {} failed, retrying in {} seconds", 
+                    attempt, attempt * 2);
+                Thread.sleep(attempt * 2000);
+            }
+        }
+        throw new CookieException("Failed to fetch valid cookies after " + maxAttempts + " attempts");
     }
 
     private boolean isWithinTradingHours() {
@@ -105,6 +184,7 @@ public class CookieSchedulerService {
 
     private String maskCookieValues(String cookies) {
         if (cookies == null) return "null";
+        
         // Split cookies and mask values while preserving names
         return Stream.of(cookies.split(";"))
             .map(cookie -> {

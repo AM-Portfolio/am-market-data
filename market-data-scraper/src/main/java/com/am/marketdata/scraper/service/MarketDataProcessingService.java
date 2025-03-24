@@ -125,15 +125,15 @@ public class MarketDataProcessingService {
     }
 
     public void fetchAndProcessMarketData() {
-        // CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
+        CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
         CompletableFuture<Boolean> stockIndicesFuture = fetchAndProcessStockIndices();
 
         try {
-            CompletableFuture.allOf(stockIndicesFuture).get();
-            //boolean indicesProcessed = indicesFuture.get();
+            CompletableFuture.allOf(indicesFuture, stockIndicesFuture).get();
+            boolean indicesProcessed = indicesFuture.get();
             boolean stockIndicesProcessed = stockIndicesFuture.get();
 
-            logProcessingStatus(true, stockIndicesProcessed);
+            logProcessingStatus(indicesProcessed, stockIndicesProcessed);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

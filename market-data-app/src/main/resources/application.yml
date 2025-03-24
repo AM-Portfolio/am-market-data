@@ -182,7 +182,7 @@ logging:
   level:
     root: INFO
     '[com.am.marketdata]': INFO
-    '[com.am.marketdata.scheduler]': INFO
+    '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
