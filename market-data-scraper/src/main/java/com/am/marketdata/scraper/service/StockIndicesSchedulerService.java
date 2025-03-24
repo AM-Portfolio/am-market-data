@@ -1,8 +1,6 @@
 package com.am.marketdata.scraper.service;
 
-import com.am.marketdata.scraper.cookie.CookieManager;
 import com.am.marketdata.scraper.exception.CookieException;
-import com.am.marketdata.scraper.exception.MarketDataException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,17 +21,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 @Slf4j
 public class StockIndicesSchedulerService {
-    private static final String CONFIG_RETRY_INTERVAL_MINUTES = "${stock.indices.retry.interval.minutes:15}";
-    private static final String CONFIG_MAX_RETRIES = "${stock.indices.max.retries:20}"; // ~5 hours of retries
-    
-    private final CookieManager cookieManager;
-    private final MarketDataProcessingService marketDataProcessingService;
-    
-    @Value(CONFIG_RETRY_INTERVAL_MINUTES)
+    @Value("${scheduler.stock-indices.retry.interval-minutes:15}")
     private int retryIntervalMinutes;
     
-    @Value(CONFIG_MAX_RETRIES)
+    @Value("${scheduler.stock-indices.retry.max-retries:20}")
     private int maxRetries;
+    
+    private final MarketDataProcessingService marketDataProcessingService;
     
     private final AtomicBoolean morningFetchCompleted = new AtomicBoolean(false);
     private final AtomicBoolean eveningFetchCompleted = new AtomicBoolean(false);
@@ -52,7 +46,7 @@ public class StockIndicesSchedulerService {
     /**
      * Morning schedule at 9:30 AM IST
      */
-    @Scheduled(cron = "0 30 9 * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "${scheduler.stock-indices.morning-fetch:0 30 9 * * *}", zone = "Asia/Kolkata")
     public void scheduleMorningStockIndicesFetch() {
         resetFlagsIfNeeded();
         
@@ -67,8 +61,10 @@ public class StockIndicesSchedulerService {
     /**
      * Evening schedule at 4:00 PM IST
      */
-    @Scheduled(cron = "0 0 16 * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "${scheduler.stock-indices.evening-fetch:0 0 16 * * *}", zone = "Asia/Kolkata")
     public void scheduleEveningStockIndicesFetch() {
+        resetFlagsIfNeeded();
+        
         if (!eveningFetchCompleted.get()) {
             log.info("Starting scheduled evening stock indices fetch at 4:00 PM");
             fetchStockIndicesWithRetry(false);
@@ -80,32 +76,36 @@ public class StockIndicesSchedulerService {
     /**
      * Retry scheduler that runs every X minutes if needed
      */
-    @Scheduled(cron = "${stock.indices.retry.cron:0 */15 * * * *}", zone = "Asia/Kolkata")
+    @Scheduled(cron = "${scheduler.stock-indices.retry.cron:0 */15 * * * *}", zone = "Asia/Kolkata")
     public void retryFailedFetch() {
-        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
+        resetFlagsIfNeeded();
         
-        // Only retry during trading hours
-        if (isWithinTradingHours()) {
-            // Morning session retry (9:30 AM - 3:30 PM)
-            if (now.isAfter(LocalTime.of(9, 30)) && 
-                now.isBefore(LocalTime.of(15, 30)) && 
-                !morningFetchCompleted.get() && 
-                currentRetryCount < maxRetries) {
-                
-                log.info("Retrying morning stock indices fetch (attempt {}/{})", 
-                        currentRetryCount + 1, maxRetries);
+        // Only retry if we have active failures and haven't exceeded max retries
+        if (currentRetryCount > 0 && currentRetryCount < maxRetries) {
+            // In dev mode, don't check trading hours
+            if (isDevMode()) {
+                log.info("Development mode: Attempting retry regardless of time");
+                fetchStockIndicesWithRetry(true); // Always retry morning session in dev
+                return;
+            }
+            
+            LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+            int currentHour = now.getHour();
+            
+            // Morning session: retry between 9:30 AM and 3:30 PM if morning fetch failed
+            if (currentHour >= 9 && currentHour < 15 && !morningFetchCompleted.get()) {
+                log.info("Retry attempt #{} for morning stock indices fetch", currentRetryCount + 1);
                 fetchStockIndicesWithRetry(true);
             }
-            // Evening session retry (4:00 PM - 5:30 PM)
-            else if (now.isAfter(LocalTime.of(16, 0)) && 
-                     now.isBefore(LocalTime.of(17, 30)) && 
-                     !eveningFetchCompleted.get() && 
-                     currentRetryCount < maxRetries) {
-                
-                log.info("Retrying evening stock indices fetch (attempt {}/{})", 
-                        currentRetryCount + 1, maxRetries);
+            // Evening session: retry between 4:00 PM and 6:00 PM if evening fetch failed
+            else if (currentHour >= 16 && currentHour < 18 && !eveningFetchCompleted.get()) {
+                log.info("Retry attempt #{} for evening stock indices fetch", currentRetryCount + 1);
                 fetchStockIndicesWithRetry(false);
             }
+        } else if (currentRetryCount >= maxRetries) {
+            log.warn("Max retry attempts ({}) reached for stock indices fetch", maxRetries);
+            // Reset retry count but keep the completion flags as is
+            currentRetryCount = 0;
         }
     }
     
@@ -115,52 +115,51 @@ public class StockIndicesSchedulerService {
      */
     private void fetchStockIndicesWithRetry(boolean isMorningSession) {
         try {
-            // Refresh cookies if needed
-            cookieManager.refreshIfNeeded();
+            log.info("Attempting to fetch stock indices data (session: {})", 
+                    isMorningSession ? "morning" : "evening");
             
             // Attempt to fetch and process stock indices
             boolean success = marketDataProcessingService.fetchAndProcessStockIndicesOnly();
             
             if (success) {
-                log.info("Successfully fetched and processed stock indices data");
+                log.info("Successfully fetched and processed stock indices data (session: {})",
+                        isMorningSession ? "morning" : "evening");
+                
+                // Mark the appropriate session as completed
                 if (isMorningSession) {
                     morningFetchCompleted.set(true);
                 } else {
                     eveningFetchCompleted.set(true);
                 }
-                currentRetryCount = 0; // Reset retry count on success
+                
+                // Reset retry count on success
+                currentRetryCount = 0;
             } else {
-                handleFailure(isMorningSession);
+                // Increment retry count on failure
+                currentRetryCount++;
+                log.warn("Failed to fetch stock indices data (session: {}). Will retry in {} minutes. Attempt {}/{}",
+                        isMorningSession ? "morning" : "evening", 
+                        retryIntervalMinutes, 
+                        currentRetryCount, 
+                        maxRetries);
             }
         } catch (CookieException e) {
-            log.error("Cookie refresh failed during stock indices fetch: {}", e.getMessage());
-            handleFailure(isMorningSession);
-        } catch (MarketDataException e) {
-            log.error("Failed to fetch stock indices: {}", e.getMessage());
-            handleFailure(isMorningSession);
+            currentRetryCount++;
+            log.error("Cookie error during stock indices fetch (session: {}): {}. Will retry in {} minutes. Attempt {}/{}",
+                    isMorningSession ? "morning" : "evening",
+                    e.getMessage(),
+                    retryIntervalMinutes,
+                    currentRetryCount,
+                    maxRetries);
         } catch (Exception e) {
-            log.error("Unexpected error during stock indices fetch: {}", e.getMessage(), e);
-            handleFailure(isMorningSession);
-        }
-    }
-    
-    private void handleFailure(boolean isMorningSession) {
-        currentRetryCount++;
-        String session = isMorningSession ? "morning" : "evening";
-        
-        if (currentRetryCount >= maxRetries) {
-            log.error("Maximum retry attempts ({}) reached for {} stock indices fetch. Giving up until next scheduled run.", 
-                    maxRetries, session);
-            // Mark as completed to stop retrying
-            if (isMorningSession) {
-                morningFetchCompleted.set(true);
-            } else {
-                eveningFetchCompleted.set(true);
-            }
-            currentRetryCount = 0;
-        } else {
-            log.warn("Will retry {} stock indices fetch in {} minutes (attempt {}/{})", 
-                    session, retryIntervalMinutes, currentRetryCount, maxRetries);
+            currentRetryCount++;
+            log.error("Unexpected error during stock indices fetch (session: {}): {}. Will retry in {} minutes. Attempt {}/{}",
+                    isMorningSession ? "morning" : "evening",
+                    e.getMessage(),
+                    retryIntervalMinutes,
+                    currentRetryCount,
+                    maxRetries,
+                    e);
         }
     }
     
@@ -170,31 +169,47 @@ public class StockIndicesSchedulerService {
     private void resetFlagsIfNeeded() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
         
+        // If it's a new day, reset all flags
         if (!today.equals(lastProcessedDate)) {
-            log.info("New day detected, resetting stock indices fetch flags");
+            log.info("New day detected. Resetting stock indices fetch flags");
+            lastProcessedDate = today;
             morningFetchCompleted.set(false);
             eveningFetchCompleted.set(false);
             currentRetryCount = 0;
-            lastProcessedDate = today;
         }
         
-        // Also reset flags based on time
-        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
-        if (now.isBefore(LocalTime.of(9, 30))) {
-            // Before 9:30 AM, reset morning flag
-            morningFetchCompleted.set(false);
+        // In dev mode, don't reset flags based on time
+        if (isDevMode()) {
+            log.debug("Development mode: Not resetting flags based on time");
+            return;
         }
-        if (now.isBefore(LocalTime.of(16, 0))) {
-            // Before 4:00 PM, reset evening flag
-            eveningFetchCompleted.set(false);
+        
+        // Also reset flags based on current time
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+        int currentHour = now.getHour();
+        
+        // Before 9:30 AM, reset morning flag
+        if (currentHour < 9 || (currentHour == 9 && now.getMinute() < 30)) {
+            if (morningFetchCompleted.get()) {
+                log.debug("Resetting morning fetch flag as it's before 9:30 AM");
+                morningFetchCompleted.set(false);
+            }
+        }
+        
+        // Before 4:00 PM, reset evening flag
+        if (currentHour < 16) {
+            if (eveningFetchCompleted.get()) {
+                log.debug("Resetting evening fetch flag as it's before 4:00 PM");
+                eveningFetchCompleted.set(false);
+            }
         }
     }
     
-    private boolean isWithinTradingHours() {
-        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
-        LocalTime marketStart = LocalTime.of(9, 15);
-        LocalTime marketEnd = LocalTime.of(17, 30); // Extended to allow for evening data fetch
-        
-        return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
+    /**
+     * Check if we're running in development mode
+     */
+    private boolean isDevMode() {
+        return System.getenv("SPRING_PROFILES_ACTIVE") != null && 
+               System.getenv("SPRING_PROFILES_ACTIVE").equals("dev");
     }
 }

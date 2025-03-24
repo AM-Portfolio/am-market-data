@@ -1,0 +1,47 @@
+# Development profile configuration
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# Development-specific logging
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': DEBUG
+    '[com.am.marketdata.scraper]': DEBUG
+    '[com.am.marketdata.scraper.service]': DEBUG
+    '[com.am.marketdata.scraper.cookie]': DEBUG
+
+# Development-specific app settings
+app:
+  cookie:
+    validator:
+      expiry-threshold-minutes: 5  # More aggressive refresh for development
+    cache:
+      expiration-minutes: 30       # Shorter cache time for development
+  retry:
+    max-attempts: 2                # Fewer retries in development
+    base-delay-ms: 500             # Shorter delay between retries
+  thread-pool:
+    size: 3                        # Smaller thread pool for dev environments
+  validation:
+    max-age-minutes: 10            # Stricter validation in development
+
+# Development-specific scheduler settings
+scheduler:
+  cookie:
+    refresh: "0 */15 * * * *"      # More frequent refresh in dev (every 15 min)
+  indices:
+    fetch: "0 */2 * * * *"         # Every 2 minutes for testing
+  stock-indices:
+    morning-fetch: "0 */2 * * * *"  # Every 2 minutes for testing
+    evening-fetch: "0 */2 * * * *"  # Every 2 minutes for testing
+    retry:
+      interval-minutes: 5          # Faster retries in development
+      max-retries: 5               # Fewer max retries
+      cron: "0 */5 * * * *"        # Every 5 minutes for testing
+
+# Development Kafka settings
+kafka:
+  bootstrap-servers: localhost:9092

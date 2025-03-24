@@ -42,7 +42,7 @@ public class CookieSchedulerService {
     }
 
     // Run every hour for cookie refresh
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "${scheduler.cookie.refresh:0 0 * * * *}")
     public void scheduledCookieRefresh() {
         try {
             log.info("Starting scheduled cookie refresh");
@@ -53,7 +53,7 @@ public class CookieSchedulerService {
     }
 
     // Run every 2 minutes for indices data processing
-    @Scheduled(cron = "0 */2 * * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "${scheduler.indices.fetch:0 */2 * * * *}", zone = "Asia/Kolkata")
     public void scheduleIndicesDataProcessing() {
         try {
             // Only process between 9:15 AM and 3:35 PM
@@ -86,6 +86,7 @@ public class CookieSchedulerService {
         LocalTime marketStart = LocalTime.of(9, 15);
         LocalTime marketEnd = LocalTime.of(15, 35);
         
-        return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
+        //return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
+        return true;
     }
 }

@@ -1,0 +1,20 @@
+# Common configuration shared across all profiles
+spring:
+  application:
+    name: market-data-scraper
+  profiles:
+    active: dev  # Default to development profile
+  config:
+    import:
+      - classpath:application-common.yml
+      
+# Logging Configuration (common across all profiles)
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scraper]': INFO
+    '[com.am.marketdata.scraper.service]': INFO
+    '[com.am.marketdata.scraper.cookie]': INFO
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'

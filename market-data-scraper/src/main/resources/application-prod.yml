@@ -1,0 +1,46 @@
+# Production profile configuration
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# Production specific logging
+logging:
+  level:
+    root: WARN
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scraper]': INFO
+    '[com.am.marketdata.scraper.service]': INFO
+    '[com.am.marketdata.scraper.cookie]': INFO
+
+# Production specific app settings
+app:
+  cookie:
+    validator:
+      expiry-threshold-minutes: 10  # Standard refresh for production
+    cache:
+      expiration-minutes: 60        # Full cache time for production
+  retry:
+    max-attempts: 3                 # Standard retries in production
+    base-delay-ms: 1000             # Standard delay between retries
+  thread-pool:
+    size: 5                         # Full thread pool for prod environments
+    queue-capacity: 10              # Standard queue capacity
+  validation:
+    max-age-minutes: 15             # Standard validation in production
+
+# Production specific scheduler settings
+scheduler:
+  cookie:
+    refresh: "0 0 * * * *"          # Cookie refresh every hour
+  indices:
+    fetch: "0 */2 * * * *"          # Standard indices fetch every 2 minutes
+  stock-indices:
+    retry:
+      interval-minutes: 15          # Standard retry interval
+      max-retries: 20               # Full max retries
+      cron: "0 */15 * * * *"        # Every 15 minutes
+
+# Production Kafka settings
+kafka:
+  bootstrap-servers: prod-kafka:9092

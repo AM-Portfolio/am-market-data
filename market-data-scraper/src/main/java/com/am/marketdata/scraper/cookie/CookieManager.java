@@ -1,15 +1,14 @@
 package com.am.marketdata.scraper.cookie;
 
-import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.model.WebsiteCookies;
-import com.am.marketdata.scraper.service.CookieValidator;
 import com.am.marketdata.scraper.exception.CookieException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Manages the complete cookie lifecycle including:
@@ -25,6 +24,9 @@ public class CookieManager {
     private final CookieScraper cookieScraper;
     private final CookieValidator cookieValidator;
     private final CookieCache cookieCache;
+
+    @Value("${app.cookie.validator.expiry-threshold-minutes:10}")
+    private int expiryThresholdMinutes;
     
     /**
      * Fetches and validates fresh cookies

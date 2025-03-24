@@ -2,9 +2,8 @@ package com.am.marketdata.scraper.client;
 
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.common.model.NseETFResponse;
-import com.am.marketdata.scraper.service.CookieCacheService;
 import com.am.marketdata.scraper.exception.NSEApiException;
+import com.am.marketdata.scraper.cookie.CookieCache;
 import com.am.marketdata.scraper.exception.CookieException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -31,7 +30,7 @@ import java.util.stream.Stream;
 public class NSEApiClient {
     @Qualifier("nseApiRestTemplate")
     private final RestTemplate restTemplate;
-    private final CookieCacheService cookieCacheService;
+    private final CookieCache cookieCache;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
@@ -107,7 +106,7 @@ public class NSEApiClient {
             String responseBody = e.getResponseBodyAsString();
             log.error("Unauthorized access to NSE API - Endpoint: {}, Response: {}, Headers: {}", 
                 endpoint, responseBody, maskSensitiveHeaders(e.getResponseHeaders()));
-            cookieCacheService.invalidateCookies();
+            cookieCache.invalidateCookies();
             recordError(endpoint, "unauthorized");
             throw new NSEApiException(endpoint, HttpStatus.UNAUTHORIZED, responseBody, "Unauthorized access, cookies might be expired", e);
         
@@ -145,7 +144,7 @@ public class NSEApiClient {
     }
 
     private String getCookiesOrThrow() {
-        String cookies = cookieCacheService.getCookies();
+        String cookies = cookieCache.getCookies();
         if (cookies == null) {
             throw new CookieException("No valid cookies found in cache");
         }

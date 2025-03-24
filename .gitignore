@@ -62,12 +62,6 @@ buildNumber.properties
 ehthumbs.db
 Thumbs.db
 
-# Application properties with sensitive data
-**/application-*.properties
-**/application-*.yml
-!**/application.properties
-!**/application.yml
-
 # Spring Boot
 spring-boot-*.pid
 
