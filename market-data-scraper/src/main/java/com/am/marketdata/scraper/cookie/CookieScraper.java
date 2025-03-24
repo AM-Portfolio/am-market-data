@@ -1,10 +1,10 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.cookie;
 
-import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.config.ScraperConfig;
-import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.model.CookieInfo;
 import com.am.marketdata.scraper.model.WebsiteCookies;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
@@ -13,38 +13,39 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-
-import com.am.marketdata.scraper.service.CookieValidator;
-import com.am.marketdata.scraper.service.CookieScraperService;
-import com.am.marketdata.scraper.exception.CookieException;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Service
+/**
+ * Handles cookie scraping from NSE website
+ */
+@Component
 @RequiredArgsConstructor
 @Slf4j
-public class CookieScraperService {
+public class CookieScraper {
     private final ScraperConfig scraperConfig;
-    private final CookieValidator cookieValidator;
     
     private static final Duration PAGE_LOAD_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration WAIT_TIMEOUT = Duration.ofSeconds(10);
 
+    /**
+     * Scrapes cookies from NSE website
+     * @return WebsiteCookies object containing all scraped cookies
+     */
     public WebsiteCookies scrapeCookies() {
         return scrapeCookies(scraperConfig.getUrls().stream().findFirst().get());
     }
+
+    /**
+     * Scrapes cookies from specified URL
+     * @param url URL to scrape cookies from
+     * @return WebsiteCookies object containing all scraped cookies
+     */
     public WebsiteCookies scrapeCookies(String url) {
         log.info("Starting to scrape cookies from URL: {}", url);
         ChromeDriver webDriver = null;
@@ -79,39 +80,12 @@ public class CookieScraperService {
                         .build();
             }
 
-            // Convert to CookieInfo and validate
+            // Convert to CookieInfo
             List<CookieInfo> cookies = seleniumCookies.stream()
                     .map(this::mapToCookieInfo)
                     .collect(Collectors.toList());
 
-            // Validate cookies before proceeding
-            String cookieString = cookies.stream()
-                    .map(c -> c.getName() + "=" + c.getValue())
-                    .collect(Collectors.joining("; "));
-
-            Map<String, CookieValidator.ValidationResult> validationResults = cookieValidator.validateAllCookies(cookieString);
-            
-            // Check if all required cookies are valid
-            boolean isValid = true;
-            for (String requiredCookie : cookieValidator.getRequiredCookies()) {
-                CookieValidator.ValidationResult result = validationResults.get(requiredCookie);
-                if (result == null || !result.isValid()) {
-                    log.warn("Required cookie {} is invalid: {}", requiredCookie, 
-                            result == null ? "not found" : result.getMessage());
-                    isValid = false;
-                }
-            }
-
-            if (!isValid) {
-                log.error("Cookie validation failed for URL: {}. Invalid cookies: {}", 
-                        url, validationResults.values().stream()
-                                .filter(r -> !r.isValid())
-                                .map(r -> r.getMessage())
-                                .collect(Collectors.joining(", ")));
-                throw new CookieException("Cookie validation failed: Required cookies are invalid or missing");
-            }
-
-            // If validation passes, create WebsiteCookies object
+            // Create WebsiteCookies object
             WebsiteCookies websiteCookies = WebsiteCookies.builder()
                     .websiteUrl(url)
                     .websiteName(webDriver.getTitle())
@@ -121,15 +95,12 @@ public class CookieScraperService {
             // Generate and set the formatted cookie string
             websiteCookies.setCookiesString(websiteCookies.generateCookiesString());
             
-            log.info("Successfully scraped and validated cookies for URL: {}", url);
+            log.info("Successfully scraped cookies for URL: {}", url);
             return websiteCookies;
                     
         } catch (TimeoutException e) {
             log.error("Timeout while loading URL: {}", url, e);
             throw new RuntimeException("Page load timeout for URL: " + url, e);
-        } catch (CookieException e) {
-            log.error("Cookie validation failed: {}", e.getMessage());
-            throw e;
         } catch (Exception e) {
             log.error("Error scraping cookies for URL: {}", url, e);
             throw new RuntimeException("Error scraping cookies: " + e.getMessage(), e);

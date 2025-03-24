@@ -1,31 +1,43 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.cookie;
 
 import com.am.marketdata.scraper.exception.CookieException;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
+
 import java.time.Duration;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Service
+/**
+ * Manages cookie caching with expiration
+ */
+@Component
 @Slf4j
-public class CookieCacheService {
+public class CookieCache {
     private static final String NSE_COOKIE_KEY = "nse_cookies";
     private final Cache<String, String> cookieCache;
 
-    public CookieCacheService() {
+    public CookieCache() {
         this.cookieCache = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofHours(1))
             .build();
     }
 
+    /**
+     * Stores cookies in cache
+     * @param cookies Cookie string to store
+     */
     public void storeCookies(String cookies) {
         cookieCache.put(NSE_COOKIE_KEY, cookies);
         log.info("Updated cookies in cache: {}", maskCookieValues(cookies));
     }
 
+    /**
+     * Retrieves cookies from cache
+     * @return Cached cookies or null if not found
+     */
     public String getCookies() {
         String cookies = cookieCache.getIfPresent(NSE_COOKIE_KEY);
         if (cookies != null) {
@@ -34,7 +46,12 @@ public class CookieCacheService {
         return cookies;
     }
 
-    public String getCookiesOrThrow() {
+    /**
+     * Retrieves cookies from cache or throws exception if not found
+     * @return Cached cookies
+     * @throws CookieException if no cookies are found
+     */
+    public String getCookiesOrThrow() throws CookieException {
         String cookies = cookieCache.getIfPresent(NSE_COOKIE_KEY);
         if (cookies == null) {
             throw new CookieException("No valid cookies found in cache");
@@ -42,6 +59,9 @@ public class CookieCacheService {
         return cookies;
     }
 
+    /**
+     * Invalidates cached cookies
+     */
     public void invalidateCookies() {
         String cookies = cookieCache.getIfPresent(NSE_COOKIE_KEY);
         if (cookies != null) {
@@ -52,6 +72,7 @@ public class CookieCacheService {
 
     private String maskCookieValues(String cookies) {
         if (cookies == null) return null;
+        
         // Split cookies and mask values while preserving names
         return Stream.of(cookies.split(";"))
             .map(cookie -> {

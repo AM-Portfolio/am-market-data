@@ -1,29 +1,26 @@
 package com.am.marketdata.scraper.service;
 
-import com.am.common.investment.model.equity.ETFIndies;
 import com.am.common.investment.model.equity.MarketIndexIndices;
 import com.am.common.investment.service.MarketIndexIndicesService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.common.model.NseETFResponse;
 import com.am.marketdata.common.model.stockindices.StockInsidicesData;
-import com.am.marketdata.common.model.NseETF;
 import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
-import com.am.marketdata.scraper.mapper.ETFIndicesMapper;
-import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
-import com.am.marketdata.scraper.mapper.StockIndicesMapper;
+import com.am.marketdata.scraper.cookie.CookieManager;
+import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import com.am.marketdata.scraper.exception.DataValidationException;
 import com.am.marketdata.scraper.exception.MarketDataException;
-
+import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
+import com.am.marketdata.scraper.mapper.StockIndicesMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
@@ -61,6 +58,7 @@ public class MarketDataProcessingService {
     private final KafkaProducerService kafkaProducer;
     private final MarketIndexIndicesService indexIndicesService;
     private final MeterRegistry meterRegistry;
+    private final CookieManager cookieManager;
 
     @Value(CONFIG_THREAD_POOL_SIZE)
     private int threadPoolSize;
@@ -124,22 +122,67 @@ public class MarketDataProcessingService {
         }
     }
 
+    /**
+     * Fetch and process both indices and stock indices data
+     * This method is called by the regular scheduler (every 2 minutes)
+     */
     public void fetchAndProcessMarketData() {
-        CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
-        CompletableFuture<Boolean> stockIndicesFuture = fetchAndProcessStockIndices();
-
         try {
-            CompletableFuture.allOf(indicesFuture, stockIndicesFuture).get();
-            boolean indicesProcessed = indicesFuture.get();
-            boolean stockIndicesProcessed = stockIndicesFuture.get();
-
-            logProcessingStatus(indicesProcessed, stockIndicesProcessed);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new MarketDataException("Interrupted while fetching market data", e);
-        } catch (ExecutionException e) {
-            throw new MarketDataException("Error fetching market data", e.getCause());
+            // Refresh cookies if needed
+            cookieManager.refreshIfNeeded();
+            
+            // For regular processing, we only fetch indices
+            // Stock indices are handled by a separate scheduler
+            CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
+            
+            try {
+                boolean indicesProcessed = indicesFuture.get();
+                log.info("Regular market data processing completed. Indices processed: {}", 
+                        indicesProcessed ? "success" : "failed");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new MarketDataException("Interrupted while fetching market data", e);
+            } catch (ExecutionException e) {
+                throw new MarketDataException("Error fetching market data", e.getCause());
+            }
+        } catch (CookieException e) {
+            log.error("Cookie refresh failed: {}", e.getMessage());
+            throw new MarketDataException("Failed to fetch market data: Cookie refresh failed", e);
+        }
+    }
+    
+    /**
+     * Fetch and process only stock indices data
+     * This method is called by the stock indices scheduler at specific times
+     * @return true if stock indices were successfully processed, false otherwise
+     */
+    public boolean fetchAndProcessStockIndicesOnly() {
+        try {
+            // Refresh cookies if needed
+            cookieManager.refreshIfNeeded();
+            
+            log.info("Starting stock indices only processing");
+            CompletableFuture<Boolean> stockIndicesFuture = fetchAndProcessStockIndices();
+            
+            try {
+                boolean stockIndicesProcessed = stockIndicesFuture.get();
+                log.info("Stock indices processing completed: {}", 
+                        stockIndicesProcessed ? "success" : "failed");
+                return stockIndicesProcessed;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while fetching stock indices data", e);
+                return false;
+            } catch (ExecutionException e) {
+                log.error("Error fetching stock indices data: {}", e.getCause().getMessage());
+                return false;
+            }
+        } catch (CookieException e) {
+            log.error("Cookie refresh failed during stock indices fetch: {}", e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("Unexpected error during stock indices fetch: {}", e.getMessage(), e);
+            return false;
         }
     }
 
@@ -190,6 +233,7 @@ public class MarketDataProcessingService {
                         processAndSendStockIndicesData(response);
                         processSample.stop(stockIndicesProcessTimer);
 
+                        log.info("Successfully processed and sent stock indices data to Kafka");
                         meterRegistry.counter(METRIC_SUCCESS_COUNT, TAG_DATA_TYPE, "stock_indices").increment();
                         return true;
                     } else {
@@ -199,9 +243,9 @@ public class MarketDataProcessingService {
                 } catch (DataValidationException e) {
                     throw e;
                 } catch (Exception e) {
-                    log.error("Failed to process ETF data", e);
-                    meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "etf").increment();
-                    throw new MarketDataException("Failed to process ETF data", e);
+                    log.error("Failed to process stock indices data", e);
+                    meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "stock_indices").increment();
+                    throw new MarketDataException("Failed to process stock indices data", e);
                 }
             }
             return false;
@@ -253,18 +297,6 @@ public class MarketDataProcessingService {
             }
         }
         throw new MarketDataException("Operation failed after " + maxRetries + " retries", lastException);
-    }
-
-    private void logProcessingStatus(boolean indicesProcessed, boolean stockIndicesProcessed) {
-        if (!indicesProcessed && !stockIndicesProcessed) {
-            throw new RuntimeException("Failed to process both indices and stock indices data");
-        } else if (!indicesProcessed) {
-            log.warn("Indices data processing failed but stock indices data was processed successfully");
-        } else if (!stockIndicesProcessed) {
-            log.warn("Stock indices data processing failed but indices data was processed successfully");
-        } else {
-            log.info("Successfully processed both indices and stock indices data");
-        }
     }
 
     private boolean validateIndicesData(NSEIndicesResponse response) {

@@ -1,4 +1,4 @@
-package com.am.marketdata.scraper.service;
+package com.am.marketdata.scraper.cookie;
 
 import com.am.marketdata.scraper.exception.CookieException;
 import lombok.extern.slf4j.Slf4j;
@@ -35,14 +35,6 @@ public class CookieValidator {
         "nseappid"      // JWT token
     };
     
-    /**
-     * Gets the array of required cookies for validation
-     * @return Array of required cookie names
-     */
-    public String[] getRequiredCookies() {
-        return REQUIRED_COOKIES;
-    }
-
     // Pattern to extract expiry date from cookie string
     private static final Pattern EXPIRES_PATTERN = Pattern.compile("Expires=([^;]+)");
     
@@ -52,6 +44,14 @@ public class CookieValidator {
     // Date format used in cookie expiration
     private static final DateTimeFormatter COOKIE_DATE_FORMATTER = 
             DateTimeFormatter.ofPattern("EEE, dd-MMM-yyyy HH:mm:ss zzz");
+    
+    /**
+     * Gets the array of required cookies for validation
+     * @return Array of required cookie names
+     */
+    public String[] getRequiredCookies() {
+        return REQUIRED_COOKIES;
+    }
     
     /**
      * Validates all cookies from a cookie string
