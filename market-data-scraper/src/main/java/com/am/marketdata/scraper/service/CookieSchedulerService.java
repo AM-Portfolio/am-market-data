@@ -4,6 +4,8 @@ import com.am.marketdata.scraper.cookie.CookieManager;
 import com.am.marketdata.scraper.exception.CookieException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,7 @@ import java.time.ZoneId;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "app.scheduler.cookie.enabled", havingValue = "true", matchIfMissing = false)
 public class CookieSchedulerService {
     private final CookieManager cookieManager;
     private final MarketDataProcessingService marketDataProcessingService;

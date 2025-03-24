@@ -4,6 +4,7 @@ import com.am.marketdata.scraper.exception.CookieException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "app.scheduler.stock-indices.enabled", havingValue = "true", matchIfMissing = false)
 public class StockIndicesSchedulerService {
     @Value("${scheduler.stock-indices.retry.interval-minutes:15}")
     private int retryIntervalMinutes;
