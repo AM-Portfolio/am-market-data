@@ -2,94 +2,90 @@ package com.am.marketdata.scraper.service;
 
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.exception.CookieException;
-import jakarta.annotation.PostConstruct;
+import com.am.marketdata.scraper.model.WebsiteCookies;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import jakarta.annotation.PostConstruct;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(value="nse-scraper-scheduler", havingValue ="true", matchIfMissing = true)
+@Slf4j
 public class CookieSchedulerService {
     private final NSEApiClient nseApiClient;
     private final CookieCacheService cacheService;
+    private final CookieScraperService cookieScraperService;
     private final MarketDataProcessingService marketDataProcessingService;
 
     @PostConstruct
     public void initialize() {
-        MDC.put("scheduler", "cookie-init");
-        MDC.put("execution_time", LocalDateTime.now().toString());
         try {
             log.info("Initializing CookieSchedulerService");
-            refreshCookiesInternal();
+            refreshCookies();
             
-            // Start initial market data processing
-            log.info("Starting initial market data processing");
-            marketDataProcessingService.fetchAndProcessMarketData();
+            // If within trading hours, start market data processing
+            if (isWithinTradingHours()) {
+                log.info("Within trading hours, starting initial market data processing");
+                //marketDataProcessingService.fetchAndProcessMarketData();
+            } else {
+                log.info("Outside trading hours, skipping initial market data processing");
+            }
         } catch (Exception e) {
             log.error("Failed to initialize service: {}", e.getMessage(), e);
-        } finally {
-            MDC.clear();
         }
     }
 
-    // Run every hour for cookie refresh at 10 seconds past the hour
-    @Scheduled(cron = "${app.scheduler.cookie.refresh}")
+    // Run every hour for cookie refresh
+    //@Scheduled(cron = "0 0 * * * *")
     public void scheduledCookieRefresh() {
-        MDC.put("scheduler", "cookie-refresh");
-        MDC.put("execution_time", LocalDateTime.now().toString());
         try {
             log.info("Starting scheduled cookie refresh");
-            refreshCookiesInternal();
-            log.info("Completed scheduled cookie refresh");
-        } catch (Exception e) {
-            log.error("Failed to refresh cookies: {}", e.getMessage(), e);
-        } finally {
-            MDC.clear();
+            String currentCookies = cacheService.getCookies();
+            log.debug("Current cookies before refresh: {}", maskCookieValues(currentCookies));
+            
+            WebsiteCookies websiteCookies = cookieScraperService.scrapeCookies();
+            String newCookies = String.join("; ", websiteCookies.getCookiesString());
+            log.debug("New cookies after refresh: {}", maskCookieValues(newCookies));
+            cacheService.storeCookies(newCookies);
+        } catch (CookieException e) {
+            log.error("Failed to refresh cookies in scheduled task. Current cookies: {}, Error: {}", 
+                maskCookieValues(cacheService.getCookies()), e.getMessage(), e);
+            cacheService.invalidateCookies();
         }
     }
 
-    // Run every 2 minutes continuously, 24/7, at 15 seconds past
-    @Scheduled(cron = "${app.scheduler.market-data.indices.fetch}")
+    // Run every 2 minutes
+    @Scheduled(cron = "0 */2 * * * *", zone = "Asia/Kolkata")
     public void scheduleMarketDataProcessing() {
-        MDC.put("scheduler", "market-data");
-        MDC.put("execution_time", LocalDateTime.now().toString());
         try {
-            log.info("Starting market data processing");
-            marketDataProcessingService.fetchAndProcessMarketData();
-            log.info("Completed market data processing");
+            // Only process between 9:15 AM and 3:35 PM
+            if (isWithinTradingHours()) {
+                log.info("Starting scheduled market data processing");
+                marketDataProcessingService.fetchAndProcessMarketData();
+            } else {
+                log.debug("Outside trading hours, skipping market data processing");
+            }
         } catch (Exception e) {
             log.error("Failed to process market data: {}", e.getMessage(), e);
-        } finally {
-            MDC.clear();
         }
     }
 
-    private void refreshCookiesInternal() {
+    public void refreshCookies() {
         try {
-            String currentCookies = cacheService.getCookies();
-            log.info("Current cookies before refresh: {}", maskCookieValues(currentCookies));
-            
-            HttpHeaders headers = nseApiClient.fetchCookies();
-            if (headers == null || !headers.containsKey(HttpHeaders.SET_COOKIE)) {
-                String msg = "No cookies received from NSE API";
-                log.error(msg);
-                throw new CookieException(msg);
-            }
+            log.info("Attempting to refresh cookies");
+            WebsiteCookies websiteCookies = cookieScraperService.scrapeCookies();
 
-            String cookies = String.join("; ", headers.get(HttpHeaders.SET_COOKIE));
-            log.info("Successfully fetched new cookies: {}", maskCookieValues(cookies));
+            String cookies = websiteCookies.getCookiesString();
+            log.debug("Successfully fetched new cookies: {}", maskCookieValues(cookies));
             cacheService.storeCookies(cookies);
-            
-            String newCookies = cacheService.getCookies();
-            log.info("New cookies after refresh: {}", maskCookieValues(newCookies));
         } catch (Exception e) {
             String currentCookies = cacheService.getCookies();
             log.error("Failed to refresh cookies. Current cookies in cache: {}, Error: {}", 
@@ -98,8 +94,25 @@ public class CookieSchedulerService {
         }
     }
 
+    private boolean isWithinTradingHours() {
+        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
+        LocalTime marketStart = LocalTime.of(9, 15);
+        LocalTime marketEnd = LocalTime.of(15, 35);
+        
+        //return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
+        return true;
+    }
+
     private String maskCookieValues(String cookies) {
         if (cookies == null) return "null";
-        return cookies.replaceAll("=[^;]*", "=*****");
+        // Split cookies and mask values while preserving names
+        return Stream.of(cookies.split(";"))
+            .map(cookie -> {
+                String[] parts = cookie.split("=", 2);
+                return parts.length > 1 
+                    ? parts[0].trim() + "=*****" 
+                    : cookie.trim() + "=*****";
+            })
+            .collect(Collectors.joining("; "));
     }
 }

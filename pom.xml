@@ -16,7 +16,7 @@
         <module>market-data-api</module>
         <module>market-data-common</module>
         <module>market-data-kafka</module>
-        <module>market-data-service</module>
+        <!-- <module>market-data-service</module> -->
         <module>market-data-scraper</module>
         <module>market-data-app</module>
     </modules>

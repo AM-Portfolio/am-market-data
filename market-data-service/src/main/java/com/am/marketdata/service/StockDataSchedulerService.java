@@ -18,7 +18,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(value="stock-data-scheduer", havingValue ="true", matchIfMissing = true)
+@ConditionalOnProperty(value="stock-data-scheduler", havingValue ="true", matchIfMissing = true)
 public class StockDataSchedulerService {
     private final ISINService isinService;
     private final EquityPriceProcessingService equityPriceProcessingService;

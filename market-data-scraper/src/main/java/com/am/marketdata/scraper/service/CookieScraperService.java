@@ -11,6 +11,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.springframework.stereotype.Service;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 
 import java.time.Duration;
@@ -27,11 +28,10 @@ public class CookieScraperService {
     private static final Duration PAGE_LOAD_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration WAIT_TIMEOUT = Duration.ofSeconds(10);
 
-    @Retryable(
-        value = {NoSuchSessionException.class, WebDriverException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 1000)
-    )
+    public WebsiteCookies scrapeCookies() {
+        return scrapeCookies(scraperConfig.getUrls().get(0));
+    }
+
     public WebsiteCookies scrapeCookies(String url) {
         log.info("Starting to scrape cookies from URL: {}", url);
         ChromeDriver webDriver = null;

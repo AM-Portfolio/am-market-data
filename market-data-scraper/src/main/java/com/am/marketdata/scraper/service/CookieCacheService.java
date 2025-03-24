@@ -1,5 +1,6 @@
 package com.am.marketdata.scraper.service;
 
+import com.am.marketdata.scraper.exception.CookieException;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,14 @@ public class CookieCacheService {
         String cookies = cookieCache.getIfPresent(NSE_COOKIE_KEY);
         if (cookies != null) {
             log.debug("Retrieved cookies from cache: {}", maskCookieValues(cookies));
+        }
+        return cookies;
+    }
+
+    public String getCookiesOrThrow() {
+        String cookies = cookieCache.getIfPresent(NSE_COOKIE_KEY);
+        if (cookies == null) {
+            throw new CookieException("No valid cookies found in cache");
         }
         return cookies;
     }

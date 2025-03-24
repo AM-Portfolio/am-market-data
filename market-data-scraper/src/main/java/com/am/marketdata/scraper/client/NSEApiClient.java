@@ -1,6 +1,7 @@
 package com.am.marketdata.scraper.client;
 
 import com.am.marketdata.common.model.NSEIndicesResponse;
+import com.am.marketdata.common.model.NSEStockInsidicesData;
 import com.am.marketdata.common.model.NseETFResponse;
 import com.am.marketdata.scraper.service.CookieCacheService;
 import com.am.marketdata.scraper.exception.NSEApiException;
@@ -47,15 +48,15 @@ public class NSEApiClient {
     private static final String TAG_ENDPOINT = "endpoint";
     private static final String TAG_ERROR_TYPE = "error_type";
 
-    private Timer etfRequestTimer;
+    private Timer stockIndicesRequestTimer;
     private Timer indicesRequestTimer;
 
     @PostConstruct
     public void initialize() {
         // Initialize timers for each endpoint
-        etfRequestTimer = Timer.builder(METRIC_REQUEST_TIME)
-            .tag(TAG_ENDPOINT, "etf")
-            .description("Time taken for ETF API requests")
+        stockIndicesRequestTimer = Timer.builder(METRIC_REQUEST_TIME)
+            .tag(TAG_ENDPOINT, "stock_indices")
+            .description("Time taken for stock indices API requests")
             .register(meterRegistry);
 
         indicesRequestTimer = Timer.builder(METRIC_REQUEST_TIME)
@@ -64,33 +65,12 @@ public class NSEApiClient {
             .register(meterRegistry);
     }
 
-    public NseETFResponse getETFs() {
-        return etfRequestTimer.record(() -> executeApiCall("/api/etf", NseETFResponse.class, this::logETFResponse));
+    public NSEStockInsidicesData getStockIndices() {
+        return stockIndicesRequestTimer.record(() -> executeApiCall("/api/equity-stockIndices?index=NIFTY 50", NSEStockInsidicesData.class, this::logStockIndicesResponse));
     }
 
     public NSEIndicesResponse getAllIndices() {
         return indicesRequestTimer.record(() -> executeApiCall("/api/allIndices", NSEIndicesResponse.class, this::logIndicesResponse));
-    }
-
-    public HttpHeaders fetchCookies() {
-        try {
-            log.info("Fetching fresh cookies from NSE API");
-            HttpEntity<String> entity = new HttpEntity<>(createBasicHeaders());
-            ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl, HttpMethod.GET, entity, String.class);
-            
-            HttpHeaders headers = response.getHeaders();
-            if (headers != null && headers.containsKey(HttpHeaders.SET_COOKIE)) {
-                log.info("Successfully fetched cookies: {}", 
-                    maskCookieValues(String.join("; ", headers.get(HttpHeaders.SET_COOKIE))));
-            } else {
-                log.warn("No cookies found in response headers");
-            }
-            return headers;
-        } catch (Exception e) {
-            log.error("Failed to fetch cookies from NSE API: {}", e.getMessage(), e);
-            throw new CookieException("Failed to fetch cookies from NSE API: " + e.getMessage(), e);
-        }
     }
 
     private HttpHeaders createBasicHeaders() {
@@ -120,7 +100,7 @@ public class NSEApiClient {
                 throw new NSEApiException(endpoint, response.getStatusCode(), "null", "Empty response from NSE API");
             }
 
-            //logApiResponse(endpoint, response, responseLogger);
+            logApiResponse(endpoint, response, responseLogger);
             return response.getBody();
 
         } catch (HttpClientErrorException.Unauthorized e) {
@@ -224,17 +204,13 @@ public class NSEApiClient {
         void log(T response) throws Exception;
     }
 
-    private void logETFResponse(NseETFResponse etfs) throws Exception {
-        log.info("ETF Response - Raw: {}", objectMapper.writeValueAsString(etfs));
-        if (etfs.getData() != null) {
-            log.info("ETF Summary - Count: {}, First ETF: {}", 
-                etfs.getData().size(),
-                etfs.getData().isEmpty() ? "none" : 
-                    String.format("%s (Last: %.2f, Change: %.2f%%)", 
-                        etfs.getData().get(0).getSymbol(),
-                        etfs.getData().get(0).getLastTradedPrice(),
-                        etfs.getData().get(0).getPercentChange()
-                    )
+    private void logStockIndicesResponse(NSEStockInsidicesData stockIndices) throws Exception {
+        log.info("Stock Indices Response - Raw: {}", objectMapper.writeValueAsString(stockIndices));
+        if (stockIndices.getData() != null) {
+            log.info("Stock Indices Summary - Count: {}, First Stock Index: {}", 
+                stockIndices.getData().size(),
+                stockIndices.getData().isEmpty() ? "none" : 
+                stockIndices.getData().get(0).getSymbol()
             );
         }
     }
