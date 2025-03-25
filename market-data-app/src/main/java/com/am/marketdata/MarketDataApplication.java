@@ -12,12 +12,14 @@ import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.am.marketdata.config.ISINConfig;
+import com.am.marketdata.scraper.config.NSEIndicesConfig;
 
 @SpringBootApplication
-@EnableConfigurationProperties(ISINConfig.class)
+@EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.scraper"),
+    @ComponentScan("com.am.marketdata.scraper.config"),
     @ComponentScan("com.am.marketdata.service"),
     @ComponentScan("com.am.marketdata.kafka"),
     @ComponentScan("com.am.marketdata.api"),

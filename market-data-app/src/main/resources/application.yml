@@ -86,6 +86,7 @@ spring:
   config:
     import:
       - classpath:isin.yml
+      - classpath:nseindices.yml
 
   jpa:
     hibernate:
