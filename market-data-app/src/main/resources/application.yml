@@ -4,6 +4,12 @@ POSTGRES_USERNAME: postgres
 POSTGRES_URL: jdbc:postgresql://localhost:5456
 POSTGRES_DATABASE: portfolio
 
+#mongo
+MONGO_URL: mongodb://admin:password@localhost:27017/portfolio?authSource=admin
+MONGO_DATABASE: market_data
+MONGO_USERNAME: admin
+MONGO_PASSWORD: password
+
 # InfluxDB Configuration
 INFLUXDB_TOKEN: my-super-secret-auth-token
 INFLUXDB_ORG: am_investment
@@ -46,6 +52,15 @@ spring:
     active: dev  # Default to development profile
   application:
     name: market-data-service
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
+      username: ${MONGO_USERNAME}
+      password: ${MONGO_PASSWORD}
+      authentication-database: admin
   
   # Database Configuration
   datasource:
@@ -86,76 +101,6 @@ app:
     stock-price-topic: ${STOKUPATE_TOPIC_NAME}
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
     stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
-  
-  scheduler:
-    # Trading hours configuration (from StockDataSchedulerService)
-    trading:
-      start-time: "00:00"
-      end-time: "23:59"
-      timezone: "Asia/Kolkata"
-      days: "MON-FRI"
-    
-    # CookieSchedulerService schedules
-    cookie:
-      refresh: "0 */30 * * * *"  # Cookie refresh every 30 minutes
-      retry: "0 */5 * * * *"     # Retry failed cookie refresh every 5 minutes
-    
-    # MarketDataProcessingService schedules
-    market-data:
-      # Thread pool configuration from memory
-      thread-pool:
-        size: ${MARKET_DATA_THREAD_POOL_SIZE}         # Default: 5
-        queue-capacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY} # Default: 10
-        prefix: "market-data-"
-      
-      # Stock data processing (from StockDataSchedulerService)
-      stock:
-        fetch: "5 */2 * * * *"           # Runs at 5 seconds past every 2 minutes
-        validate: "0 */15 * * * *"       # Validate every 15 minutes (max age check)
-      
-      # ETF data processing (with retry mechanism)
-      etf:
-        fetch: "0 */5 * * * *"          # Every 5 minutes, trading hours check in service
-        validate: "0 */15 * * * *"      # 15min freshness validation
-        retry:
-          max-attempts: ${MARKET_DATA_MAX_RETRIES}    # Default: 3
-          delay-ms: ${MARKET_DATA_RETRY_DELAY_MS}     # Default: 1000ms
-      
-      # Indices data processing
-      indices:
-        fetch: "0 */2 * * * *"          # Every 2 minutes, trading hours check in service
-        validate: "0 */15 * * * *"      # Data integrity check
-    
-    # Retry mechanism schedules (3 retries, 1000ms delay)
-    retry:
-      failed-operations: "0 */1 * * * *"  # Check and retry failed operations
-      cleanup: "0 0 * * * *"             # Clean up retry history hourly
-    
-    # Data management
-    data:
-      cleanup: "0 0 18 * * *"            # Daily cleanup at 6 PM
-      refresh: "0 0 7 * * MON-FRI"       # Refresh at 7 AM weekdays
-    
-    # Metrics collection (for Micrometer)
-    metrics:
-      performance: "0 */1 * * * *"        # Collect performance metrics
-      health: "0 */1 * * * *"            # Health checks
-      counters: "0 */5 * * * *"          # Update success/failure counters
-    
-    # Health check schedule (every minute)
-    health-check: "0 */1 * * * *"
-  
-  retry:
-    max-attempts: ${MARKET_DATA_MAX_RETRIES}
-    base-delay-ms: ${MARKET_DATA_RETRY_DELAY_MS}
-  
-  thread-pool:
-    size: ${MARKET_DATA_THREAD_POOL_SIZE}
-    queue-capacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY}
-    prefix: "market-data-"
-  
-  validation:
-    max-age-minutes: ${MARKET_DATA_MAX_AGE_MINUTES}
 
 upstox:
   interval: I1

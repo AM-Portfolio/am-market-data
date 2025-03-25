@@ -1,21 +1,21 @@
 package com.am.marketdata.api.controller;
 
-import com.am.common.investment.model.equity.MarketIndexIndices;
-import com.am.common.investment.service.MarketIndexIndicesService;
+import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.am.common.investment.service.StockIndicesMarketDataService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/market-index")
+@RequestMapping("/api/v1/nse-indices")
 public class MarketIndexController {
     
     @Autowired
-    private MarketIndexIndicesService marketIndexService;
+    private StockIndicesMarketDataService marketIndexService;
 
-    @GetMapping("/")
-    public ResponseEntity<List<MarketIndexIndices>> getLatestIndexData() {
-        return ResponseEntity.ok(marketIndexService.getByKey("BROAD MARKET INDICES"));
+    @GetMapping("/{indexSymbol}")
+    public ResponseEntity<StockIndicesMarketData> getLatestIndexData(@PathVariable String indexSymbol) {
+        return ResponseEntity.ok(marketIndexService.findByIndexSymbol(indexSymbol));
     }
 }

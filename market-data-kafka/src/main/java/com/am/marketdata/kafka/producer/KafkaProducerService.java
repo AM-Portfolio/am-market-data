@@ -7,13 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import com.am.common.investment.model.equity.ETFIndies;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.MarketIndexIndices;
-import com.am.common.investment.model.events.ETFIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.MarketIndexIndicesPriceUpdateEvent;
-import com.am.marketdata.common.model.stockindices.StockInsidicesData;
-import com.am.marketdata.kafka.model.StockIndicesPriceUpdateEvent;
+import com.am.common.investment.model.events.StockIndicesPriceUpdateEvent;
+import com.am.common.investment.model.events.StockInsidicesEventData;
 import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 
 @Slf4j
@@ -49,7 +47,7 @@ public class KafkaProducerService {
         equityProducer.sendEvent(event, stockPriceTopic, event.getEventType(), event.getTimestamp());
     }
 
-    public void sendStockIndicesUpdate(StockInsidicesData stockIndice) {
+    public void sendStockIndicesUpdate(StockInsidicesEventData stockIndice) {
         var event = StockIndicesPriceUpdateEvent.builder()
             .eventType("STOCK_INDICES_PRICE_UPDATE")
             .timestamp(LocalDateTime.now())

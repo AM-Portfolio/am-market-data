@@ -31,33 +31,13 @@ app:
   validation:
     max-age-minutes: 15
 
-# Scheduler configuration
-scheduler:
-  # Cookie scheduler
-  cookie:
-    enabled: true  # Enable/disable cookie refresh scheduler
-    refresh: "0 0 * * * *"  # Cookie refresh every hour
-  
-  # Indices data scheduler
-  indices:
-    fetch: "0 */2 * * * *"  # Every 2 minutes during trading hours
-  
-  # Stock indices scheduler
-  stock-indices:
-    enabled: false  # Enable/disable stock indices scheduler
-    morning-fetch: "0 30 9 * * *"  # 9:30 AM IST
-    evening-fetch: "0 0 16 * * *"  # 4:00 PM IST
-    retry:
-      interval-minutes: 15
-      max-retries: 20
-      cron: "0 */15 * * * *"  # Every 15 minutes
-
 # Kafka configuration
 kafka:
   bootstrap-servers: localhost:9092
   topics:
     indices: nse-indices-update
     stock-indices: nse-stock-indices-update
+
 
 # NSE API configuration
 nse:

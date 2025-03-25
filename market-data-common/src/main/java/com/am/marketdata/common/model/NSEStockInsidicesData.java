@@ -4,10 +4,18 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
 import java.util.List;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NSEStockInsidicesData {
@@ -15,12 +23,16 @@ public class NSEStockInsidicesData {
     private Advance advance;
     private String timestamp;
     private List<StockData> data;
-    private Metadata metadata;
+    private IndexMetadata metadata;
     private MarketStatus marketStatus;
     private String date30dAgo;
     private String date365dAgo;
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Advance {
         private String declines;
@@ -29,6 +41,10 @@ public class NSEStockInsidicesData {
     }
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class StockData {
         private int priority;
@@ -58,11 +74,30 @@ public class NSEStockInsidicesData {
         private Double perChange30d;
         private String chart30dPath;
         private String chartTodayPath;
+        private Metadata meta;
+    }
+
+    @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Metadata {
+        private String symbol;
+        private String companyName;
+        private String industry;
+        private List<String> activeSeries;
+        private String isin;
     }
     
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Metadata {
+    public static class IndexMetadata {
         private String indexName;
         private Double open;
         private Double high;
@@ -82,6 +117,10 @@ public class NSEStockInsidicesData {
     }
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MarketStatus {
         private String market;

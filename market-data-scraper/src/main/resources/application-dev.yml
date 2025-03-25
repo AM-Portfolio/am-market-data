@@ -28,19 +28,27 @@ app:
   validation:
     max-age-minutes: 10            # Stricter validation in development
 
-# Development-specific scheduler settings
+# Scheduler configuration
 scheduler:
+  # Cookie scheduler
   cookie:
-    refresh: "0 */15 * * * *"      # More frequent refresh in dev (every 15 min)
+    enabled: false  # Enable/disable cookie refresh scheduler
+    refresh: "0 0/30 * * * *"  # Cookie refresh every 30 minutes
+  
+  # Indices data scheduler
   indices:
-    fetch: "0 */2 * * * *"         # Every 2 minutes for testing
+    enabled: false  # Enable/disable indices scheduler
+    fetch: "0 */2 * * * *"  # Every 2 minutes during trading hours
+  
+  # Stock indices scheduler
   stock-indices:
-    morning-fetch: "0 */2 * * * *"  # Every 2 minutes for testing
-    evening-fetch: "0 */2 * * * *"  # Every 2 minutes for testing
+    enabled: false  # Enable/disable stock indices scheduler
+    morning-fetch: "0 30 9 * * *"  # 9:30 AM IST
+    evening-fetch: "0 0 16 * * *"  # 4:00 PM IST
     retry:
-      interval-minutes: 5          # Faster retries in development
-      max-retries: 5               # Fewer max retries
-      cron: "0 */5 * * * *"        # Every 5 minutes for testing
+      interval-minutes: 10
+      max-retries: 20
+      cron: "0 */10 * * * *"  # Every 10 minutes
 
 # Development Kafka settings
 kafka:

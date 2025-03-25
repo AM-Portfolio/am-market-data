@@ -1,7 +1,8 @@
 package com.am.marketdata.scraper.mapper;
 
+import com.am.common.investment.model.events.StockInsidicesEventData;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.common.model.stockindices.StockInsidicesData;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -19,36 +20,36 @@ public class StockIndicesMapper {
      * @param data NSE market insidices data
      * @return Domain stock indices
      */
-    public static StockInsidicesData convertToStockIndices(NSEStockInsidicesData data) {
+    public static StockInsidicesEventData convertToStockIndices(NSEStockInsidicesData data) {
         if (data == null || data.getData() == null) {
             log.warn("Null or empty stock indices data");
             return null;
         }
 
-        return new StockInsidicesData(
+        return new StockInsidicesEventData(
             data.getName(),
             convertAdvance(data.getAdvance()),
             data.getTimestamp(),
             convertStockDataList(data.getData()),
-            convertMetadata(data.getMetadata()),
+            convertIndexMetadata(data.getMetadata()),
             convertMarketStatus(data.getMarketStatus()),
             data.getDate30dAgo(),
             data.getDate365dAgo()
         );
     }
 
-    protected static StockInsidicesData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
+    protected static StockInsidicesEventData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
         if (advance == null) {
             return null;
         }
-        return new StockInsidicesData.Advance(
+        return new StockInsidicesEventData.Advance(
             Integer.parseInt(advance.getDeclines()),
             Integer.parseInt(advance.getAdvances()),
             Integer.parseInt(advance.getUnchanged())
         );
     }
 
-    protected static List<StockInsidicesData.StockData> convertStockDataList(List<NSEStockInsidicesData.StockData> stockDataList) {
+    protected static List<StockInsidicesEventData.StockData> convertStockDataList(List<NSEStockInsidicesData.StockData> stockDataList) {
         if (stockDataList == null) {
             return null;
         }
@@ -57,11 +58,11 @@ public class StockIndicesMapper {
             .collect(Collectors.toList());
     }
 
-    private static StockInsidicesData.StockData convertStockData(NSEStockInsidicesData.StockData stockData) {
+    private static StockInsidicesEventData.StockData convertStockData(NSEStockInsidicesData.StockData stockData) {
         if (stockData == null) {
             return null;
         }
-        return StockInsidicesData.StockData.builder()
+        return StockInsidicesEventData.StockData.builder()
             .priority(stockData.getPriority())
             .symbol(stockData.getSymbol())
             .identifier(stockData.getIdentifier())
@@ -81,14 +82,15 @@ public class StockIndicesMapper {
             .date365dAgo(stockData.getDate365dAgo())
             .perChange30d(stockData.getPerChange30d())
             .date30dAgo(stockData.getDate30dAgo())
+            .metadata(convertMetadata(stockData.getMeta()))
             .build();
     }
 
-    protected static StockInsidicesData.Metadata convertMetadata(NSEStockInsidicesData.Metadata metadata) {
+    protected static StockInsidicesEventData.IndexMetadata convertIndexMetadata(NSEStockInsidicesData.IndexMetadata metadata) {
         if (metadata == null) {
             return null;
         }
-        return StockInsidicesData.Metadata.builder()
+        return StockInsidicesEventData.IndexMetadata.builder()
             .indexName(metadata.getIndexName())
             .open(metadata.getOpen())
             .high(metadata.getHigh())
@@ -99,11 +101,24 @@ public class StockIndicesMapper {
             .build();   
     }
 
-    protected static StockInsidicesData.MarketStatus convertMarketStatus(NSEStockInsidicesData.MarketStatus marketStatus) {
+    protected static StockInsidicesEventData.Metadata convertMetadata(NSEStockInsidicesData.Metadata metadata) {
+        if (metadata == null) {
+            return null;
+        }
+        return StockInsidicesEventData.Metadata.builder()
+            .symbol(metadata.getSymbol())
+            .companyName(metadata.getCompanyName())
+            .industry(metadata.getIndustry())
+            .activeSeries(metadata.getActiveSeries())
+            .isin(metadata.getIsin())
+            .build();   
+    }
+
+    protected static StockInsidicesEventData.MarketStatus convertMarketStatus(NSEStockInsidicesData.MarketStatus marketStatus) {
         if (marketStatus == null) {
             return null;
         }
-        return StockInsidicesData.MarketStatus.builder()
+        return StockInsidicesEventData.MarketStatus.builder()
             .market(marketStatus.getMarket())
             .marketStatus(marketStatus.getMarketStatus())
             .tradeDate(marketStatus.getTradeDate())

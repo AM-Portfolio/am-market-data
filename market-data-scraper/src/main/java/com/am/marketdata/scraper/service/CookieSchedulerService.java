@@ -21,7 +21,7 @@ import java.time.ZoneId;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "app.scheduler.cookie.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "scheduler.cookie.enabled", havingValue = "true", matchIfMissing = true)
 public class CookieSchedulerService {
     private final CookieManager cookieManager;
     private final MarketDataProcessingService marketDataProcessingService;

@@ -1,10 +1,12 @@
 package com.am.marketdata.scraper.service;
 
 import com.am.common.investment.model.equity.MarketIndexIndices;
+import com.am.common.investment.model.events.StockInsidicesEventData;
+import com.am.common.investment.model.events.mapper.StockIndicesEventDataMapper;
 import com.am.common.investment.service.MarketIndexIndicesService;
+import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.common.model.stockindices.StockInsidicesData;
 import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.cookie.CookieManager;
@@ -57,6 +59,7 @@ public class MarketDataProcessingService {
     private final NSEApiClient nseApiClient;
     private final KafkaProducerService kafkaProducer;
     private final MarketIndexIndicesService indexIndicesService;
+    private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final MeterRegistry meterRegistry;
     private final CookieManager cookieManager;
 
@@ -352,7 +355,7 @@ public class MarketDataProcessingService {
         log.info("Processing {} stocks", stocks.size());
 
         try {
-            StockInsidicesData stockIndice = StockIndicesMapper.convertToStockIndices(stockIndicesResponse);
+            StockInsidicesEventData stockIndice = StockIndicesMapper.convertToStockIndices(stockIndicesResponse);
             kafkaProducer.sendStockIndicesUpdate(stockIndice);
             log.info("Successfully processed stock indices data. Market Status: {}, Advances: {}, Declines: {}", 
                 stockIndice.getMarketStatus() != null ? stockIndice.getMarketStatus().getMarketStatus() : "N/A",
@@ -360,9 +363,23 @@ public class MarketDataProcessingService {
                 stockIndice.getAdvance().getDeclines()
             );
 
+            saveStockIndicesAndGetData(stockIndice);
+
         } catch (Exception e) {
             log.error("Failed to process ETF data", e);
             throw new RuntimeException("Error processing ETF data", e);
+        }
+    }
+
+    private void saveStockIndicesAndGetData(StockInsidicesEventData stockIndicesResponse) {
+        log.info("Saving stock indices data to database...");
+        try {
+            var stockIndicesMarketData = StockIndicesEventDataMapper.toMarketData(stockIndicesResponse);
+            stockIndicesMarketDataService.save(stockIndicesMarketData);
+            log.info("Successfully saved stock indices data to database");
+        } catch (Exception e) {
+            log.error("Error saving stock indices data to database: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to save stock indices data", e);
         }
     }
 

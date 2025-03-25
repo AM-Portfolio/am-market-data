@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "app.scheduler.stock-indices.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "scheduler.stock-indices.enabled", havingValue = "true", matchIfMissing = true)
 public class StockIndicesSchedulerService {
     @Value("${scheduler.stock-indices.retry.interval-minutes:15}")
     private int retryIntervalMinutes;
