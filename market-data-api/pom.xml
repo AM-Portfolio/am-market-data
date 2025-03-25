@@ -15,7 +15,7 @@
     <description>API module containing controllers and DTOs</description>
 
     <dependencies>
-     <dependency>
+        <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-service</artifactId>
             <version>${investment-model.version}</version>
@@ -28,6 +28,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-scraper</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>

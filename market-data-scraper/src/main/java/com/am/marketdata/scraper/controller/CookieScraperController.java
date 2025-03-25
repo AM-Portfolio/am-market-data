@@ -1,8 +1,8 @@
 package com.am.marketdata.scraper.controller;
 
 import com.am.marketdata.scraper.config.ScraperConfig;
+import com.am.marketdata.scraper.cookie.CookieScraper;
 import com.am.marketdata.scraper.model.WebsiteCookies;
-import com.am.marketdata.scraper.service.CookieScraperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/scraper")
 @RequiredArgsConstructor
 public class CookieScraperController {
-    private final CookieScraperService scraperService;
+    private final CookieScraper scraperService;
     private final ScraperConfig scraperConfig;
 
     @GetMapping("/cookies")

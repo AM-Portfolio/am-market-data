@@ -1,37 +1,46 @@
 package com.am.marketdata.scraper.service;
 
-import com.am.common.investment.model.equity.ETFIndies;
 import com.am.common.investment.model.equity.MarketIndexIndices;
+import com.am.common.investment.model.events.StockInsidicesEventData;
+import com.am.common.investment.model.events.mapper.StockIndicesEventDataMapper;
 import com.am.common.investment.service.MarketIndexIndicesService;
+import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
-import com.am.marketdata.common.model.NseETFResponse;
-import com.am.marketdata.common.model.NseETF;
+import com.am.marketdata.common.model.NSEStockInsidicesData;
 import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
-import com.am.marketdata.scraper.mapper.ETFIndicesMapper;
-import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
+import com.am.marketdata.scraper.config.NSEIndicesConfig;
+import com.am.marketdata.scraper.cookie.CookieManager;
+import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import com.am.marketdata.scraper.exception.DataValidationException;
 import com.am.marketdata.scraper.exception.MarketDataException;
-
+import com.am.marketdata.scraper.mapper.NSEMarketIndexIndicesMapper;
+import com.am.marketdata.scraper.mapper.StockIndicesMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +66,10 @@ public class MarketDataProcessingService {
     private final NSEApiClient nseApiClient;
     private final KafkaProducerService kafkaProducer;
     private final MarketIndexIndicesService indexIndicesService;
+    private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final MeterRegistry meterRegistry;
+    private final CookieManager cookieManager;
+    private final NSEIndicesConfig nseIndicesConfig;
 
     @Value(CONFIG_THREAD_POOL_SIZE)
     private int threadPoolSize;
@@ -76,9 +88,9 @@ public class MarketDataProcessingService {
 
     private ThreadPoolTaskExecutor executor;
     private Timer indicesFetchTimer;
-    private Timer etfFetchTimer;
+    private Timer stockIndicesFetchTimer;
     private Timer indicesProcessTimer;
-    private Timer etfProcessTimer;
+    private Timer stockIndicesProcessTimer;
 
     @PostConstruct
     public void initialize() {
@@ -97,9 +109,9 @@ public class MarketDataProcessingService {
             .description("Time taken to fetch indices data")
             .register(meterRegistry);
 
-        etfFetchTimer = Timer.builder(METRIC_FETCH_TIME)
-            .tag(TAG_DATA_TYPE, "etf")
-            .description("Time taken to fetch ETF data")
+        stockIndicesFetchTimer = Timer.builder(METRIC_FETCH_TIME)
+            .tag(TAG_DATA_TYPE, "stock_indices")
+            .description("Time taken to fetch stock indices data")
             .register(meterRegistry);
 
         indicesProcessTimer = Timer.builder(METRIC_PROCESS_TIME)
@@ -107,9 +119,9 @@ public class MarketDataProcessingService {
             .description("Time taken to process indices data")
             .register(meterRegistry);
 
-        etfProcessTimer = Timer.builder(METRIC_PROCESS_TIME)
-            .tag(TAG_DATA_TYPE, "etf")
-            .description("Time taken to process ETF data")
+        stockIndicesProcessTimer = Timer.builder(METRIC_PROCESS_TIME)
+            .tag(TAG_DATA_TYPE, "stock_indices")
+            .description("Time taken to process stock indices data")
             .register(meterRegistry);
     }
 
@@ -121,22 +133,120 @@ public class MarketDataProcessingService {
         }
     }
 
+    /**
+     * Fetch and process both indices and stock indices data
+     * This method is called by the regular scheduler (every 2 minutes)
+     */
+    @ConditionalOnProperty(name = "scheduler.indices.enabled", havingValue = "true", matchIfMissing = true)
     public void fetchAndProcessMarketData() {
-        CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
-        CompletableFuture<Boolean> etfFuture = fetchAndProcessETFs();
-
         try {
-            CompletableFuture.allOf(indicesFuture, etfFuture).get();
-            boolean indicesProcessed = indicesFuture.get();
-            boolean etfProcessed = etfFuture.get();
+            // Refresh cookies if needed
+            cookieManager.refreshIfNeeded();
+            
+            // For regular processing, we only fetch indices
+            // Stock indices are handled by a separate scheduler
+            CompletableFuture<Boolean> indicesFuture = fetchAndProcessIndices();
+            
+            try {
+                boolean indicesProcessed = indicesFuture.get();
+                log.info("Regular market data processing completed. Indices processed: {}", 
+                        indicesProcessed ? "success" : "failed");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new MarketDataException("Interrupted while fetching market data", e);
+            } catch (ExecutionException e) {
+                throw new MarketDataException("Error fetching market data", e.getCause());
+            }
+        } catch (CookieException e) {
+            log.error("Cookie refresh failed: {}", e.getMessage());
+            throw new MarketDataException("Failed to fetch market data: Cookie refresh failed", e);
+        }
+    }
+    
+    /**
+     * Fetch and process only stock indices data
+     * This method is called by the stock indices scheduler at specific times
+     * @return true if stock indices were successfully processed, false otherwise
+     */
+    public boolean fetchAndProcessStockIndicesOnly() {
+        try {
+            // Refresh cookies if needed
+            cookieManager.refreshIfNeeded();
+            
+            log.info("Starting stock indices processing for {} broad market indices and {} sector indices", 
+                    nseIndicesConfig.getBroadMarketIndices().size(),
+                    nseIndicesConfig.getSectorIndices().size());
 
-            logProcessingStatus(indicesProcessed, etfProcessed);
+            List<String> allIndices = new ArrayList<>();
+            allIndices.addAll(nseIndicesConfig.getBroadMarketIndices());
+            allIndices.addAll(nseIndicesConfig.getSectorIndices());
+            
+            // Create a list to hold all futures
+            List<CompletableFuture<Boolean>> futures = allIndices.stream()
+                .map(indexSymbol -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        NSEStockInsidicesData data = nseApiClient.getStockIndices(indexSymbol);
+                        if (data != null) {
+                            processStockIndicesData(data);
+                            return true;
+                        }
+                        return false;
+                    } catch (Exception e) {
+                        log.error("Failed to process index {}: {}", indexSymbol, e.getMessage());
+                        return false;
+                    }
+                }, executor))
+                .collect(Collectors.toList());
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new MarketDataException("Interrupted while fetching market data", e);
-        } catch (ExecutionException e) {
-            throw new MarketDataException("Error fetching market data", e.getCause());
+            // Wait for all futures to complete
+            CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+
+            try {
+                // Wait for all processing to complete with timeout
+                allFutures.get(5, TimeUnit.MINUTES);
+                
+                // Count successful operations
+                long successCount = futures.stream()
+                    .map(future -> {
+                        try {
+                            return future.get(1, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .filter(result -> result)
+                    .count();
+
+                log.info("Stock indices processing completed. Success: {}/{}", 
+                    successCount, allIndices.size());
+                
+                return successCount > 0;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while processing stock indices", e);
+                return false;
+            } catch (TimeoutException | ExecutionException e) {
+                log.error("Error processing stock indices: {}", e.getMessage());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Failed to process stock indices: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Process stock indices data asynchronously
+     * @param data The stock indices data to process
+     */
+    @Async
+    private void processStockIndicesData(NSEStockInsidicesData data) {
+        try {
+            processAndSendStockIndicesData(data);
+        } catch (Exception e) {
+            log.error("Failed to process stock indices data: {}", e.getMessage());
         }
     }
 
@@ -174,31 +284,32 @@ public class MarketDataProcessingService {
         }, executor);
     }
 
-    private CompletableFuture<Boolean> fetchAndProcessETFs() {
+    public CompletableFuture<Boolean> fetchAndProcessStockIndices(String indexSymbol) {
         return CompletableFuture.supplyAsync(() -> {
             Timer.Sample fetchSample = Timer.start();
-            NseETFResponse response = fetchETFsWithRetry();
-            fetchSample.stop(etfFetchTimer);
+            NSEStockInsidicesData response = fetchStockIndicesWithRetry(indexSymbol);
+            fetchSample.stop(stockIndicesFetchTimer);
 
             if (response != null) {
                 try {
-                    if (validateETFData(response)) {
+                    if (validateStockIndicesData(response)) {
                         Timer.Sample processSample = Timer.start();
-                        processAndSendETFData(response);
-                        processSample.stop(etfProcessTimer);
+                        processAndSendStockIndicesData(response);
+                        processSample.stop(stockIndicesProcessTimer);
 
-                        meterRegistry.counter(METRIC_SUCCESS_COUNT, TAG_DATA_TYPE, "etf").increment();
+                        log.info("Successfully processed and sent stock indices data to Kafka");
+                        meterRegistry.counter(METRIC_SUCCESS_COUNT, TAG_DATA_TYPE, "stock_indices").increment();
                         return true;
                     } else {
-                        log.warn("Skipping invalid or stale ETF data");
-                        throw new DataValidationException("etf", "Invalid or stale data");
+                        log.warn("Skipping invalid or stale stock indices data");
+                        throw new DataValidationException("stock_indices", "Invalid or stale data");
                     }
                 } catch (DataValidationException e) {
                     throw e;
                 } catch (Exception e) {
-                    log.error("Failed to process ETF data", e);
-                    meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "etf").increment();
-                    throw new MarketDataException("Failed to process ETF data", e);
+                    log.error("Failed to process stock indices data", e);
+                    meterRegistry.counter(METRIC_FAILURE_COUNT, TAG_DATA_TYPE, "stock_indices").increment();
+                    throw new MarketDataException("Failed to process stock indices data", e);
                 }
             }
             return false;
@@ -216,13 +327,13 @@ public class MarketDataProcessingService {
         }, maxRetries, retryDelayMs);
     }
 
-    private NseETFResponse fetchETFsWithRetry() {
+    private NSEStockInsidicesData fetchStockIndicesWithRetry(String indexSymbol) {
         return retryOnFailure(() -> {
             try {
-                log.info("Fetching NSE ETF data...");
-                return nseApiClient.getETFs();
+                log.info("Fetching NSE stock indices data...");
+                return nseApiClient.getStockIndices(indexSymbol);
             } catch (Exception e) {
-                throw new DataFetchException("etf", maxRetries, "Failed to fetch ETF data", e);
+                throw new DataFetchException("stock_indices", maxRetries, "Failed to fetch stock indices data", e);
             }
         }, maxRetries, retryDelayMs);
     }
@@ -252,18 +363,6 @@ public class MarketDataProcessingService {
         throw new MarketDataException("Operation failed after " + maxRetries + " retries", lastException);
     }
 
-    private void logProcessingStatus(boolean indicesProcessed, boolean etfProcessed) {
-        if (!indicesProcessed && !etfProcessed) {
-            throw new RuntimeException("Failed to process both indices and ETF data");
-        } else if (!indicesProcessed) {
-            log.warn("Indices data processing failed but ETF data was processed successfully");
-        } else if (!etfProcessed) {
-            log.warn("ETF data processing failed but indices data was processed successfully");
-        } else {
-            log.info("Successfully processed both indices and ETF data");
-        }
-    }
-
     private boolean validateIndicesData(NSEIndicesResponse response) {
         if (response == null || response.getData() == null || response.getData().isEmpty()) {
             log.warn("Received empty indices response");
@@ -272,14 +371,14 @@ public class MarketDataProcessingService {
         return true;
     }
 
-    private boolean validateETFData(NseETFResponse response) {
+    private boolean validateStockIndicesData(NSEStockInsidicesData response) {
         if (response == null || response.getData() == null || response.getData().isEmpty()) {
-            log.warn("Received empty ETF response");
+            log.warn("Received empty stock indices response");
             return false;
         }
 
         if (response.getMarketStatus() == null) {
-            log.warn("ETF response missing market status");
+            log.warn("Stock indices response missing market status");
             return false;
         }
 
@@ -287,7 +386,7 @@ public class MarketDataProcessingService {
         try {
             String tradeDate = response.getMarketStatus().getTradeDate();
             if (tradeDate == null) {
-                log.warn("ETF response missing trade date");
+                log.warn("Stock indices response missing trade date");
                 return false;
             }
 
@@ -296,38 +395,52 @@ public class MarketDataProcessingService {
             long minutesOld = java.time.Duration.between(marketTime, now).toMinutes();
 
             if (minutesOld > maxDataAgeMinutes) {
-                log.warn("ETF data is too old: {} minutes", minutesOld);
+                log.warn("Stock indices data is too old: {} minutes", minutesOld);
                 return false;
             }
         } catch (Exception e) {
-            log.error("Failed to parse ETF trade date", e);
+            log.error("Failed to parse stock indices trade date", e);
             return false;
         }
 
         return true;
     }
 
-    private void processAndSendETFData(NseETFResponse etfResponse) {
-        if (etfResponse == null || etfResponse.getData() == null) {
-            log.warn("Received null or empty ETF response");
+    private void processAndSendStockIndicesData(NSEStockInsidicesData stockIndicesResponse) {
+        if (stockIndicesResponse == null || stockIndicesResponse.getData() == null) {
+            log.warn("Received null or empty stock indices response");
             return;
         }
 
-        List<NseETF> etfs = etfResponse.getData();
-        log.info("Processing {} ETFs", etfs.size());
+        List<NSEStockInsidicesData.StockData> stocks = stockIndicesResponse.getData();
+        log.info("Processing {} stocks", stocks.size());
 
         try {
-            List<ETFIndies> etfIndies = ETFIndicesMapper.convertToETFIndices(etfs);
-            kafkaProducer.sendETFUpdate(etfIndies);
-            log.info("Successfully processed ETF data. Market Status: {}, Advances: {}, Declines: {}", 
-                etfResponse.getMarketStatus() != null ? etfResponse.getMarketStatus().getMarketStatus() : "N/A",
-                etfResponse.getAdvances(),
-                etfResponse.getDeclines()
+            StockInsidicesEventData stockIndice = StockIndicesMapper.convertToStockIndices(stockIndicesResponse);
+            kafkaProducer.sendStockIndicesUpdate(stockIndice);
+            log.info("Successfully processed stock indices data. Market Status: {}, Advances: {}, Declines: {}", 
+                stockIndice.getMarketStatus() != null ? stockIndice.getMarketStatus().getMarketStatus() : "N/A",
+                stockIndice.getAdvance().getAdvances(),
+                stockIndice.getAdvance().getDeclines()
             );
+
+            saveStockIndicesAndGetData(stockIndice);
 
         } catch (Exception e) {
             log.error("Failed to process ETF data", e);
             throw new RuntimeException("Error processing ETF data", e);
+        }
+    }
+
+    private void saveStockIndicesAndGetData(StockInsidicesEventData stockIndicesResponse) {
+        log.info("Saving stock indices data to database...");
+        try {
+            var stockIndicesMarketData = StockIndicesEventDataMapper.toMarketData(stockIndicesResponse);
+            stockIndicesMarketDataService.save(stockIndicesMarketData);
+            log.info("Successfully saved stock indices data to database");
+        } catch (Exception e) {
+            log.error("Error saving stock indices data to database: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to save stock indices data", e);
         }
     }
 

@@ -1,18 +1,24 @@
 # PostgreSQL Configuration
 POSTGRES_PASSWORD: password
 POSTGRES_USERNAME: postgres
-POSTGRES_URL: jdbc:postgresql://localhost:5432
+POSTGRES_URL: jdbc:postgresql://localhost:5456
 POSTGRES_DATABASE: portfolio
+
+#mongo
+MONGO_URL: mongodb://admin:password@localhost:27017/portfolio?authSource=admin
+MONGO_DATABASE: market_data
+MONGO_USERNAME: admin
+MONGO_PASSWORD: password
 
 # InfluxDB Configuration
 INFLUXDB_TOKEN: my-super-secret-auth-token
 INFLUXDB_ORG: am_investment
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://localhost:8086
+INFLUXDB_URL: http://localhost:8087
 
 # Grafana Configuration
-GRAFANA_ADMIN_USER: admin
-GRAFANA_ADMIN_PASSWORD: your_grafana_password
+GRAFANA_ADMIN_USER: 1109403
+GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
 # Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS: localhost:9092
@@ -26,7 +32,7 @@ KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
 # Application Configuration
 STOKUPATE_TOPIC_NAME: am-stock-price-update
 NSE_INDICES_TOPIC_NAME: nse-indices-update
-NSE_ETF_TOPIC_NAME: nse-etf-update
+NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
 
 MARKET_DATA_MAX_RETRIES: 3
 MARKET_DATA_RETRY_DELAY_MS: 1000
@@ -35,25 +41,53 @@ MARKET_DATA_THREAD_QUEUE_CAPACITY: 10
 MARKET_DATA_MAX_AGE_MINUTES: 15
 
 # Upstox Configuration
-UPSTOX_ACCESS_TOKEN: XXXXXXXXXXXXXXXXXXXXXXXXX
-UPSTOX_API_KEY: XXXXXXXXXXXXXXXXXXXXXXXXX
-UPSTOX_SECRET_KEY: XXXXXXXXXXXXXXXXX
-UPSTOX_CODE: XXXXXXXXX 
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2RiNDUwZjNkZGQ3YTZhM2Q0MDdmMmEiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQyNDIzMzExLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDI1MDgwMDB9.trE87ksuZgTY_Isx9bYAxECeStUVgGtWxVNzjtcp0Mk
+UPSTOX_API_KEY: 48d1e335-09ad-4dc0-b955-4505c350d10b
+UPSTOX_SECRET_KEY: jqre481zf0
+UPSTOX_CODE: rNLu2Q 
 
-server:
-  port: 8084
-
+# Spring Configuration
 spring:
-  influx:
-    url: ${INFLUXDB_URL}
-    token: ${INFLUXDB_TOKEN}
-    org: ${INFLUXDB_ORG}
-    bucket: ${INFLUXDB_BUCKET}
+  profiles:
+    active: dev  # Default to development profile
+  application:
+    name: market-data-service
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
+      username: ${MONGO_USERNAME}
+      password: ${MONGO_PASSWORD}
+      authentication-database: admin
+  
+  # Database Configuration
   datasource:
     url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
     username: ${POSTGRES_USERNAME}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    
+  # InfluxDB Configuration
+  influx:
+    url: ${INFLUXDB_URL}
+    token: ${INFLUXDB_TOKEN}
+    org: ${INFLUXDB_ORG}
+    bucket: ${INFLUXDB_BUCKET}
+    
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
+  
+  config:
+    import:
+      - classpath:isin.yml
+      - classpath:nseindices.yml
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -62,45 +96,43 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      group-id: am-market-data-service
-      auto-offset-reset: earliest
 
 app:
   kafka:
     stock-price-topic: ${STOKUPATE_TOPIC_NAME}
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
-    nse-etf-topic: ${NSE_ETF_TOPIC_NAME}
-  retry:
-    max-attempts: ${market.data.max.retries:3}
-    base-delay-ms: ${market.data.retry.delay.ms:1000}
-  thread-pool:
-    size: ${market.data.thread.pool.size:5}
-    queue-capacity: ${market.data.thread.queue.capacity:10}
-  validation:
-    max-age-minutes: ${market.data.max.age.minutes:15}
+    stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
 
 upstox:
   interval: I1
   auth:
     base-url: https://api.upstox.com/v2
-    code: ${UPSTOX_CODE:SeG3X0}
-    api-key: ${UPSTOX_API_KEY:48d1e335-09ad-4dc0-b955-4505c350d10b}
-    secret-key: ${UPSTOX_SECRET_KEY:jqre481zf0}
-    access-token: ${UPSTOX_ACCESS_TOKEN:your-default-token}
+    code: ${UPSTOX_CODE}
+    api-key: ${UPSTOX_API_KEY}
+    secret-key: ${UPSTOX_SECRET_KEY}
+    access-token: ${UPSTOX_ACCESS_TOKEN}
     redirect-uri: http://localhost:8080
     authorization-url: https://api-v2.upstox.com/login/authorization/dialog
     token-url: https://api-v2.upstox.com/login/authorization/token
     token-refresh-interval: 3600000
     scope: orders feed portfolio
 
+stock-data-scheduler: false
+nse-scraper-scheduler: true
 scraper:
   urls:
     - https://www.nseindia.com/
 
-# logging:
-#   level:
-#     root: DEBUG
-#     com.am.common.investment: INFO
+# Server Configuration
+server:
+  port: 8084
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scheduler]': DEBUG
+    '[com.am.marketdata.service]': INFO
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
