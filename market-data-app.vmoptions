@@ -1,0 +1,9 @@
+-Xms512m
+-Xmx1024m
+-XX:MaxMetaspaceSize=256m
+-XX:+UseG1GC
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=logs/heapdump.hprof
+-XX:+UseStringDeduplication
+-XX:MaxGCPauseMillis=200
+-Djava.net.preferIPv4Stack=true

@@ -35,7 +35,8 @@ public class CookieSchedulerService {
             // If within trading hours, start market data processing
             if (isWithinTradingHours()) {
                 log.info("Within trading hours, starting initial market data processing");
-                marketDataProcessingService.fetchAndProcessMarketData();
+                //marketDataProcessingService.fetchAndProcessMarketData();
+                marketDataProcessingService.fetchAndProcessStockIndicesOnly();
             } else {
                 log.info("Outside trading hours, skipping initial market data processing");
             }

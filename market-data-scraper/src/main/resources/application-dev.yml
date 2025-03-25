@@ -32,23 +32,23 @@ app:
 scheduler:
   # Cookie scheduler
   cookie:
-    enabled: false  # Enable/disable cookie refresh scheduler
+    enabled: true  # Enable/disable cookie refresh scheduler
     refresh: "0 0/30 * * * *"  # Cookie refresh every 30 minutes
   
   # Indices data scheduler
   indices:
     enabled: false  # Enable/disable indices scheduler
-    fetch: "0 */2 * * * *"  # Every 2 minutes during trading hours
+    fetch: "0 */15 * * * *"  # Every 15 minutes during trading hours
   
   # Stock indices scheduler
   stock-indices:
-    enabled: false  # Enable/disable stock indices scheduler
+    enabled: true  # Enable/disable stock indices scheduler
     morning-fetch: "0 30 9 * * *"  # 9:30 AM IST
     evening-fetch: "0 0 16 * * *"  # 4:00 PM IST
     retry:
-      interval-minutes: 10
+      interval-minutes: 1
       max-retries: 20
-      cron: "0 */10 * * * *"  # Every 10 minutes
+      cron: "0 */1 * * * *"  # Every 1 minutes
 
 # Development Kafka settings
 kafka:

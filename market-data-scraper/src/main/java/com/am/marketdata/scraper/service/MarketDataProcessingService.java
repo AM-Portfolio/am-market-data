@@ -9,6 +9,7 @@ import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
 import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
+import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.marketdata.scraper.cookie.CookieManager;
 import com.am.marketdata.scraper.exception.CookieException;
 import com.am.marketdata.scraper.exception.DataFetchException;
@@ -21,19 +22,25 @@ import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -62,6 +69,7 @@ public class MarketDataProcessingService {
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final MeterRegistry meterRegistry;
     private final CookieManager cookieManager;
+    private final NSEIndicesConfig nseIndicesConfig;
 
     @Value(CONFIG_THREAD_POOL_SIZE)
     private int threadPoolSize;
@@ -129,6 +137,7 @@ public class MarketDataProcessingService {
      * Fetch and process both indices and stock indices data
      * This method is called by the regular scheduler (every 2 minutes)
      */
+    @ConditionalOnProperty(name = "scheduler.indices.enabled", havingValue = "true", matchIfMissing = true)
     public void fetchAndProcessMarketData() {
         try {
             // Refresh cookies if needed
@@ -164,28 +173,80 @@ public class MarketDataProcessingService {
             // Refresh cookies if needed
             cookieManager.refreshIfNeeded();
             
-            log.info("Starting stock indices only processing");
-            CompletableFuture<Boolean> stockIndicesFuture = fetchAndProcessStockIndices();
+            log.info("Starting stock indices processing for {} broad market indices and {} sector indices", 
+                    nseIndicesConfig.getBroadMarketIndices().size(),
+                    nseIndicesConfig.getSectorIndices().size());
+
+            List<String> allIndices = new ArrayList<>();
+            allIndices.addAll(nseIndicesConfig.getBroadMarketIndices());
+            allIndices.addAll(nseIndicesConfig.getSectorIndices());
             
+            // Create a list to hold all futures
+            List<CompletableFuture<Boolean>> futures = allIndices.stream()
+                .map(indexSymbol -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        NSEStockInsidicesData data = nseApiClient.getStockIndices(indexSymbol);
+                        if (data != null) {
+                            processStockIndicesData(data);
+                            return true;
+                        }
+                        return false;
+                    } catch (Exception e) {
+                        log.error("Failed to process index {}: {}", indexSymbol, e.getMessage());
+                        return false;
+                    }
+                }, executor))
+                .collect(Collectors.toList());
+
+            // Wait for all futures to complete
+            CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+
             try {
-                boolean stockIndicesProcessed = stockIndicesFuture.get();
-                log.info("Stock indices processing completed: {}", 
-                        stockIndicesProcessed ? "success" : "failed");
-                return stockIndicesProcessed;
+                // Wait for all processing to complete with timeout
+                allFutures.get(5, TimeUnit.MINUTES);
+                
+                // Count successful operations
+                long successCount = futures.stream()
+                    .map(future -> {
+                        try {
+                            return future.get(1, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .filter(result -> result)
+                    .count();
+
+                log.info("Stock indices processing completed. Success: {}/{}", 
+                    successCount, allIndices.size());
+                
+                return successCount > 0;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Interrupted while fetching stock indices data", e);
+                log.error("Interrupted while processing stock indices", e);
                 return false;
-            } catch (ExecutionException e) {
-                log.error("Error fetching stock indices data: {}", e.getCause().getMessage());
+            } catch (TimeoutException | ExecutionException e) {
+                log.error("Error processing stock indices: {}", e.getMessage());
                 return false;
             }
-        } catch (CookieException e) {
-            log.error("Cookie refresh failed during stock indices fetch: {}", e.getMessage());
-            return false;
         } catch (Exception e) {
-            log.error("Unexpected error during stock indices fetch: {}", e.getMessage(), e);
+            log.error("Failed to process stock indices: {}", e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Process stock indices data asynchronously
+     * @param data The stock indices data to process
+     */
+    @Async
+    private void processStockIndicesData(NSEStockInsidicesData data) {
+        try {
+            processAndSendStockIndicesData(data);
+        } catch (Exception e) {
+            log.error("Failed to process stock indices data: {}", e.getMessage());
         }
     }
 
@@ -223,10 +284,10 @@ public class MarketDataProcessingService {
         }, executor);
     }
 
-    private CompletableFuture<Boolean> fetchAndProcessStockIndices() {
+    public CompletableFuture<Boolean> fetchAndProcessStockIndices(String indexSymbol) {
         return CompletableFuture.supplyAsync(() -> {
             Timer.Sample fetchSample = Timer.start();
-            NSEStockInsidicesData response = fetchStockIndicesWithRetry();
+            NSEStockInsidicesData response = fetchStockIndicesWithRetry(indexSymbol);
             fetchSample.stop(stockIndicesFetchTimer);
 
             if (response != null) {
@@ -266,11 +327,11 @@ public class MarketDataProcessingService {
         }, maxRetries, retryDelayMs);
     }
 
-    private NSEStockInsidicesData fetchStockIndicesWithRetry() {
+    private NSEStockInsidicesData fetchStockIndicesWithRetry(String indexSymbol) {
         return retryOnFailure(() -> {
             try {
                 log.info("Fetching NSE stock indices data...");
-                return nseApiClient.getStockIndices();
+                return nseApiClient.getStockIndices(indexSymbol);
             } catch (Exception e) {
                 throw new DataFetchException("stock_indices", maxRetries, "Failed to fetch stock indices data", e);
             }

@@ -64,8 +64,8 @@ public class NSEApiClient {
             .register(meterRegistry);
     }
 
-    public NSEStockInsidicesData getStockIndices() {
-        return stockIndicesRequestTimer.record(() -> executeApiCall("/api/equity-stockIndices?index=NIFTY 50", NSEStockInsidicesData.class, this::logStockIndicesResponse));
+    public NSEStockInsidicesData getStockIndices(String indexSymbol) {
+        return stockIndicesRequestTimer.record(() -> executeApiCall("/api/equity-stockIndices?index=" + indexSymbol, NSEStockInsidicesData.class, this::logStockIndicesResponse));
     }
 
     public NSEIndicesResponse getAllIndices() {
