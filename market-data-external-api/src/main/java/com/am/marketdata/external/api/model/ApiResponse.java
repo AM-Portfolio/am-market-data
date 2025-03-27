@@ -89,4 +89,34 @@ public class ApiResponse {
                 .responseTimeMs(responseTimeMs)
                 .build();
     }
+    
+    /**
+     * Creates a failure response (alias for error)
+     * 
+     * @param statusCode HTTP status code
+     * @param errorMessage Error message
+     * @param responseTimeMs Time taken for the request in milliseconds
+     * @return ApiResponse
+     */
+    public static ApiResponse failure(int statusCode, String errorMessage, long responseTimeMs) {
+        return error(statusCode, errorMessage, responseTimeMs);
+    }
+    
+    /**
+     * Check if the response was successful
+     * 
+     * @return true if successful, false otherwise
+     */
+    public boolean isSuccess() {
+        return successful;
+    }
+    
+    /**
+     * Get the response data
+     * 
+     * @return Response body as string
+     */
+    public String getData() {
+        return body;
+    }
 }
