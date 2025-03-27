@@ -521,4 +521,25 @@ public class TradeBrainClient {
         String url = endpoint.getUrl().replace("{symbol}", symbol);
         return apiClient.get(url, endpoint.getHeaders());
     }
+    
+    /**
+     * Check health of a specific endpoint
+     * 
+     * @param endpointId Endpoint ID
+     * @return ApiResponse from the endpoint health check
+     */
+    public ApiResponse checkEndpointHealth(String endpointId) {
+        return callEndpoint(endpointId);
+    }
+    
+    /**
+     * Check health of a specific endpoint with a symbol parameter
+     * 
+     * @param endpointId Endpoint ID
+     * @param symbol Stock symbol to use
+     * @return ApiResponse from the endpoint health check
+     */
+    public ApiResponse checkEndpointHealthWithSymbol(String endpointId, String symbol) {
+        return callEndpointWithSymbol(endpointId, symbol);
+    }
 }

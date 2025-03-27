@@ -14,6 +14,7 @@ import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.external.api.registry.ApiEndpoint;
 import com.am.marketdata.external.api.registry.ApiEndpointRegistry;
+import com.am.marketdata.external.api.service.EndpointHealthService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class TradeBrainController {
     
     private final TradeBrainClient tradeBrainClient;
     private final ApiEndpointRegistry endpointRegistry;
+    private final EndpointHealthService endpointHealthService;
     
     /**
      * Get market indices data from TradeBrain
@@ -48,6 +50,21 @@ public class TradeBrainController {
         }
         
         return ResponseEntity.ok(response.getData());
+    }
+    
+    /**
+     * Check health status of all registered endpoints
+     * 
+     * @return Health status of all endpoints
+     */
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> checkEndpointsHealth() {
+        log.debug("Checking health status of all endpoints");
+        
+        // Use the service to check endpoint health with a 5-second delay
+        Map<String, Object> healthStatus = endpointHealthService.checkEndpointsHealth(5000);
+        
+        return ResponseEntity.ok(healthStatus);
     }
     
     /**

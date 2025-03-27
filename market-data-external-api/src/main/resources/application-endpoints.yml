@@ -12,36 +12,40 @@ trade-brain:
       all: ${TRADEBRAIN_INDICES_ALL_PATH:${base.indices-path}}
     company:
       stock:
-        details: ${base.base-url}/${base.resource}/stock/{symbol}
-        historical: ${base.base-url}/${base.resource}/stock/historical/{symbol}
-        technical: ${base.base-url}/${base.resource}/stock/technicals/{symbol}
-        shareholding: ${base.base-url}/${base.resource}/stock/shareholding/{symbol}
-        heatmap: ${base.base-url}/${base.resource}/stock/heatmap/{symbol}
+        details: /api/company/stock/{symbol}
+        historical: /api/company/stock/historical/{symbol}
+        technical: /api/company/stock/technicals/{symbol}
+        shareholding: /api/company/stock/shareholding/{symbol}
+        heatmap: /api/company/stock/heatmap/{symbol}
       profile:
-        short-details: ${base.base-url}/${base.resource}/short/details/{symbol}
-        key-metrics: ${base.base-url}/${base.resource}/keymetrics/{symbol}
-        company-profile: ${base.base-url}/${base.resource}/profile/info/{symbol}
-        insights: ${base.base-url}/${base.resource}/insights/{symbol}
-        corporate-action: ${base.base-url}/${base.resource}/corporate/actions/{symbol}
-        shareholding: ${base.base-url}/${base.resource}/detailed/shareholding/{symbol}
-        score: ${base.base-url}/${base.resource}/portal/score/{symbol}
-        board-of-directors: ${base.base-url}/${base.resource}/board/directors/{symbol}
-        top-shareholders: ${base.base-url}/${base.resource}/top/shareholders/quaters/{symbol}
+        short-details: /api/company/short/details/{symbol}
+        key-metrics: /api/company/keymetrics/{symbol}
+        company-profile: /api/company/profile/info/{symbol}
+        insights: /api/company/insights/{symbol}
+        corporate-action: /api/company/corporate/actions/{symbol}
+        shareholding: /api/company/detailed/shareholding/{symbol}
+        score: /api/company/portal/score/{symbol}
+        board-of-directors: /api/company/board/directors/{symbol}
+        top-shareholders: /api/company/top/shareholders/quaters/{symbol}
       financial:
-        dividends: ${base.base-url}/${base.resource}/ratios/factsheet/dividends/{symbol}/standalone
-        half-yearly-statement: ${base.base-url}/${base.resource}/half-yearly/statement/{symbol}/standalone
-        quarterly-results-standalone: ${base.base-url}/${base.resource}/quarterly-results/statement/{symbol}/standalone
-        profit-and-loss-standalone: ${base.base-url}/${base.resource}/profit-and-loss/statement/{symbol}/standalone
-        balance-sheet-standalone: ${base.base-url}/${base.resource}/balance/sheet/{symbol}/standalone
-        cash-flow-standalone: ${base.base-url}/${base.resource}/cash-flow/statement/{symbol}/standalone
+        dividends: /api/company/ratios/factsheet/dividends/{symbol}/standalone
+        profit-loss: /api/company/profit-loss/statement/{symbol}/standalone
+        balance-sheet: /api/company/balance-sheet/statement/{symbol}/standalone
+        cash-flow: /api/company/cash-flow/statement/{symbol}/standalone
+        quarterly-results: /api/company/quarterly-results/statement/{symbol}/standalone
+        half-yearly: /api/company/half-yearly/statement/{symbol}/standalone
+        ratios: /api/company/ratios/{symbol}/standalone
+        credit-rating: /api/company/credit-rating/{symbol}
+        peers: /api/company/sector/industry/peers/{symbol}
       documents:
-        credit-rating: ${base.base-url}/${base.resource}/credit-rating/{symbol}
-        industry-peers: ${base.base-url}/${base.resource}/sector/industry/peers/{symbol}
+        annual-reports: /api/company/annual/reports/{symbol}
       reports:
-        director-report: ${base.base-url}/${base.resource}/director/report/{symbol}
-        chairman-report: ${base.base-url}/${base.resource}/chairman/report/{symbol}
-        auditor-report: ${base.base-url}/${base.resource}/auditors/report/{symbol}
-        annualReports: ${base.base-url}/${base.resource}/documents/annual-reports/{symbol}
+        director-report: /api/company/director/report/{symbol}
+        chairman-report: /api/company/chairman/report/{symbol}
+        auditor-report: /api/company/auditor/report/{symbol}
+        annual-reports: /api/company/annual/reports/{symbol}
+      analytics:
+        analytics: /api/company/analytics/{symbol}
   headers:
     userAgent: "AM-MarketData/1.0"
     accept: "application/json"
