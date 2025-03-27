@@ -1,7 +1,6 @@
 package com.am.marketdata.external.api.controller;
 
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -12,15 +11,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
-import com.am.marketdata.external.api.registry.ApiEndpoint;
-import com.am.marketdata.external.api.registry.ApiEndpointRegistry;
+import com.am.marketdata.external.api.model.EndpointHierarchy;
+import com.am.marketdata.external.api.model.EndpointResponse;
 import com.am.marketdata.external.api.service.EndpointHealthService;
+import com.am.marketdata.external.api.service.EndpointManagementService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Controller for TradeBrain API
+ * Controller for TradeBrain API endpoints
  */
 @RestController
 @RequestMapping("/api/tradebrain")
@@ -29,17 +29,17 @@ import lombok.extern.slf4j.Slf4j;
 public class TradeBrainController {
     
     private final TradeBrainClient tradeBrainClient;
-    private final ApiEndpointRegistry endpointRegistry;
     private final EndpointHealthService endpointHealthService;
+    private final EndpointManagementService endpointManagementService;
     
     /**
-     * Get market indices data from TradeBrain
+     * Get all market indices
      * 
-     * @return Market indices data
+     * @return List of market indices
      */
     @GetMapping("/indices")
-    public ResponseEntity<String> getIndicesData() {
-        log.debug("Getting market indices data from TradeBrain");
+    public ResponseEntity<String> getAllIndices() {
+        log.debug("Getting all market indices");
         
         ApiResponse response = tradeBrainClient.getIndicesData();
         
@@ -55,94 +55,73 @@ public class TradeBrainController {
     /**
      * Check health status of all registered endpoints
      * 
-     * @return Health status of all endpoints
+     * @return Health status of all endpoints grouped by status with success and failure counts
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> checkEndpointsHealth() {
         log.debug("Checking health status of all endpoints");
         
-        // Use the service to check endpoint health with a 5-second delay
+        // Use the service to check endpoint health with a 5-second timeout
         Map<String, Object> healthStatus = endpointHealthService.checkEndpointsHealth(5000);
         
         return ResponseEntity.ok(healthStatus);
     }
     
     /**
+     * Get API responses for all registered endpoints
+     * 
+     * @return List of endpoint responses
+     */
+    @GetMapping("/api-responses")
+    public ResponseEntity<List<EndpointResponse>> getAllApiResponses() {
+        log.debug("Getting API responses for all endpoints");
+        
+        List<EndpointResponse> responses = endpointManagementService.getAllApiResponses();
+        
+        return ResponseEntity.ok(responses);
+    }
+    
+    /**
      * Get all registered endpoints
      * 
-     * @return Map of all registered endpoints grouped by prefix
+     * @return Hierarchical structure of endpoints
      */
     @GetMapping("/endpoints")
-    public ResponseEntity<Map<String, Object>> getAllEndpoints() {
+    public ResponseEntity<EndpointHierarchy> getAllEndpoints() {
         log.debug("Getting all registered endpoints");
         
-        Collection<ApiEndpoint> allEndpoints = endpointRegistry.getAllEndpoints();
+        EndpointHierarchy hierarchy = endpointManagementService.getEndpointHierarchy();
         
-        // Group endpoints by their prefix (e.g., tradebrain.company.profile.*)
-        Map<String, Object> groupedEndpoints = new HashMap<>();
-        
-        for (ApiEndpoint endpoint : allEndpoints) {
-            String id = endpoint.getId();
-            
-            // Skip non-TradeBrain endpoints
-            if (!id.startsWith("tradebrain.")) {
-                continue;
-            }
-            
-            // Create endpoint info
-            Map<String, Object> endpointInfo = new HashMap<>();
-            endpointInfo.put("name", endpoint.getName());
-            endpointInfo.put("path", endpoint.getPath());
-            endpointInfo.put("method", endpoint.getMethod());
-            endpointInfo.put("url", endpoint.getUrl());
-            endpointInfo.put("healthCheckEnabled", endpoint.isHealthCheckEnabled());
-            
-            // Split the ID by dots to create a hierarchical structure
-            String[] parts = id.split("\\.");
-            
-            // Build the hierarchical structure
-            addToHierarchy(groupedEndpoints, parts, 0, endpointInfo);
-        }
-        
-        return ResponseEntity.ok(groupedEndpoints);
+        return ResponseEntity.ok(hierarchy);
     }
     
     /**
      * Get a specific endpoint by ID
      * 
-     * @param id Endpoint ID
-     * @return Endpoint details
+     * @param endpointId Endpoint ID
+     * @return Endpoint response
      */
-    @GetMapping("/endpoints/{id}")
-    public ResponseEntity<?> getEndpoint(@PathVariable String id) {
-        log.debug("Getting endpoint with ID: {}", id);
+    @GetMapping("/endpoints/{endpointId}")
+    public ResponseEntity<EndpointResponse> getEndpoint(@PathVariable("endpointId") String endpointId) {
+        log.debug("Getting endpoint: {}", endpointId);
         
-        ApiEndpoint endpoint = endpointRegistry.getEndpoint("tradebrain." + id);
+        EndpointResponse response = endpointManagementService.getEndpointResponse(endpointId);
         
-        if (endpoint == null) {
-            return ResponseEntity.notFound().build();
+        if (!response.isSuccess()) {
+            return ResponseEntity.status(response.getStatusCode()).body(response);
         }
         
-        Map<String, Object> endpointInfo = new HashMap<>();
-        endpointInfo.put("id", endpoint.getId());
-        endpointInfo.put("name", endpoint.getName());
-        endpointInfo.put("baseUrl", endpoint.getBaseUrl());
-        endpointInfo.put("path", endpoint.getPath());
-        endpointInfo.put("method", endpoint.getMethod());
-        endpointInfo.put("url", endpoint.getUrl());
-        endpointInfo.put("healthCheckEnabled", endpoint.isHealthCheckEnabled());
-        
-        return ResponseEntity.ok(endpointInfo);
+        return ResponseEntity.ok(response);
     }
     
     /**
-     * Get stock details by symbol
+     * Get stock details for a symbol
      * 
      * @param symbol Stock symbol
      * @return Stock details
      */
     @GetMapping("/stock/{symbol}")
-    public ResponseEntity<String> getStockDetails(@PathVariable String symbol) {
+    public ResponseEntity<String> getStockDetails(@PathVariable("symbol") String symbol) {
         log.debug("Getting stock details for symbol: {}", symbol);
         
         ApiResponse response = tradeBrainClient.getStockDetails(symbol);
@@ -154,35 +133,5 @@ public class TradeBrainController {
         }
         
         return ResponseEntity.ok(response.getData());
-    }
-    
-    /**
-     * Recursively add an endpoint to the hierarchical structure
-     * 
-     * @param current Current level in the hierarchy
-     * @param parts Parts of the endpoint ID
-     * @param index Current index in the parts array
-     * @param endpointInfo Endpoint information
-     */
-    @SuppressWarnings("unchecked")
-    private void addToHierarchy(Map<String, Object> current, String[] parts, int index, Map<String, Object> endpointInfo) {
-        if (index >= parts.length) {
-            return;
-        }
-        
-        String part = parts[index];
-        
-        if (index == parts.length - 1) {
-            // Last part, add the endpoint info
-            current.put(part, endpointInfo);
-        } else {
-            // Not the last part, create or get the next level
-            if (!current.containsKey(part)) {
-                current.put(part, new HashMap<String, Object>());
-            }
-            
-            // Move to the next level
-            addToHierarchy((Map<String, Object>) current.get(part), parts, index + 1, endpointInfo);
-        }
     }
 }

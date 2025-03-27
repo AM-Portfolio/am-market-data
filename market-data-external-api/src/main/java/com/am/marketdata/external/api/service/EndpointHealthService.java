@@ -1,115 +1,150 @@
 package com.am.marketdata.external.api.service;
 
-import java.time.Instant;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import com.am.marketdata.external.api.client.TradeBrainClient;
+import com.am.marketdata.external.api.client.ApiClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.external.api.registry.ApiEndpoint;
 import com.am.marketdata.external.api.registry.ApiEndpointRegistry;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-/**
- * Service for checking health status of API endpoints
- */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class EndpointHealthService {
+    private static final Logger log = LoggerFactory.getLogger(EndpointHealthService.class);
     
-    private final TradeBrainClient tradeBrainClient;
+    private final ApiClient apiClient;
     private final ApiEndpointRegistry endpointRegistry;
+    private final long healthCheckTimeoutMs;
+    private final String defaultSymbol;
     
-    @Value("${external.api.health-check.timeout-ms:4000}")
-    private long healthCheckTimeoutMs;
-    
-    @Value("${external.api.health-check.default-symbol:RELIANCE}")
-    private String defaultSymbol;
-    
+    public EndpointHealthService(
+        ApiClient apiClient,
+        ApiEndpointRegistry endpointRegistry,
+        @Value("${external.api.health-check.timeout-ms:4000}") long healthCheckTimeoutMs,
+        @Value("${external.api.health-check.default-symbol:RELIANCE}") String defaultSymbol
+    ) {
+        this.apiClient = apiClient;
+        this.endpointRegistry = endpointRegistry;
+        this.healthCheckTimeoutMs = healthCheckTimeoutMs;
+        this.defaultSymbol = defaultSymbol;
+    }
+
     /**
      * Check health status of all registered endpoints with a delay between checks
      * 
-     * @param delayMs Delay in milliseconds between endpoint checks
+     * @param timeoutMs Timeout in milliseconds between endpoint checks
      * @return Health status of all endpoints
      */
-    public Map<String, Object> checkEndpointsHealth(long delayMs) {
-        log.debug("Checking health status of all endpoints with delay: {}ms, timeout: {}ms, and default symbol: {}", 
-                delayMs, healthCheckTimeoutMs, defaultSymbol);
+    public Map<String, Object> checkEndpointsHealth(long timeoutMs) {
+        log.debug("Checking health status of all endpoints with timeout: {}ms", timeoutMs);
         
-        Collection<ApiEndpoint> endpoints = endpointRegistry.getAllEndpoints();
-        Map<String, Object> healthStatus = new HashMap<>();
+        // If no timeout is provided, use the configured default
+        if (timeoutMs <= 0) {
+            timeoutMs = healthCheckTimeoutMs;
+            log.debug("Using default timeout: {}ms", timeoutMs);
+        }
         
-        for (ApiEndpoint endpoint : endpoints) {
-            if (endpoint.isHealthCheckEnabled()) {
-                try {
-                    // Add delay between endpoint checks
-                    if (delayMs > 0) {
-                        Thread.sleep(delayMs);
-                    }
-                    
-                    // Check if the endpoint URL contains a symbol placeholder
-                    ApiResponse response;
-                    if (endpoint.getUrl().contains("{symbol}")) {
-                        log.debug("Endpoint {} contains symbol placeholder, using default symbol: {}", 
-                                endpoint.getId(), defaultSymbol);
-                        response = callEndpointWithSymbolAndTimeout(endpoint.getId(), defaultSymbol, healthCheckTimeoutMs);
-                    } else {
-                        response = callEndpointWithTimeout(endpoint.getId(), healthCheckTimeoutMs);
-                    }
-                    
-                    Map<String, Object> endpointStatus = new HashMap<>();
-                    endpointStatus.put("id", endpoint.getId());
-                    endpointStatus.put("name", endpoint.getName());
-                    endpointStatus.put("url", endpoint.getUrl());
-                    endpointStatus.put("status", response.isSuccess() ? "UP" : "DOWN");
-                    endpointStatus.put("response_time_ms", response.getResponseTimeMs());
-                    endpointStatus.put("last_checked", Instant.now().toString());
-                    
-                    if (!response.isSuccess()) {
-                        endpointStatus.put("error", response.getErrorMessage());
-                    }
-                    
-                    healthStatus.put(endpoint.getId(), endpointStatus);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.error("Interrupted while checking endpoint health: {}", endpoint.getId());
-                    healthStatus.put(endpoint.getId(), createErrorStatus(endpoint, "INTERRUPTED", 
-                            "Health check was interrupted"));
-                }
+        Map<String, Object> result = new HashMap<>();
+        Map<String, List<EndpointHealth>> groupedEndpoints = new HashMap<>();
+        
+        // Initialize status groups
+        groupedEndpoints.put("healthy", new ArrayList<>());
+        groupedEndpoints.put("unhealthy", new ArrayList<>());
+        
+        int successCount = 0;
+        int failureCount = 0;
+        
+        // Check each endpoint
+        for (ApiEndpoint endpoint : endpointRegistry.getAllEndpoints()) {
+            String endpointId = endpoint.getId();
+            boolean requiresSymbol = endpoint.getUrl().contains("{symbol}");
+            String symbol = requiresSymbol ? defaultSymbol : null;
+            
+            ApiResponse response;
+            long durationMs;
+            if (requiresSymbol) {
+                response = callEndpointWithSymbolAndTimeout(endpointId, symbol, timeoutMs);
+                durationMs = getDurationMs(response);
+            } else {
+                response = callEndpointWithTimeout(endpointId, timeoutMs);
+                durationMs = getDurationMs(response);
+            }
+            
+            EndpointHealth health = createEndpointHealth(endpointId, response, durationMs);
+            
+            // Group by status
+            if (response.getStatusCode() == HttpStatus.OK.value()) {
+                groupedEndpoints.get("healthy").add(health);
+                successCount++;
+            } else {
+                groupedEndpoints.get("unhealthy").add(health);
+                failureCount++;
             }
         }
         
-        return healthStatus;
+        // Add status groups to result
+        result.put("healthy", groupedEndpoints.get("healthy"));
+        result.put("unhealthy", groupedEndpoints.get("unhealthy"));
+        
+        // Add summary statistics
+        result.put("totalEndpoints", successCount + failureCount);
+        result.put("successCount", successCount);
+        result.put("failureCount", failureCount);
+        result.put("successRate", successCount > 0 ? 
+            String.format("%.2f%%", (double) successCount / (successCount + failureCount) * 100) : "0.00%" );
+        
+        return result;
     }
-    
-    /**
-     * Call an endpoint with a timeout
-     * 
-     * @param endpointId Endpoint ID
-     * @param timeoutMs Timeout in milliseconds
-     * @return ApiResponse from the endpoint or timeout error response
-     */
+
+    private long getDurationMs(ApiResponse response) {
+        return response.getResponseTimeMs();
+    }
+
+    private EndpointHealth createEndpointHealth(String endpointId, ApiResponse response, long durationMs) {
+        ApiEndpoint endpoint = endpointRegistry.getEndpoint(endpointId);
+        if (endpoint == null) {
+            log.error("Endpoint not found: {}", endpointId);
+            return new EndpointHealth(endpointId, response.getStatusCode(), response.getErrorMessage(), durationMs, "");
+        }
+        return new EndpointHealth(endpointId, response.getStatusCode(), response.getErrorMessage(), durationMs, endpoint.getPath());
+    }
+
     private ApiResponse callEndpointWithTimeout(String endpointId, long timeoutMs) {
+        ApiEndpoint endpoint = endpointRegistry.getEndpoint(endpointId);
+        if (endpoint == null) {
+            log.error("Endpoint not found: {}", endpointId);
+            return ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Endpoint not found: " + endpointId,
+                    0
+            );
+        }
+
         CompletableFuture<ApiResponse> future = CompletableFuture.supplyAsync(() -> 
-            tradeBrainClient.checkEndpointHealth(endpointId)
+            apiClient.get(endpoint.getUrl())
         );
         
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            long startTime = System.currentTimeMillis();
+            ApiResponse response = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            long durationMs = System.currentTimeMillis() - startTime;
+            response.setResponseTimeMs(durationMs);
+            return response;
         } catch (TimeoutException e) {
-            log.warn("Timeout after {}ms while checking endpoint health: {}", timeoutMs, endpointId);
+            log.warn("Timeout after {}ms while checking endpoint health: {}", 
+                    timeoutMs, endpointId);
             return ApiResponse.error(
                     HttpStatus.REQUEST_TIMEOUT.value(),
                     "Request timed out after " + timeoutMs + "ms",
@@ -132,19 +167,23 @@ public class EndpointHealthService {
             );
         }
     }
-    
-    /**
-     * Call an endpoint with a symbol parameter and timeout
-     * 
-     * @param endpointId Endpoint ID
-     * @param symbol Symbol to use for the endpoint
-     * @param timeoutMs Timeout in milliseconds
-     * @return ApiResponse from the endpoint or timeout error response
-     */
+
     private ApiResponse callEndpointWithSymbolAndTimeout(String endpointId, String symbol, long timeoutMs) {
+        ApiEndpoint endpoint = endpointRegistry.getEndpoint(endpointId);
+        if (endpoint == null) {
+            log.error("Endpoint not found: {}", endpointId);
+            return ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Endpoint not found: " + endpointId,
+                    0
+            );
+        }
+
+        String url = endpoint.getUrl().replace("{symbol}", symbol);
+        
         CompletableFuture<ApiResponse> future = CompletableFuture.supplyAsync(() -> {
             try {
-                return tradeBrainClient.checkEndpointHealthWithSymbol(endpointId, symbol);
+                return apiClient.get(url);
             } catch (Exception e) {
                 log.error("Error calling endpoint with symbol: {}, {}", endpointId, symbol, e);
                 return ApiResponse.error(
@@ -156,7 +195,11 @@ public class EndpointHealthService {
         });
         
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            long startTime = System.currentTimeMillis();
+            ApiResponse response = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            long durationMs = System.currentTimeMillis() - startTime;
+            response.setResponseTimeMs(durationMs);
+            return response;
         } catch (TimeoutException e) {
             log.warn("Timeout after {}ms while checking endpoint health with symbol {}: {}", 
                     timeoutMs, symbol, endpointId);
@@ -182,23 +225,12 @@ public class EndpointHealthService {
             );
         }
     }
-    
-    /**
-     * Create error status map for an endpoint
-     * 
-     * @param endpoint The endpoint being checked
-     * @param status Error status code
-     * @param errorMessage Error message
-     * @return Error status map
-     */
-    private Map<String, Object> createErrorStatus(ApiEndpoint endpoint, String status, String errorMessage) {
-        Map<String, Object> errorStatus = new HashMap<>();
-        errorStatus.put("id", endpoint.getId());
-        errorStatus.put("name", endpoint.getName());
-        errorStatus.put("url", endpoint.getUrl());
-        errorStatus.put("status", status);
-        errorStatus.put("last_checked", Instant.now().toString());
-        errorStatus.put("error", errorMessage);
-        return errorStatus;
-    }
+
+    private record EndpointHealth(
+        String endpointId,
+        int statusCode,
+        String errorMessage,
+        long durationMs,
+        String path
+    ) {}
 }
