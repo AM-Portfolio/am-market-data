@@ -6,7 +6,7 @@ endpoints:
     endpoints:
       - id: tradebrain.index
         name: TradeBrain Indices
-        path: /api/market/indices
+        path: /api/index/all
         method: GET
         health-check-enabled: true
       - id: tradebrain.stock.index

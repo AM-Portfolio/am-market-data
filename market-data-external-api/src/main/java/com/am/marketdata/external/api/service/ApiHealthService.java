@@ -17,6 +17,7 @@ import com.am.marketdata.external.api.registry.ApiEndpointRegistry;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ApiHealthService {
     
     private final ApiClient apiClient;
+    @Getter
     private final ApiEndpointRegistry endpointRegistry;
     private final Map<String, ApiHealthStatus> healthStatusMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();

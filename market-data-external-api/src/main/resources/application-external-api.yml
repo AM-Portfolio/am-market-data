@@ -19,9 +19,9 @@ external:
 
 # TradeBrain API Configuration
 trade-brain:
-  baseUrl: ${TRADEBRAIN_BASE_URL:https://api.tradebrain.com}
+  baseUrl: ${TRADEBRAIN_BASE_URL:https://portal.tradebrains.in}
   api:
-    indexAll: ${TRADEBRAIN_INDEX_ALL_PATH:/api/market/indices}
+    indexAll: ${TRADEBRAIN_INDEX_ALL_PATH:/api/index/all}
   headers:
     userAgent: "AM-MarketData/1.0"
     accept: "application/json"
