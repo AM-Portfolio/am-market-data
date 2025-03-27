@@ -17,16 +17,6 @@ external:
       auto-load: true
       config-location: classpath:application-endpoints.yml
 
-# TradeBrain API Configuration
-trade-brain:
-  baseUrl: ${TRADEBRAIN_BASE_URL:https://portal.tradebrains.in}
-  api:
-    indexAll: ${TRADEBRAIN_INDEX_ALL_PATH:/api/index/all}
-  headers:
-    userAgent: "AM-MarketData/1.0"
-    accept: "application/json"
-    acceptLanguage: "en-US,en;q=0.9"
-
 # Resilience4j Configuration
 resilience4j:
   retry:

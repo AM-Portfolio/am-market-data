@@ -1,3 +1,49 @@
+BASE_RESOURCE= "/api/company"
+
+# TradeBrain API Configuration
+trade-brain:
+  baseUrl: ${TRADEBRAIN_BASE_URL:https://portal.tradebrains.in}
+  api:
+    indices:
+      all: ${TRADEBRAIN_INDICES_ALL_PATH:/api/index/all}
+    company:
+      stock:
+        details: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/{symbol}}
+        historical: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/historical/{symbol}}
+        technical: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/technicals/{symbol}}
+        shareholding: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/shareholding/{symbol}}
+        heatmap: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/heatmap/{symbol}}
+      profile:
+        short-details: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/short/details/{symbol}}
+        key-metrics: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/keymetrics/{symbol}}
+        company-profile: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/profile/info/{symbol}}
+        insights: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/insights/{symbol}}
+        corporate-action: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/corporate/actions/{symbol}}
+        shareholding: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/detailed/shareholding/{symbol}}
+        score: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/portal/score/{symbol}}
+        board-of-directors: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/board/directors/{symbol}}
+        top-shareholders: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/top/shareholders/quaters/{symbol}}
+      financial:
+        dividends: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/ratios/factsheet/dividends/{symbol}/standalone}
+        half-yearly-statement: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/half-yearly/statement/{symbol}/standalone}
+        quarterly-results-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/quarterly-results/statement/{symbol}/standalone}
+        profit-and-loss-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/profit-and-loss/statement/{symbol}/standalone}
+        balance-sheet-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/balance/sheet/{symbol}/standalone}
+        cash-flow-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/cash-flow/statement/{symbol}/standalone}
+      documents:
+        credit-rating: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/credit-rating/{symbol}}
+        industry-peers: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/sector/industry/peers/{symbol}}
+      reports:
+        director-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/director/report/{symbol}}
+        chairman-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/chairman/report/{symbol}}
+        auditor-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/auditors/report/{symbol}}
+        annualReports: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/documents/annual-reports/{symbol}}
+
+    
+  headers:
+    userAgent: "AM-MarketData/1.0"
+    accept: "application/json"
+    acceptLanguage: "en-US,en;q=0.9"
 # API Endpoints Configuration
 endpoints:
   # TradeBrain API Endpoints
@@ -6,12 +52,7 @@ endpoints:
     endpoints:
       - id: tradebrain.index
         name: TradeBrain Indices
-        path: /api/index/all
-        method: GET
-        health-check-enabled: true
-      - id: tradebrain.stock.index
-        name: TradeBrain Stock Indices
-        path: /api/market/stock/indices
+        path: ${BASE_RESOURCE}/index/all
         method: GET
         health-check-enabled: true
     headers:
