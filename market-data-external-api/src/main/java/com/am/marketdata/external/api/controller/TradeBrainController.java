@@ -1,19 +1,25 @@
 package com.am.marketdata.external.api.controller;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
-import com.am.marketdata.external.api.service.ApiResponseProcessor;
+import com.am.marketdata.external.api.registry.ApiEndpoint;
+import com.am.marketdata.external.api.registry.ApiEndpointRegistry;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Controller for TradeBrain API endpoints
+ * Controller for TradeBrain API
  */
 @RestController
 @RequestMapping("/api/tradebrain")
@@ -22,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TradeBrainController {
     
     private final TradeBrainClient tradeBrainClient;
-    private final ApiResponseProcessor apiResponseProcessor;
+    private final ApiEndpointRegistry endpointRegistry;
     
     /**
      * Get market indices data from TradeBrain
@@ -45,73 +51,121 @@ public class TradeBrainController {
     }
     
     /**
-     * Get stock indices data from TradeBrain
+     * Get all registered endpoints
      * 
-     * @return Stock indices data
+     * @return Map of all registered endpoints grouped by prefix
      */
-    @GetMapping("/stock-indices")
-    public ResponseEntity<String> getStockIndicesData() {
-        log.debug("Getting stock indices data from TradeBrain");
+    @GetMapping("/endpoints")
+    public ResponseEntity<Map<String, Object>> getAllEndpoints() {
+        log.debug("Getting all registered endpoints");
         
-        ApiResponse response = tradeBrainClient.getStockIndicesData();
+        Collection<ApiEndpoint> allEndpoints = endpointRegistry.getAllEndpoints();
+        
+        // Group endpoints by their prefix (e.g., tradebrain.company.profile.*)
+        Map<String, Object> groupedEndpoints = new HashMap<>();
+        
+        for (ApiEndpoint endpoint : allEndpoints) {
+            String id = endpoint.getId();
+            
+            // Skip non-TradeBrain endpoints
+            if (!id.startsWith("tradebrain.")) {
+                continue;
+            }
+            
+            // Create endpoint info
+            Map<String, Object> endpointInfo = new HashMap<>();
+            endpointInfo.put("name", endpoint.getName());
+            endpointInfo.put("path", endpoint.getPath());
+            endpointInfo.put("method", endpoint.getMethod());
+            endpointInfo.put("url", endpoint.getUrl());
+            endpointInfo.put("healthCheckEnabled", endpoint.isHealthCheckEnabled());
+            
+            // Split the ID by dots to create a hierarchical structure
+            String[] parts = id.split("\\.");
+            
+            // Build the hierarchical structure
+            addToHierarchy(groupedEndpoints, parts, 0, endpointInfo);
+        }
+        
+        return ResponseEntity.ok(groupedEndpoints);
+    }
+    
+    /**
+     * Get a specific endpoint by ID
+     * 
+     * @param id Endpoint ID
+     * @return Endpoint details
+     */
+    @GetMapping("/endpoints/{id}")
+    public ResponseEntity<?> getEndpoint(@PathVariable String id) {
+        log.debug("Getting endpoint with ID: {}", id);
+        
+        ApiEndpoint endpoint = endpointRegistry.getEndpoint("tradebrain." + id);
+        
+        if (endpoint == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Map<String, Object> endpointInfo = new HashMap<>();
+        endpointInfo.put("id", endpoint.getId());
+        endpointInfo.put("name", endpoint.getName());
+        endpointInfo.put("baseUrl", endpoint.getBaseUrl());
+        endpointInfo.put("path", endpoint.getPath());
+        endpointInfo.put("method", endpoint.getMethod());
+        endpointInfo.put("url", endpoint.getUrl());
+        endpointInfo.put("healthCheckEnabled", endpoint.isHealthCheckEnabled());
+        
+        return ResponseEntity.ok(endpointInfo);
+    }
+    
+    /**
+     * Get stock details by symbol
+     * 
+     * @param symbol Stock symbol
+     * @return Stock details
+     */
+    @GetMapping("/stock/{symbol}")
+    public ResponseEntity<String> getStockDetails(@PathVariable String symbol) {
+        log.debug("Getting stock details for symbol: {}", symbol);
+        
+        ApiResponse response = tradeBrainClient.getStockDetails(symbol);
         
         if (!response.isSuccess()) {
-            log.error("Failed to get stock indices data: {}", response.getErrorMessage());
+            log.error("Failed to get stock details: {}", response.getErrorMessage());
             return ResponseEntity.status(response.getStatusCode())
-                    .body("Failed to get stock indices data: " + response.getErrorMessage());
+                    .body("Failed to get stock details: " + response.getErrorMessage());
         }
         
         return ResponseEntity.ok(response.getData());
     }
     
     /**
-     * Get all indices data (both market and stock) from TradeBrain
+     * Recursively add an endpoint to the hierarchical structure
      * 
-     * @return Combined indices data
+     * @param current Current level in the hierarchy
+     * @param parts Parts of the endpoint ID
+     * @param index Current index in the parts array
+     * @param endpointInfo Endpoint information
      */
-    @GetMapping("/all-indices")
-    public ResponseEntity<String> getAllIndicesData() {
-        log.debug("Getting all indices data from TradeBrain");
+    @SuppressWarnings("unchecked")
+    private void addToHierarchy(Map<String, Object> current, String[] parts, int index, Map<String, Object> endpointInfo) {
+        if (index >= parts.length) {
+            return;
+        }
         
-        // Process both requests asynchronously
-        var marketIndicesFuture = apiResponseProcessor.processRequestAsync(
-                TradeBrainClient.TRADEBRAIN_ENDPOINT_INDEX, 
-                ApiResponse::getData);
+        String part = parts[index];
         
-        var stockIndicesFuture = apiResponseProcessor.processRequestAsync(
-                TradeBrainClient.TRADEBRAIN_STOCK_ENDPOINT_INDEX, 
-                ApiResponse::getData);
-        
-        try {
-            // Wait for both futures to complete
-            String marketIndices = marketIndicesFuture.get();
-            String stockIndices = stockIndicesFuture.get();
-            
-            if (marketIndices == null && stockIndices == null) {
-                log.error("Failed to get any indices data");
-                return ResponseEntity.status(503)
-                        .body("Failed to get any indices data from TradeBrain");
+        if (index == parts.length - 1) {
+            // Last part, add the endpoint info
+            current.put(part, endpointInfo);
+        } else {
+            // Not the last part, create or get the next level
+            if (!current.containsKey(part)) {
+                current.put(part, new HashMap<String, Object>());
             }
             
-            // Combine results
-            StringBuilder result = new StringBuilder();
-            if (marketIndices != null) {
-                result.append("Market Indices:\n").append(marketIndices);
-            }
-            
-            if (stockIndices != null) {
-                if (result.length() > 0) {
-                    result.append("\n\n");
-                }
-                result.append("Stock Indices:\n").append(stockIndices);
-            }
-            
-            return ResponseEntity.ok(result.toString());
-            
-        } catch (Exception e) {
-            log.error("Error processing indices data: {}", e.getMessage());
-            return ResponseEntity.status(500)
-                    .body("Error processing indices data: " + e.getMessage());
+            // Move to the next level
+            addToHierarchy((Map<String, Object>) current.get(part), parts, index + 1, endpointInfo);
         }
     }
 }

@@ -1,71 +1,48 @@
-BASE_RESOURCE= "/api/company"
+# Base Configuration
+base:
+  resource: api/company
+  base-url: ${TRADEBRAIN_BASE_URL:https://portal.tradebrains.in}
+  indices-path: /api/index/all
 
 # TradeBrain API Configuration
 trade-brain:
-  baseUrl: ${TRADEBRAIN_BASE_URL:https://portal.tradebrains.in}
+  baseUrl: ${base.base-url}
   api:
     indices:
-      all: ${TRADEBRAIN_INDICES_ALL_PATH:/api/index/all}
+      all: ${TRADEBRAIN_INDICES_ALL_PATH:${base.indices-path}}
     company:
       stock:
-        details: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/{symbol}}
-        historical: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/historical/{symbol}}
-        technical: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/technicals/{symbol}}
-        shareholding: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/shareholding/{symbol}}
-        heatmap: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/stock/heatmap/{symbol}}
+        details: ${base.base-url}/${base.resource}/stock/{symbol}
+        historical: ${base.base-url}/${base.resource}/stock/historical/{symbol}
+        technical: ${base.base-url}/${base.resource}/stock/technicals/{symbol}
+        shareholding: ${base.base-url}/${base.resource}/stock/shareholding/{symbol}
+        heatmap: ${base.base-url}/${base.resource}/stock/heatmap/{symbol}
       profile:
-        short-details: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/short/details/{symbol}}
-        key-metrics: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/keymetrics/{symbol}}
-        company-profile: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/profile/info/{symbol}}
-        insights: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/insights/{symbol}}
-        corporate-action: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/corporate/actions/{symbol}}
-        shareholding: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/detailed/shareholding/{symbol}}
-        score: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/portal/score/{symbol}}
-        board-of-directors: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/board/directors/{symbol}}
-        top-shareholders: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/top/shareholders/quaters/{symbol}}
+        short-details: ${base.base-url}/${base.resource}/short/details/{symbol}
+        key-metrics: ${base.base-url}/${base.resource}/keymetrics/{symbol}
+        company-profile: ${base.base-url}/${base.resource}/profile/info/{symbol}
+        insights: ${base.base-url}/${base.resource}/insights/{symbol}
+        corporate-action: ${base.base-url}/${base.resource}/corporate/actions/{symbol}
+        shareholding: ${base.base-url}/${base.resource}/detailed/shareholding/{symbol}
+        score: ${base.base-url}/${base.resource}/portal/score/{symbol}
+        board-of-directors: ${base.base-url}/${base.resource}/board/directors/{symbol}
+        top-shareholders: ${base.base-url}/${base.resource}/top/shareholders/quaters/{symbol}
       financial:
-        dividends: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/ratios/factsheet/dividends/{symbol}/standalone}
-        half-yearly-statement: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/half-yearly/statement/{symbol}/standalone}
-        quarterly-results-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/quarterly-results/statement/{symbol}/standalone}
-        profit-and-loss-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/profit-and-loss/statement/{symbol}/standalone}
-        balance-sheet-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/balance/sheet/{symbol}/standalone}
-        cash-flow-standalone: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/cash-flow/statement/{symbol}/standalone}
+        dividends: ${base.base-url}/${base.resource}/ratios/factsheet/dividends/{symbol}/standalone
+        half-yearly-statement: ${base.base-url}/${base.resource}/half-yearly/statement/{symbol}/standalone
+        quarterly-results-standalone: ${base.base-url}/${base.resource}/quarterly-results/statement/{symbol}/standalone
+        profit-and-loss-standalone: ${base.base-url}/${base.resource}/profit-and-loss/statement/{symbol}/standalone
+        balance-sheet-standalone: ${base.base-url}/${base.resource}/balance/sheet/{symbol}/standalone
+        cash-flow-standalone: ${base.base-url}/${base.resource}/cash-flow/statement/{symbol}/standalone
       documents:
-        credit-rating: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/credit-rating/{symbol}}
-        industry-peers: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/sector/industry/peers/{symbol}}
+        credit-rating: ${base.base-url}/${base.resource}/credit-rating/{symbol}
+        industry-peers: ${base.base-url}/${base.resource}/sector/industry/peers/{symbol}
       reports:
-        director-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/director/report/{symbol}}
-        chairman-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/chairman/report/{symbol}}
-        auditor-report: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/auditors/report/{symbol}}
-        annualReports: ${TRADEBRAIN_BASE_URL:${BASE_RESOURCE}/documents/annual-reports/{symbol}}
-
-    
+        director-report: ${base.base-url}/${base.resource}/director/report/{symbol}
+        chairman-report: ${base.base-url}/${base.resource}/chairman/report/{symbol}
+        auditor-report: ${base.base-url}/${base.resource}/auditors/report/{symbol}
+        annualReports: ${base.base-url}/${base.resource}/documents/annual-reports/{symbol}
   headers:
     userAgent: "AM-MarketData/1.0"
     accept: "application/json"
     acceptLanguage: "en-US,en;q=0.9"
-# API Endpoints Configuration
-# endpoints:
-#   # TradeBrain API Endpoints
-#   tradebrain:
-#     base-url: ${TRADEBRAIN_BASE_URL:https://api.tradebrain.com}
-#     endpoints:
-#       - id: tradebrain.index
-#         name: TradeBrain Indices
-#         path: ${BASE_RESOURCE}/index/all
-#         method: GET
-#         health-check-enabled: true
-#       - id: tradebrain.stock.index
-#         name: TradeBrain Stock Indices
-#         path: ${BASE_RESOURCE}/market/stock/indices
-#         method: GET
-#         health-check-enabled: true
-#       - id: tradebrain.stock.historical
-#         name: TradeBrain Stock Historical
-#         path: ${BASE_RESOURCE}/market/stock/historical
-#         method: GET
-#         health-check-enabled: true
-#     headers:
-#       User-Agent: AM-MarketData/1.0
-#       Accept: application/json
-#       Accept-Language: en-US,en;q=0.9
