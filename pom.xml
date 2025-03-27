@@ -20,6 +20,7 @@
         <module>market-data-scraper</module>
         <module>market-data-api</module>
         <module>market-data-app</module>
+        <module>market-data-external-api</module> 
     </modules>
 
     <properties>

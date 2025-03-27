@@ -87,6 +87,8 @@ spring:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
+      - classpath:application-external-api.yml
+      - classpath:application-endpoints.yml
 
   jpa:
     hibernate:
@@ -134,5 +136,6 @@ logging:
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
+    '[com.am.marketdata.external.api]': DEBUG
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'

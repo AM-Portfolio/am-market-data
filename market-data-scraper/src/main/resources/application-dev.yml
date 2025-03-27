@@ -32,7 +32,7 @@ app:
 scheduler:
   # Cookie scheduler
   cookie:
-    enabled: true  # Enable/disable cookie refresh scheduler
+    enabled: false  # Enable/disable cookie refresh scheduler
     refresh: "0 0/30 * * * *"  # Cookie refresh every 30 minutes
   
   # Indices data scheduler
@@ -42,7 +42,7 @@ scheduler:
   
   # Stock indices scheduler
   stock-indices:
-    enabled: true  # Enable/disable stock indices scheduler
+    enabled: false  # Enable/disable stock indices scheduler
     morning-fetch: "0 30 9 * * *"  # 9:30 AM IST
     evening-fetch: "0 0 16 * * *"  # 4:00 PM IST
     retry:
