@@ -15,19 +15,14 @@
     <description>API module containing controllers and DTOs</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.am.common</groupId>
-            <artifactId>am-common-investment-service</artifactId>
-            <version>${investment-model.version}</version>
+     <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-service</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-         <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

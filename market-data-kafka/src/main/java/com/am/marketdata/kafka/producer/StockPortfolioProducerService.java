@@ -37,7 +37,7 @@ public class StockPortfolioProducerService {
         sendBoardOfDirectorsUpdate(event, boardOfDirectorsTopic, event.getEventType(), event.getTimestamp());
     }
 
-    public void sendBoardOfDirectorsUpdate(
+    private void sendBoardOfDirectorsUpdate(
             BoardOfDirectorsUpdateEvent event,
             String topic,
             String eventType,

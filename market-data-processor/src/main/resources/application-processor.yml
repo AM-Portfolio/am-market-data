@@ -1,0 +1,57 @@
+processor:
+  # Thread pool configuration
+  thread:
+    pool:
+      size: 5
+      queue:
+        capacity: 25
+  
+  # Retry configuration
+  retry:
+    max-attempts: 3
+    initial-delay-ms: 1000
+    multiplier: 2.0
+  
+  # Data validation
+  validation:
+    max-age-minutes: 15
+  
+  # Scheduler configuration
+  scheduler:
+    enabled: true
+    market-data-cron: "5 */2 9-15 * * MON-FRI" # Every 2 minutes during market hours
+    timezone: "Asia/Kolkata"
+  
+  # Kafka settings
+  kafka:
+    market-data-topic: "market-data-events"
+    indices-topic: "market-indices-events"
+    etf-topic: "market-etf-events"
+    error-topic: "market-data-errors"
+
+# Database configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/marketdata
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+# Metrics and monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    tags:
+      application: market-data-processor
