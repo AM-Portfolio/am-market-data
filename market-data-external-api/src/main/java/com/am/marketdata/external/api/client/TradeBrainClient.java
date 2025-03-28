@@ -49,6 +49,7 @@ public class TradeBrainClient {
     public static final String TRADEBRAIN_STOCK_ENDPOINT_TECHNICAL = STOCK_PREFIX + "technical";
     public static final String TRADEBRAIN_STOCK_ENDPOINT_SHAREHOLDING = STOCK_PREFIX + "shareholding";
     public static final String TRADEBRAIN_STOCK_ENDPOINT_HEATMAP = STOCK_PREFIX + "heatmap";
+    public static final String TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS = PROFILE_PREFIX + "board-of-directors";
     
     /**
      * Constructor with dependencies
@@ -208,7 +209,7 @@ public class TradeBrainClient {
         );
         
         registerEndpoint(
-            PROFILE_PREFIX + "board-of-directors",
+            TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS,
             "TradeBrain Profile Board of Directors",
             profile.getBoardOfDirectors(),
             headers
@@ -485,6 +486,16 @@ public class TradeBrainClient {
      */
     public ApiResponse getStockHeatmap(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_HEATMAP, symbol);
+    }
+    
+    /**
+     * Get board of directors data for a company
+     * 
+     * @param symbol Stock symbol
+     * @return ApiResponse containing board of directors data
+     */
+    public ApiResponse getBoardOfDirectors(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS, symbol);
     }
     
     /**

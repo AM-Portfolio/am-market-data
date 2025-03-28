@@ -25,6 +25,11 @@
             <artifactId>market-data-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+         <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-external-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

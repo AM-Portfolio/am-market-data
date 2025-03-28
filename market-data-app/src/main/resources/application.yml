@@ -33,6 +33,7 @@ KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
 STOKUPATE_TOPIC_NAME: am-stock-price-update
 NSE_INDICES_TOPIC_NAME: nse-indices-update
 NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
+BOARD_OF_DIRECTORS_TOPIC_NAME: stock-board-of-directors
 
 MARKET_DATA_MAX_RETRIES: 3
 MARKET_DATA_RETRY_DELAY_MS: 1000
@@ -104,6 +105,7 @@ app:
     stock-price-topic: ${STOKUPATE_TOPIC_NAME}
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
     stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
+    board-of-directors-topic: ${BOARD_OF_DIRECTORS_TOPIC_NAME}
 
 upstox:
   interval: I1

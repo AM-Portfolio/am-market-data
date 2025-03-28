@@ -30,10 +30,10 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <lombok.version>1.18.24</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <kong-unirest.version>3.14.5</kong-unirest.version>
-        <investment-model.version>1.6.0-SNAPSHOT</investment-model.version>
-        <investment-scraper.version>1.6.0-SNAPSHOT</investment-scraper.version>
+        <investment-model.version>1.6.1-SNAPSHOT</investment-model.version>
+        <investment-scraper.version>1.6.1-SNAPSHOT</investment-scraper.version>
     </properties>
 
     <dependencyManagement>

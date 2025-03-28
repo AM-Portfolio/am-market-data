@@ -21,7 +21,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        
+        <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-model</artifactId>
+            <version>${investment-model.version}</version>
+        </dependency>
         <!-- Resilience4j for circuit breaking -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
