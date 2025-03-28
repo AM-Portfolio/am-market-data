@@ -9,7 +9,7 @@ import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
-import com.am.marketdata.processor.service.mapper.BoardOfDirectorsMapper;
+import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -35,7 +35,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     @Qualifier("stockBoardOfDirectoeProcessingTimer")
     private final Timer fetchTimer;
     private BoardOfDirectors lastFetchedData;
-    private final BoardOfDirectorsMapper boardOfDirectorsMapper;
+    private final StockBoardOfDirectorsMapper boardOfDirectorsMapper;
     
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
@@ -51,7 +51,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
             Timer processingTimer,
             Executor executor,
             TradeBrainClient tradeBrainClient,
-            BoardOfDirectorsMapper boardOfDirectorsMapper) {
+            StockBoardOfDirectorsMapper boardOfDirectorsMapper) {
         super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, processingTimer, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.boardOfDirectorsMapper = boardOfDirectorsMapper;

@@ -14,15 +14,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.am.marketdata.config.ISINConfig;
 import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
+import com.am.marketdata.processor.config.ProcessorModuleConfig;
 
 @SpringBootApplication
 @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
-@Import(ExternalApiAutoConfiguration.class)
+@Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
-    @ComponentScan("com.am.marketdata.scraper"),
+    //@ComponentScan("com.am.marketdata.scraper"),
     @ComponentScan("com.am.marketdata.external.api"),
-    @ComponentScan("com.am.marketdata.scraper.config"),
+    //@ComponentScan("com.am.marketdata.scraper.config"),
     @ComponentScan("com.am.marketdata.service"),
     @ComponentScan("com.am.marketdata.kafka"),
     @ComponentScan("com.am.marketdata.api"),
@@ -36,7 +37,8 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
     @ComponentScan("com.am.common.amcommondata.service"),
     @ComponentScan("com.am.common.amcommondata.domain"),
     @ComponentScan("com.am.common.amcommondata.domain.asset"),
-    @ComponentScan("com.am.common.investment.persistence")
+    @ComponentScan("com.am.common.investment.persistence"),
+    @ComponentScan("com.am.marketdata.processor")
 })
 @EnableJpaRepositories(
     basePackages = {

@@ -26,7 +26,7 @@ public class StockBoardOfDiretorsProcessor implements DataProcessor<BoardOfDirec
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final BoardOfDirectorsService boardOfDirectorsService;
 
-    @Qualifier("stockBoardOfDirectorsProcessingTimer")
+    @Qualifier("boardOfDirectoreProcessingTimer")
     private final Timer processTimer;
     
 

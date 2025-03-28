@@ -4,9 +4,24 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import com.am.common.investment.model.board.BoardOfDirectors;
+import com.am.common.investment.service.BoardOfDirectorsService;
+import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
+import com.am.marketdata.processor.service.common.DataProcessor;
+import com.am.marketdata.processor.service.common.DataValidator;
+import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
+import com.am.marketdata.processor.service.processor.StockBoardOfDiretorsProcessor;
+import com.am.marketdata.processor.service.validator.StockBoardOfDirectoreValidator;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
@@ -34,6 +49,7 @@ public class ProcessorModuleConfig {
      * Based on memory #5ba7ad90-715c-4238-929a-4a58c2ace265
      */
     @Bean(name = "processorTaskExecutor")
+    @Primary
     public Executor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5);
@@ -42,5 +58,30 @@ public class ProcessorModuleConfig {
         executor.setThreadNamePrefix("market-processor-");
         executor.initialize();
         return executor;
+    }
+
+    @Bean
+    public DataValidator<BoardOfDirectors> stockBoardOfDirectoreValidator() {
+        return new StockBoardOfDirectoreValidator();
+    }
+    
+    @Bean
+    public StockBoardOfDirectorsMapper stockBoardOfDirectorsMapper() {
+        return new StockBoardOfDirectorsMapper();
+    }
+    @Bean
+    public DataProcessor<BoardOfDirectors, Void> stockBoardOfDirectoeProcessor(
+            StockPortfolioProducerService stockPortfolioProducer,
+            BoardOfDirectorsService boardOfDirectorsService,
+            @Qualifier("boardOfDirectoreProcessingTimer") Timer processTimer) {
+        return new StockBoardOfDiretorsProcessor(stockPortfolioProducer, boardOfDirectorsService, processTimer);
+    }
+
+    @Bean("boardOfDirectoreProcessingTimer")
+    @Primary
+    public Timer boardOfDirectoreProcessingTimer(MeterRegistry meterRegistry) {
+        return Timer.builder("board.of.directors.processing.time")
+            .description("Time taken to process stock board of directors data")
+            .register(meterRegistry);
     }
 }

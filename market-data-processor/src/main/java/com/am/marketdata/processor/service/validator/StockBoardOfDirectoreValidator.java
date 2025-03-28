@@ -15,7 +15,7 @@ import java.time.ZoneId;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class StockBoardOfDirectoeValidator implements DataValidator<BoardOfDirectors> {
+public class StockBoardOfDirectoreValidator implements DataValidator<BoardOfDirectors> {
     
     @Value("${market.data.max.age.minutes:1500}")
     private long maxDataAgeMinutes;
