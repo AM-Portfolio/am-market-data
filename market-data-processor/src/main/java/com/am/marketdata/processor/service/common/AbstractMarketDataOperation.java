@@ -27,6 +27,7 @@ public abstract class AbstractMarketDataOperation<T, R> {
     protected final DataValidator<T> validator;
     protected final DataProcessor<T, R> processor;
     protected final MeterRegistry meterRegistry;
+    protected final Timer processingTimer;
     protected final Executor executor;
     
     private String indexSymbol;

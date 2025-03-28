@@ -8,7 +8,8 @@ import com.am.common.investment.model.board.Director;
 import com.am.common.investment.model.board.DirectorType;
 import com.am.marketdata.common.model.events.BoardOfDirector;
 import com.am.marketdata.common.model.events.BoardOfDirector.DesignationType;
-import com.am.marketdata.common.utils.ObjectUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import org.springframework.stereotype.Component;
 
@@ -22,9 +23,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BoardOfDirectorsMapper {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     @SneakyThrows
-    private List<BoardOfDirector> parseDirectors(String jsonData) {
-        return ObjectUtils.convertToList(jsonData, BoardOfDirector.class);
+    public List<BoardOfDirector> parseDirectors(String jsonData) {
+        return objectMapper.readValue(jsonData, 
+            TypeFactory.defaultInstance().constructCollectionType(List.class, BoardOfDirector.class));
     }
     
     /**
@@ -58,7 +63,7 @@ public class BoardOfDirectorsMapper {
             .dirName(director.getDirectorName())
             .reportedDsg(director.getDesignation())
             .companyId(symbol)
-            //.directorType(getDirectorType(director.getDesignationType()))
+            .directorType(getDirectorType(director.getDesignationType()))
             .build();
     }
 

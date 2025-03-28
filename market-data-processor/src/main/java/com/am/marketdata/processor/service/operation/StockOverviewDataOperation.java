@@ -1,16 +1,19 @@
 package com.am.marketdata.processor.service.operation;
 
+import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.common.model.equity.StockInsidicesData;
-import com.am.marketdata.kafka.producer.KafkaProducerService;
-import com.am.marketdata.processor.client.api.NSEApi;
-import com.am.marketdata.processor.exception.ProcessorException;
+import com.am.marketdata.common.model.events.BoardOfDirector;
+import com.am.marketdata.external.api.client.TradeBrainClient;
+import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
+import com.am.marketdata.processor.service.mapper.BoardOfDirectorsMapper;
+import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,7 +28,7 @@ import java.util.concurrent.Executor;
  */
 @Slf4j
 @Component
-public class StockOverviewDataOperation extends AbstractMarketDataOperation<List<BoardOfDirector>, BoardOfDirectors> {
+public class StockOverviewDataOperation extends AbstractMarketDataOperation<BoardOfDirectors, Void> {
     
     private final TradeBrainClient tradeBrainClient;
     
@@ -45,14 +48,14 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<List
             DataValidator<BoardOfDirectors> stockBoardOfDirectoeValidator,
             DataProcessor<BoardOfDirectors, Void> stockBoardOfDirectoeProcessor,
             MeterRegistry meterRegistry,
+            Timer processingTimer,
             Executor executor,
-            TradeBrainClient tradeBrainClient) {
-        super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, executor);
+            TradeBrainClient tradeBrainClient,
+            BoardOfDirectorsMapper boardOfDirectorsMapper) {
+        super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, processingTimer, executor);
         this.tradeBrainClient = tradeBrainClient;
-        this.fetchTimer = Timer.builder("stock-board-of-directors.fetch.time")
-            .tag("data.type", getDataTypeName())
-            .description("Time taken to fetch stock board of directors data")
-            .register(meterRegistry);
+        this.boardOfDirectorsMapper = boardOfDirectorsMapper;
+        this.fetchTimer = processingTimer;
     }
 
     public StockOverviewDataOperation withSymbol(String symbol) {
@@ -70,11 +73,12 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<List
     }
     
     @Override
-    protected void handleSuccess(BoardOfDirectors result) {
-        log.info("Successfully processed {} stock board of directors", result.getDirectors().size());
+    protected void handleSuccess(Void result) {
+        log.info("Successfully processed stock board of directors");
     }
     
     @Override
+    @SneakyThrows
     protected BoardOfDirectors fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getBoardOfDirectors(getIndexSymbol());
@@ -82,8 +86,8 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<List
             if (directors == null) {
                 return null;
             }
-            latestBoardOfDirectors = boardOfDirectorsMapper.toBoardOfDirectors(getIndexSymbol(), directors);
-            return latestBoardOfDirectors;
+            lastFetchedData = boardOfDirectorsMapper.toBoardOfDirectors(getIndexSymbol(), directors);
+            return lastFetchedData;
         } catch (Exception e) {
             throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock board of directors data", e);
         }
@@ -103,7 +107,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<List
      * 
      * @return The last fetched data, or null if no data has been fetched yet
      */
-    public NSEStockInsidicesData getLastFetchedData() {
+    public BoardOfDirectors getLastFetchedData() {
         return lastFetchedData;
     }
 }
