@@ -1,5 +1,6 @@
 package com.am.marketdata.common.model.events;
 
+import com.am.common.investment.model.board.DirectorType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,18 +18,8 @@ public class BoardOfDirector {
     @JsonProperty("Reported_DSG")
     private String designation;
 
-    public enum DesignationType {
-        CHAIRMAN_AND_MANAGING_DIRECTOR,
-        EXECUTIVE_DIRECTOR,
-        NON_EXECUTIVE_AND_INDEPENDENT_DIRECTOR,
-        NON_EXECUTIVE_DIRECTOR,
-        INDEPENDENT_DIRECTOR,
-        COMPANY_SECRETARY_AND_COMPLIANCE_OFFICER,
-        NON_EXECUTIVE_AND_NON_INDEPENDENT_DIRECTOR
-    }
-
-    public DesignationType getDesignationType() {
-        return DesignationType.valueOf(designation
+    public DirectorType getDirectorType() {
+        return DirectorType.fromDesignation(designation
                 .replace(" & ", "_")
                 .replace(".", "")
                 .replace(" ", "_")

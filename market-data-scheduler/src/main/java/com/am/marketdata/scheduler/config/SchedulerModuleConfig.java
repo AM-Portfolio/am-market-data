@@ -16,7 +16,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @ComponentScan(basePackages = {
     "com.am.marketdata.scheduler.service",
     "com.am.marketdata.scheduler.config",
-    "com.am.marketdata.processor.service"
+    "com.am.marketdata.processor.service",
+    "com.am.marketdata.service"
 })
 public class SchedulerModuleConfig {
 

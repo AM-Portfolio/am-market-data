@@ -15,14 +15,16 @@ import com.am.marketdata.config.ISINConfig;
 import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 import com.am.marketdata.processor.config.ProcessorModuleConfig;
+import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 
 @SpringBootApplication
 @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
-@Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class})
+@Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     //@ComponentScan("com.am.marketdata.scraper"),
     @ComponentScan("com.am.marketdata.external.api"),
+    @ComponentScan("com.am.marketdata.scheduler"),
     //@ComponentScan("com.am.marketdata.scraper.config"),
     @ComponentScan("com.am.marketdata.service"),
     @ComponentScan("com.am.marketdata.kafka"),

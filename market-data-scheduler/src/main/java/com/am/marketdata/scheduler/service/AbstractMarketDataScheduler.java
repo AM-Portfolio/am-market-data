@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -203,20 +204,30 @@ public abstract class AbstractMarketDataScheduler<T> {
             return !time.isBefore(marketOpen) && !time.isAfter(marketClose);
         }
         
-        return false;
+        return true;
     }
 
     /**
      * Check if the given day is a trading day
-     * Default implementation considers weekdays as trading days
-     * Can be overridden by subclasses
+     * Uses configuration from application-scheduler.yml
      * 
      * @param day The day to check
      * @return true if it's a trading day, false otherwise
      */
     protected boolean isTradingDay(DayOfWeek day) {
-        // Default implementation: weekdays are trading days
-        return !(day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY);
+        // Map cron days to DayOfWeek
+        Map<String, DayOfWeek> cronDayMap = Map.of(
+            "MON", DayOfWeek.MONDAY,
+            "TUE", DayOfWeek.TUESDAY,
+            "WED", DayOfWeek.WEDNESDAY,
+            "THU", DayOfWeek.THURSDAY,
+            "FRI", DayOfWeek.FRIDAY,
+            "SAT", DayOfWeek.SATURDAY,
+            "SUN", DayOfWeek.SUNDAY
+        );
+        
+        // Check if current day is in the trading days
+        return cronDayMap.containsKey(day.name().substring(0, 3));
     }
 
     /**

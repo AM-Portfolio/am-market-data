@@ -12,6 +12,14 @@ scheduler:
       start-time: "00:01"
       end-time: "23:59"
     cron: "*/2 * * * * MON-SUN" # Run every 2 minutes on weekdays
+  # Stock price scheduler
+  stock-price:
+    enabled: true
+    timezone: Asia/Kolkata
+    trading:
+      start-time: "00:01"
+      end-time: "23:59"
+    cron: "*/2 * * * * MON-SUN" # Run every 2 minutes on weekdays
 # Metrics configuration
 management:
   endpoints:

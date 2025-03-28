@@ -5,9 +5,7 @@ import java.util.stream.Collectors;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.board.Director;
-import com.am.common.investment.model.board.DirectorType;
 import com.am.marketdata.common.model.events.BoardOfDirector;
-import com.am.marketdata.common.model.events.BoardOfDirector.DesignationType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -63,14 +61,7 @@ public class StockBoardOfDirectorsMapper {
             .dirName(director.getDirectorName())
             .reportedDsg(director.getDesignation())
             .companyId(symbol)
-            .directorType(getDirectorType(director.getDesignationType()))
+            .directorType(director.getDirectorType())
             .build();
-    }
-
-    private DirectorType getDirectorType(DesignationType designationType) {
-        if (designationType == null) {
-            return null;
-        }
-        return DirectorType.fromDesignation(designationType.name());
     }
 }

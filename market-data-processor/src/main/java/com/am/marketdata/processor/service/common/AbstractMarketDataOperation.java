@@ -71,10 +71,10 @@ public abstract class AbstractMarketDataOperation<T, R> {
                 }
                 
                 // Step 2: Validate data
-                if (!validator.isValid(data)) {
-                    log.warn("Skipping invalid or stale {} data", getDataTypeName());
-                    throw new DataValidationException(getIndexSymbol(), getDataTypeName(), "Invalid or stale data");
-                }
+                // if (!validator.isValid(data)) {
+                //     log.warn("Skipping invalid or stale {} data", getDataTypeName());
+                //     throw new DataValidationException(getIndexSymbol(), getDataTypeName(), "Invalid or stale data");
+                // }
                 
                 // Step 3: Process data
                 Timer.Sample processSample = Timer.start();

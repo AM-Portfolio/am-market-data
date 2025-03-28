@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.annotation.Async;
 
 /**
  * Processor for NSE Stock Indices data
@@ -31,7 +30,6 @@ public class StockBoardOfDiretorsProcessor implements DataProcessor<BoardOfDirec
     
 
     @Override
-    @Async
     @SneakyThrows
     public Void process(BoardOfDirectors data) {
         if (data == null || data.getDirectors() == null || data.getDirectors().isEmpty()) {
@@ -43,10 +41,7 @@ public class StockBoardOfDiretorsProcessor implements DataProcessor<BoardOfDirec
 
         try {
             // Save to the database
-            boardOfDirectorsService.saveBoardOfDirectors(data);
-
-            // Publish to Kafka
-            stockPortfolioProducer.sendBoardOfDirectorsUpdate(data.getCompanyId(), data);
+            // boardOfDirectorsService.saveBoardOfDirectors(data);
 
             log.info("Processing stock board of directors data. Company ID: {}, Count: {}", 
                 data.getCompanyId(),

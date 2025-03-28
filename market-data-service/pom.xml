@@ -15,12 +15,6 @@
     <description>Main service module implementing market data business logic</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.am.common</groupId>
-            <artifactId>am-common-investment-service</artifactId>
-            <version>${investment-model.version}</version>
-        </dependency>
-
         <!-- Market Data Dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>

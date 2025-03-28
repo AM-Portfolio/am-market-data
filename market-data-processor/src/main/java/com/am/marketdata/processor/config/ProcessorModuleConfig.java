@@ -16,7 +16,7 @@ import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
 import com.am.marketdata.processor.service.processor.StockBoardOfDiretorsProcessor;
-import com.am.marketdata.processor.service.validator.StockBoardOfDirectoreValidator;
+import com.am.marketdata.processor.service.validator.StockBoardOfDirectorValidator;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -62,7 +62,7 @@ public class ProcessorModuleConfig {
 
     @Bean
     public DataValidator<BoardOfDirectors> stockBoardOfDirectoreValidator() {
-        return new StockBoardOfDirectoreValidator();
+        return new StockBoardOfDirectorValidator();
     }
     
     @Bean
