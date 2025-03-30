@@ -55,8 +55,8 @@ public class StockPortfolioController {
         
         log.info("Fetching board of directors for symbol: {}", symbol);
         
-        BoardOfDirectors directors = stockPortfolioService.fetchAndPublishBoardOfDirectors(symbol);
         
+        BoardOfDirectors directors = stockPortfolioService.fetchAndPublishBoardOfDirectors(symbol);
         if (directors == null) {
             log.warn("No board of directors found for symbol: {}", symbol);
             return ResponseEntity.notFound().build();

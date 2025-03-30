@@ -57,26 +57,4 @@ public class BoardOfDirectorsUpdateEvent {
      */
     @JsonProperty("board_of_directors")
     private BoardOfDirectors boardOfDirector;
-    
-    /**
-     * Custom getter for directorsByType to handle null values
-     */
-    @JsonProperty("directors_by_type")
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public Map<String, List<Director>> getDirectorsByType() {
-        if (boardOfDirector != null && boardOfDirector.getDirectorsByType() != null) {
-            return boardOfDirector.getDirectorsByType();
-        }
-        return null;
-    }
-    
-    /**
-     * Custom setter for directorsByType
-     */
-    @JsonProperty("directors_by_type")
-    public void setDirectorsByType(Map<String, List<Director>> directorsByType) {
-        if (boardOfDirector != null) {
-            boardOfDirector.setDirectorsByType(directorsByType);
-        }
-    }
 }

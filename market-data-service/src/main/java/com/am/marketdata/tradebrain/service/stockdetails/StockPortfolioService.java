@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.am.marketdata.common.model.events.BoardOfDirector;
 import com.am.common.investment.model.board.BoardOfDirectors;
-import com.am.common.investment.service.BoardOfDirectorsService;
+import com.am.common.investment.service.StockFinancialPerformanceService;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
@@ -22,7 +22,7 @@ import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Service for handling board of directors data
+ * Service for handling stock portfolio data
  */
 @Service
 @Slf4j
@@ -32,7 +32,7 @@ public class StockPortfolioService {
     private final StockPortfolioProducerService producerService;
     private final ObjectMapper objectMapper;
     private final MarketBoardOfDirectorsMapper mapper;
-    private final BoardOfDirectorsService boardOfDirectorsService;
+    private final StockFinancialPerformanceService stockFinancialPerformanceService;
     
     // Metrics
     private final Timer fetchTimer;
@@ -54,12 +54,12 @@ public class StockPortfolioService {
             ObjectMapper objectMapper,
             MeterRegistry meterRegistry,
             MarketBoardOfDirectorsMapper mapper,
-            BoardOfDirectorsService boardOfDirectorsService) {
+            StockFinancialPerformanceService stockFinancialPerformanceService) {
         this.tradeBrainClient = tradeBrainClient;
         this.producerService = producerService;
         this.objectMapper = objectMapper;
         this.mapper = mapper;
-        this.boardOfDirectorsService = boardOfDirectorsService;
+        this.stockFinancialPerformanceService = stockFinancialPerformanceService;
         
         // Initialize metrics
         this.fetchTimer = Timer.builder("board.directors.fetch.time")
@@ -113,7 +113,7 @@ public class StockPortfolioService {
                 
                 // Create BoardOfDirectors object
                 BoardOfDirectors boardOfDirectors = mapper.toBoardOfDirectors(symbol, directors);
-                boardOfDirectorsService.saveBoardOfDirectors(boardOfDirectors);
+                stockFinancialPerformanceService.saveBoardOfDirectors(boardOfDirectors);
                 // Publish to Kafka
                 producerService.sendBoardOfDirectorsUpdate(symbol, boardOfDirectors);
                 

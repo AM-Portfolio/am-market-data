@@ -32,6 +32,7 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
     @ComponentScan("com.am.marketdata.model"),
     @ComponentScan("com.am.common.investment.*"),
     @ComponentScan("com.am.marketdata.kafka"),
+    @ComponentScan("com.am.marketdata.tradebrain"),
     @ComponentScan("com.am.common.amcommondata.mapper"),
     @ComponentScan("com.am.common.amcommondata.service"),
     @ComponentScan("com.am.common.amcommondata.domain"),

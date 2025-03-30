@@ -1,11 +1,13 @@
 package com.am.marketdata.tradebrain.mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.board.Director;
 import com.am.common.investment.model.board.DirectorType;
+import com.am.common.investment.model.stockindice.AuditData;
 import com.am.marketdata.common.model.events.BoardOfDirector;
 import com.am.marketdata.common.model.events.BoardOfDirector.DesignationType;
 
@@ -32,9 +34,19 @@ public class MarketBoardOfDirectorsMapper {
             return null;
         }
         return BoardOfDirectors.builder()
-            .companyId(symbol)
+            .symbol(symbol)
             .directors(toDirectors(symbol, directors))
+            .docVersion("1.0.0")
+            .audit(getAuditData())
             .build();
+    }
+
+    private AuditData getAuditData() {
+        return AuditData.builder()
+        .createdAt(LocalDateTime.now())
+        .updatedAt(LocalDateTime.now())
+        .createdBy("Munish")
+        .build();
     }
 
     public List<Director> toDirectors(String symbol,List<BoardOfDirector> directors) {
