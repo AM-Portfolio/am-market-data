@@ -14,7 +14,24 @@
     <name>Market Data Service Implementation</name>
     <description>Main service module implementing market data business logic</description>
 
+ <properties>
+        <influxdb.version>6.12.0</influxdb.version>
+        <micrometer.version>1.11.0</micrometer.version>
+    </properties>
+
     <dependencies>
+     <!-- InfluxDB -->
+        <dependency>
+            <groupId>com.influxdb</groupId>
+            <artifactId>influxdb-client-java</artifactId>
+            <version>${influxdb.version}</version>
+        </dependency>
+        <!-- Micrometer -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+        </dependency>
         <!-- Market Data Dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>
@@ -22,32 +39,30 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-service</artifactId>
+            <version>${investment-service.version}</version>
+        </dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-processor</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-kafka</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         
         <!-- Spring Boot Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         
         <!-- Database -->
@@ -56,17 +71,7 @@
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
         </dependency>
-        
-        <!-- Metrics and Monitoring -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-        
+
         <!-- Resilience4j for circuit breaking -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
@@ -80,13 +85,6 @@
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <scope>provided</scope>
-        </dependency>
-        
-        <!-- Testing -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <dependency>

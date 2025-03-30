@@ -11,21 +11,21 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import com.am.marketdata.config.ISINConfig;
+//import com.am.marketdata.config.ISINConfig;
 import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
-import com.am.marketdata.processor.config.ProcessorModuleConfig;
-import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
+//import com.am.marketdata.processor.config.ProcessorModuleConfig;
+//import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
-@Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
+// @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
+// @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
+@EnableConfigurationProperties({NSEIndicesConfig.class})
+@Import({ExternalApiAutoConfiguration.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
-    //@ComponentScan("com.am.marketdata.scraper"),
     @ComponentScan("com.am.marketdata.external.api"),
     @ComponentScan("com.am.marketdata.scheduler"),
-    //@ComponentScan("com.am.marketdata.scraper.config"),
     @ComponentScan("com.am.marketdata.service"),
     @ComponentScan("com.am.marketdata.kafka"),
     @ComponentScan("com.am.marketdata.api"),
@@ -33,13 +33,7 @@ import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
     @ComponentScan("com.am.marketdata.config"),
     @ComponentScan("com.am.marketdata.repository"),
     @ComponentScan("com.am.marketdata.model"),
-    @ComponentScan("com.am.common.investment.service.mapper"),
     @ComponentScan("com.am.common.investment.service"),
-    @ComponentScan("com.am.marketdata.kafka"),
-    @ComponentScan("com.am.common.amcommondata.mapper"),
-    @ComponentScan("com.am.common.amcommondata.service"),
-    @ComponentScan("com.am.common.amcommondata.domain"),
-    @ComponentScan("com.am.common.amcommondata.domain.asset"),
     @ComponentScan("com.am.common.investment.persistence"),
     @ComponentScan("com.am.marketdata.processor")
 })

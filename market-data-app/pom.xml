@@ -15,21 +15,21 @@
 
     <dependencies>
         <!-- Internal module dependencies -->
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-service</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scheduler</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-kafka</artifactId>
@@ -52,10 +52,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 
