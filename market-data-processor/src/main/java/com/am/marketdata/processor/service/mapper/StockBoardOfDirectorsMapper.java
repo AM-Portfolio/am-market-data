@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.board.Director;
+import com.am.common.investment.model.equity.financial.BaseModel;
 import com.am.marketdata.common.model.events.BoardOfDirector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -29,6 +30,8 @@ public class StockBoardOfDirectorsMapper {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructCollectionType(List.class, BoardOfDirector.class));
     }
+
+    private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
     /**
      * Create BoardOfDirectors from symbol and list of directors
@@ -41,8 +44,12 @@ public class StockBoardOfDirectorsMapper {
         if (directors == null) {
             return null;
         }
+        BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "stock");
         return BoardOfDirectors.builder()
-            .companyId(symbol)
+            .id(baseModel.getId())
+            .symbol(baseModel.getSymbol())
+            .source(baseModel.getSource())
+            .audit(baseModel.getAudit())
             .directors(toDirectors(symbol, directors))
             .build();
     }

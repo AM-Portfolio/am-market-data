@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
-import com.am.common.investment.service.BoardOfDirectorsService;
+import com.am.common.investment.service.StockFinancialPerformanceService;
 import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
@@ -33,6 +33,8 @@ import java.util.concurrent.Executor;
 @ComponentScan(basePackages = {
     "com.am.marketdata.processor",
     "com.am.marketdata.processor.service",
+    "com.am.common.investment.service.mapper",
+    "com.am.common.investment.service",
     "com.am.marketdata.common",
     "com.am.marketdata.external" // Assuming external API package
 })
@@ -72,9 +74,9 @@ public class ProcessorModuleConfig {
     @Bean
     public DataProcessor<BoardOfDirectors, Void> stockBoardOfDirectoeProcessor(
             StockPortfolioProducerService stockPortfolioProducer,
-            BoardOfDirectorsService boardOfDirectorsService,
+            StockFinancialPerformanceService stockFinancialPerformanceService,
             @Qualifier("boardOfDirectoreProcessingTimer") Timer processTimer) {
-        return new StockBoardOfDiretorsProcessor(stockPortfolioProducer, boardOfDirectorsService, processTimer);
+        return new StockBoardOfDiretorsProcessor(stockPortfolioProducer, stockFinancialPerformanceService, processTimer);
     }
 
     @Bean("boardOfDirectoreProcessingTimer")

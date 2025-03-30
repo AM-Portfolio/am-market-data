@@ -29,7 +29,7 @@ public class StockBoardOfDirectorValidator implements DataValidator<BoardOfDirec
 
         // Parse and validate market status date
         try {
-            LocalDateTime marketStatusDate = response.getLastUpdated().atStartOfDay();
+            LocalDateTime marketStatusDate = response.getAudit().getUpdatedAt();
             if (marketStatusDate == null) {
                 log.warn("Stock board of directors response missing market status date");
                 return false;
@@ -47,15 +47,15 @@ public class StockBoardOfDirectorValidator implements DataValidator<BoardOfDirec
             for (Director director : response.getDirectors()) {
                 if (director.getCompanyId() == null || 
                     director.getReportedDsg() == null) {
-                    log.warn("Invalid stock board of directors data for company ID {} in index {}", 
-                        director.getCompanyId(), response.getCompanyId());
+                    log.warn("Invalid stock board of directors data for symbol {}", 
+                        director.getCompanyId());
                     return false;
                 }
             }
 
             return true;
         } catch (Exception e) {
-            log.error("Error validating stock board of directors data for index {}", response.getCompanyId(), e);
+            log.error("Error validating stock board of directors data for symbol {}", response.getSymbol(), e);
             return false;
         }
     }
