@@ -15,11 +15,11 @@
 
     <dependencies>
         <!-- Internal module dependencies -->
-        <!-- <dependency>
+        <dependency>
             <groupId>com.marketdata</groupId>
-            <artifactId>market-data-service</artifactId>
+            <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
-        </dependency> -->
+        </dependency>
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-external-api</artifactId>
@@ -39,6 +39,12 @@
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scraper</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <!-- Resilience4j -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
 
         <!-- Logging -->
