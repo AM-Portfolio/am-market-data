@@ -99,7 +99,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
      * @return The index symbol
      */
     public String getIndexSymbol() {
-        return "RELIANCE";
+        return super.getIndexSymbol();
     }
 
     /**

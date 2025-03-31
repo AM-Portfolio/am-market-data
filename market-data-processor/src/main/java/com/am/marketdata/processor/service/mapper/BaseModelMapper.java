@@ -19,7 +19,7 @@ public class BaseModelMapper {
     
     public BaseModel getBaseModel(String symbol, String source) {
         return BaseModel.builder()
-        .id(UUID.randomUUID())
+        .id(UUID.randomUUID().toString())
         .symbol(symbol)
         .source(source)
         .audit(getAudit())
