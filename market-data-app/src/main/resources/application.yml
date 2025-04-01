@@ -20,22 +20,6 @@ INFLUXDB_URL: http://localhost:8087
 GRAFANA_ADMIN_USER: 1109403
 GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-KAFKA_CONSUMER_GROUP_ID: am-market-data-service
-KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
-
-# Application Configuration
-STOKUPATE_TOPIC_NAME: am-stock-price-update
-NSE_INDICES_TOPIC_NAME: nse-indices-update
-NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
-BOARD_OF_DIRECTORS_TOPIC_NAME: stock-board-of-directors
-QUATERLY_FINANCIALS_TOPIC_NAME: stock-quaterly-financials
-
 MARKET_DATA_MAX_RETRIES: 3
 MARKET_DATA_RETRY_DELAY_MS: 1000
 MARKET_DATA_THREAD_POOL_SIZE: 5
@@ -51,7 +35,7 @@ UPSTOX_CODE: rNLu2Q
 # Spring Configuration
 spring:
   profiles:
-    active: dev  # Default to development profile
+    active: dev,local  # Default to development profile
   application:
     name: market-data-service
 
@@ -77,13 +61,6 @@ spring:
     username: ${POSTGRES_USERNAME}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    
-  # Kafka Configuration
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID}
-      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
   
   config:
     import:
@@ -91,6 +68,7 @@ spring:
       - classpath:nseindices.yml
       - classpath:application-external-api.yml
       - classpath:application-endpoints.yml
+      - classpath:application-kafka.yml
 
   jpa:
     hibernate:
@@ -109,14 +87,6 @@ spring:
     endpoint:
       health:
         show-details: always
-
-app:
-  kafka:
-    stock-price-topic: ${STOKUPATE_TOPIC_NAME}
-    nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
-    stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
-    board-of-directors-topic: ${BOARD_OF_DIRECTORS_TOPIC_NAME}
-    quaterly-financials-topic: ${QUATERLY_FINANCIALS_TOPIC_NAME}
 
 upstox:
   interval: I1

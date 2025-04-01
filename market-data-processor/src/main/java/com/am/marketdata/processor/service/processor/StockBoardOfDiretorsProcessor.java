@@ -2,7 +2,7 @@ package com.am.marketdata.processor.service.processor;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.service.StockFinancialPerformanceService;
-import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
+import com.am.marketdata.kafka.oldProducer.StockPortfolioProducerService;
 import com.am.marketdata.processor.exception.ProcessorException;
 import com.am.marketdata.processor.service.common.DataProcessor;
 

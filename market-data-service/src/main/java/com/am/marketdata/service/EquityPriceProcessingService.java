@@ -2,7 +2,7 @@ package com.am.marketdata.service;
 
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.service.EquityService;
-import com.am.marketdata.kafka.producer.KafkaProducerService;
+import com.am.marketdata.kafka.oldProducer.KafkaProducerService;
 import com.am.marketdata.upstock.adapter.UpStockAdapter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

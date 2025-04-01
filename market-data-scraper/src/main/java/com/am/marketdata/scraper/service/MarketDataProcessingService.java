@@ -7,7 +7,7 @@ import com.am.common.investment.service.MarketIndexIndicesService;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.common.model.NSEIndicesResponse;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
-import com.am.marketdata.kafka.producer.KafkaProducerService;
+import com.am.marketdata.kafka.oldProducer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.marketdata.scraper.cookie.CookieManager;

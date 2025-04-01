@@ -1,4 +1,4 @@
-package com.am.marketdata.kafka.producer;
+package com.am.marketdata.kafka.oldProducer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,7 @@ import java.time.ZoneId;
 @RequiredArgsConstructor
 public abstract class BaseKafkaProducer<T> {
     
-    protected final KafkaTemplate<String, Object> kafkaTemplate;
+    protected final KafkaTemplate<String, Object> objectKafkaTemplate;
 
     protected void sendEvent(T event, String topic,String eventType, LocalDateTime timestamp) {
         try {
@@ -31,7 +31,7 @@ public abstract class BaseKafkaProducer<T> {
             ProducerRecord<String, Object> record = 
                 new ProducerRecord<>(topic, null, timestampMillis, eventType, event, headers);
             
-            kafkaTemplate.send(record)
+            objectKafkaTemplate.send(record)
                 .whenComplete((result, ex) -> {
                     if (ex == null) {
                         log.info("Message sent successfully to topic: {}, partition: {}, offset: {}", 

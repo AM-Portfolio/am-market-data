@@ -12,7 +12,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.service.StockFinancialPerformanceService;
-import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
+import com.am.marketdata.kafka.oldProducer.StockPortfolioProducerService;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;

@@ -1,9 +1,9 @@
 package com.am.marketdata.processor.service.processor;
 
-import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.service.StockFinancialPerformanceService;
-import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
+import com.am.marketdata.kafka.oldProducer.StockPortfolioProducerService;
+import com.am.marketdata.kafka.producer.MarketDataPublisherFacade;
 import com.am.marketdata.processor.exception.ProcessorException;
 import com.am.marketdata.processor.service.common.DataProcessor;
 
@@ -23,7 +23,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 @RequiredArgsConstructor
 public class QuaterlyFinancialResultProcessor implements DataProcessor<QuaterlyResult, Void> {
     
-    private final StockPortfolioProducerService stockPortfolioProducer;
+    //private final StockPortfolioProducerService stockPortfolioProducer;
+    private final MarketDataPublisherFacade marketDataPublisherFacade;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
 
     @Qualifier("quaterlyFinancialProcessingTimer")
@@ -49,7 +50,7 @@ public class QuaterlyFinancialResultProcessor implements DataProcessor<QuaterlyR
                 data.getFinancialResults().size());
             // Publish to Kafka
             try {
-                stockPortfolioProducer.sendQuaterlyFinancialsUpdate(data.getSymbol(), data);
+                marketDataPublisherFacade.publishQuaterlyFinancialsUpdate(data.getSymbol(), data);
                 log.debug("Published stock quaterly financials data for symbol: {}", data.getSymbol());
             } catch (Exception e) {
                 log.error("Failed to publish stock quaterly financials data for symbol: {}", data.getSymbol(), e);

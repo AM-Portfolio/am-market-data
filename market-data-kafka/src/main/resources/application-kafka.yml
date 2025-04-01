@@ -1,0 +1,33 @@
+# Kafka Configuration
+KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+# Application Configuration
+STOKUPATE_TOPIC_NAME: am-stock-price-update
+NSE_INDICES_TOPIC_NAME: nse-indices-update
+NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
+BOARD_OF_DIRECTORS_TOPIC_NAME: stock-board-of-directors
+QUATERLY_FINANCIALS_TOPIC_NAME: stock-quaterly-financials
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+      acks: all
+      retries: 3
+      max-in-flight-requests-per-connection: 5
+      max-block-ms: 60000
+      request-timeout-ms: 30000
+
+app:
+  kafka:
+    stock-price-topic: ${STOKUPATE_TOPIC_NAME}
+    nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
+    stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
+    board-of-directors-topic: ${BOARD_OF_DIRECTORS_TOPIC_NAME}
+    quaterly-financials-topic: ${QUATERLY_FINANCIALS_TOPIC_NAME}
+    partitions: 1
+    replication-factor: 1
