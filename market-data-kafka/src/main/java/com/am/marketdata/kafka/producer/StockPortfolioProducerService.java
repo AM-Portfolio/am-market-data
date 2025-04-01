@@ -2,14 +2,14 @@ package com.am.marketdata.kafka.producer;
 
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
+import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.marketdata.common.model.events.BoardOfDirectorsUpdateEvent;
-import com.am.marketdata.kafka.config.KafkaConfig;
+import com.am.marketdata.common.model.events.QuaterlyFinancialsUpdateEvent;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,9 +22,13 @@ import lombok.RequiredArgsConstructor;
 public class StockPortfolioProducerService {
     
     private final KafkaTemplate<String, BoardOfDirectorsUpdateEvent> boardOfDirectorsKafkaTemplate;
+    private final KafkaTemplate<String, QuaterlyFinancialsUpdateEvent> quaterlyFinancialsKafkaTemplate;
     
     @Value("${app.kafka.board-of-directors-topic:stock-board-of-directors}")
     private String boardOfDirectorsTopic;
+    
+    @Value("${app.kafka.quaterly-financials-topic:stock-quaterly-financials}")
+    private String quaterlyFinancialsTopic;
     
     public void sendBoardOfDirectorsUpdate(String symbol, BoardOfDirectors boardOfDirectors) {
         var event = BoardOfDirectorsUpdateEvent.builder()
@@ -35,6 +39,32 @@ public class StockPortfolioProducerService {
             .build();
         
         sendBoardOfDirectorsUpdate(event, boardOfDirectorsTopic, event.getEventType(), event.getTimestamp());
+    }
+
+    public void sendQuaterlyFinancialsUpdate(String symbol, QuaterlyResult quaterlyResult) {
+        var event = QuaterlyFinancialsUpdateEvent.builder()
+            .eventType("QUATERLY_FINANCIALS_UPDATE")
+            .timestamp(LocalDateTime.now())
+            .symbol(symbol)
+            .quaterlyResult(quaterlyResult)
+            .build();
+        
+        sendQuaterlyFinancialsUpdate(event, quaterlyFinancialsTopic, event.getEventType(), event.getTimestamp());
+    }
+
+    private void sendQuaterlyFinancialsUpdate(
+            QuaterlyFinancialsUpdateEvent event,
+            String topic,
+            String eventType,
+            LocalDateTime timestamp) {
+        
+        try {
+            quaterlyFinancialsKafkaTemplate.send(topic, event);
+            log.info("Quaterly financials update event sent successfully to topic: {}", topic);
+        } catch (Exception e) {
+            log.error("Failed to send quaterly financials update event to Kafka", e);
+            throw e;
+        }
     }
 
     private void sendBoardOfDirectorsUpdate(

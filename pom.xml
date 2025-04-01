@@ -34,8 +34,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok.version>1.18.30</lombok.version>
         <kong-unirest.version>3.14.5</kong-unirest.version>
-        <investment-model.version>1.6.9-SNAPSHOT</investment-model.version>
-        <investment-service.version>1.6.9-SNAPSHOT</investment-service.version>
+        <investment-model.version>1.6.10-SNAPSHOT</investment-model.version>
+        <investment-service.version>1.6.10-SNAPSHOT</investment-service.version>
     </properties>
 
     <dependencyManagement>

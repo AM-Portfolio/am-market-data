@@ -51,11 +51,11 @@ public class TradeBrainConfig {
     @Data
     public static class Financial {
         private String dividends;
-        private String halfYearlyStatement;
-        private String quarterlyResultsStandalone;
-        private String profitAndLossStandalone;
-        private String balanceSheetStandalone;
-        private String cashFlowStandalone;
+        private String halfYearly;
+        private String quarterlyResults;
+        private String profitAndLoss;
+        private String balanceSheet;
+        private String cashFlow;
     }
 
     @Data

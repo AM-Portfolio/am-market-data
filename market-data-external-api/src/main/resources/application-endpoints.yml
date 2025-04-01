@@ -28,13 +28,15 @@ trade-brain:
         board-of-directors: /api/company/board/directors/{symbol}
         top-shareholders: /api/company/top/shareholders/quaters/{symbol}
       financial:
-        dividends: /api/company/ratios/factsheet/dividends/{symbol}/standalone
-        profit-loss: /api/company/profit-loss/statement/{symbol}/standalone
-        balance-sheet: /api/company/balance-sheet/statement/{symbol}/standalone
-        cash-flow: /api/company/cash-flow/statement/{symbol}/standalone
-        quarterly-results: /api/company/quarterly-results/statement/{symbol}/standalone
-        half-yearly: /api/company/half-yearly/statement/{symbol}/standalone
+        dividends: /api/company/ratios/factsheet/dividends/{symbol}/consolidated
+        profit-loss: /api/company/profit-loss/statement/{symbol}/consolidated
+        balance-sheet: /api/company/balance-sheet/statement/{symbol}/consolidated
+        cash-flow: /api/company/cash-flow/statement/{symbol}/consolidated
+        quarterly-results: /api/company/quarterly-results/statement/{symbol}/consolidated
+        half-yearly: /api/company/half-yearly/statement/{symbol}/consolidated
         ratios: /api/company/ratios/{symbol}/standalone
+
+
         credit-rating: /api/company/credit-rating/{symbol}
         peers: /api/company/sector/industry/peers/{symbol}
       documents:

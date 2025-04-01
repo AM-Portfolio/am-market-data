@@ -50,6 +50,7 @@ public class TradeBrainClient {
     public static final String TRADEBRAIN_STOCK_ENDPOINT_SHAREHOLDING = STOCK_PREFIX + "shareholding";
     public static final String TRADEBRAIN_STOCK_ENDPOINT_HEATMAP = STOCK_PREFIX + "heatmap";
     public static final String TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS = PROFILE_PREFIX + "board-of-directors";
+    public static final String TRADEBRAIN_PROFILE_QUATERLY_FINANCIALS = FINANCIAL_PREFIX + "quaterly-financials";
     
     /**
      * Constructor with dependencies
@@ -237,35 +238,35 @@ public class TradeBrainClient {
         registerEndpoint(
             FINANCIAL_PREFIX + "half-yearly-statement",
             "TradeBrain Financial Half Yearly Statement",
-            financial.getHalfYearlyStatement(),
+            financial.getHalfYearly(),
             headers
         );
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "quarterly-results-standalone",
+            TRADEBRAIN_PROFILE_QUATERLY_FINANCIALS,
             "TradeBrain Financial Quarterly Results Standalone",
-            financial.getQuarterlyResultsStandalone(),
+            financial.getQuarterlyResults(),
             headers
         );
         
         registerEndpoint(
             FINANCIAL_PREFIX + "profit-and-loss-standalone",
             "TradeBrain Financial Profit and Loss Standalone",
-            financial.getProfitAndLossStandalone(),
+            financial.getProfitAndLoss(),
             headers
         );
         
         registerEndpoint(
             FINANCIAL_PREFIX + "balance-sheet-standalone",
             "TradeBrain Financial Balance Sheet Standalone",
-            financial.getBalanceSheetStandalone(),
+            financial.getBalanceSheet(),
             headers
         );
         
         registerEndpoint(
             FINANCIAL_PREFIX + "cash-flow-standalone",
             "TradeBrain Financial Cash Flow Standalone",
-            financial.getCashFlowStandalone(),
+            financial.getCashFlow(),
             headers
         );
     }
@@ -496,6 +497,16 @@ public class TradeBrainClient {
      */
     public ApiResponse getBoardOfDirectors(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS, symbol);
+    }
+
+     /**
+     * Get quaterly financials data for a company
+     * 
+     * @param symbol Stock symbol
+     * @return ApiResponse containing quaterly financials data
+     */
+    public ApiResponse getQuaterlyFinancials(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_QUATERLY_FINANCIALS, symbol);
     }
     
     /**

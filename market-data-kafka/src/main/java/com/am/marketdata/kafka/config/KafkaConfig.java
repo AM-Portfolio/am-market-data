@@ -15,12 +15,11 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
-import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import com.am.marketdata.common.model.events.BoardOfDirectorsUpdateEvent;
+import com.am.marketdata.common.model.events.QuaterlyFinancialsUpdateEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +43,9 @@ public class KafkaConfig {
     @Value("${app.kafka.board-of-directors-topic}")
     private String boardOfDirectorsTopic;
 
+    @Value("${app.kafka.quaterly-financials-topic}")
+    private String quaterlyFinancialsTopic;
+
     @Bean
     public NewTopic createTopic() {
         return new NewTopic(stockPriceTopic, 1, (short) 1);
@@ -57,6 +59,11 @@ public class KafkaConfig {
     @Bean
     public NewTopic createBoardOfDirectorsTopic() {
         return new NewTopic(boardOfDirectorsTopic, 1, (short) 1);
+    }
+
+    @Bean
+    public NewTopic createQuaterlyFinancialsTopic() {
+        return new NewTopic(quaterlyFinancialsTopic, 1, (short) 1);
     }
 
     @Bean
@@ -85,6 +92,20 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, BoardOfDirectorsUpdateEvent> boardOfDirectorsKafkaTemplate() {
         return new KafkaTemplate<>(boardOfDirectorsProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, QuaterlyFinancialsUpdateEvent> quaterlyFinancialsProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
+    public KafkaTemplate<String, QuaterlyFinancialsUpdateEvent> quaterlyFinancialsKafkaTemplate() {
+        return new KafkaTemplate<>(quaterlyFinancialsProducerFactory());
     }
 
     @Bean

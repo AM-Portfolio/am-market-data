@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
+import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.marketdata.processor.service.StockPerformaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -65,5 +66,36 @@ public class StockPortfolioController {
         
         log.info("Successfully retrieved board of directors for symbol: {}", symbol);
         return ResponseEntity.ok(directors.get());
+    }
+
+     /**
+     * Get quaterly financials for a specific stock
+     * 
+     * @param symbol Stock symbol
+     * @return Quaterly financials information
+     */
+    @GetMapping("/{symbol}/quaterly-financials")
+    @Operation(summary = "Get quaterly financials for a stock")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved quaterly financials", 
+            content = @Content(schema = @Schema(implementation = QuaterlyResult.class))),
+        @ApiResponse(responseCode = "404", description = "No quaterly financials found for the symbol"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<QuaterlyResult> getQuaterlyFinancials(
+            @Parameter(description = "Stock symbol", required = true)
+            @PathVariable("symbol") @NotBlank String symbol) {
+        
+        log.info("Fetching quaterly financials for symbol: {}", symbol);
+        
+        Optional<QuaterlyResult> quaterlyResult = stockFinancialPerformaceService.fetchAndProcessQuaterlyFinancials(symbol);
+        
+        if (quaterlyResult.isEmpty()) {
+            log.warn("No quaterly financials found for symbol: {}", symbol);
+            return ResponseEntity.notFound().build();
+        }
+        
+        log.info("Successfully retrieved quaterly financials for symbol: {}", symbol);
+        return ResponseEntity.ok(quaterlyResult.get());
     }
 }

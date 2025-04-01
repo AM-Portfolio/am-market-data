@@ -10,12 +10,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
+import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.service.StockFinancialPerformanceService;
 import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
+import com.am.marketdata.processor.service.mapper.StockQuaterlyResultFinanceMapper;
+import com.am.marketdata.processor.service.processor.QuaterlyFinancialResultProcessor;
 import com.am.marketdata.processor.service.processor.StockBoardOfDiretorsProcessor;
+import com.am.marketdata.processor.service.validator.QuaterlyFinanceResultValidator;
 import com.am.marketdata.processor.service.validator.StockBoardOfDirectorValidator;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -86,4 +90,32 @@ public class ProcessorModuleConfig {
             .description("Time taken to process stock board of directors data")
             .register(meterRegistry);
     }
+
+    @Bean("quaterlyFinancialsProcessingTimer")
+    public Timer quaterlyFinancialsProcessingTimer(MeterRegistry meterRegistry) {
+        return Timer.builder("quaterly.financials.processing.time")
+            .description("Time taken to process stock quaterly financials data")
+            .register(meterRegistry);
+    }
+
+    @Bean
+    @Primary
+    public DataValidator<QuaterlyResult> stockQuaterlyFinancialsValidator() {
+        return new QuaterlyFinanceResultValidator();
+    }
+    
+    @Bean
+    public StockQuaterlyResultFinanceMapper stockQuaterlyResultFinanceMapper() {
+        return new StockQuaterlyResultFinanceMapper();
+    }
+    
+    @Bean
+    @Primary
+    public DataProcessor<QuaterlyResult, Void> stockQuaterlyFinancialsProcessor(
+            StockPortfolioProducerService stockPortfolioProducer,
+            StockFinancialPerformanceService stockFinancialPerformanceService,
+            @Qualifier("quaterlyFinancialsProcessingTimer") Timer processTimer) {
+        return new QuaterlyFinancialResultProcessor(stockPortfolioProducer, stockFinancialPerformanceService, processTimer);
+    }
+
 }

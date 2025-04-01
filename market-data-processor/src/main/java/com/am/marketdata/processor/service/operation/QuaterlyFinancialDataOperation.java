@@ -1,14 +1,14 @@
 package com.am.marketdata.processor.service.operation;
 
-import com.am.common.investment.model.board.BoardOfDirectors;
-import com.am.marketdata.common.model.events.BoardOfDirector;
+import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
+import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
-import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
+import com.am.marketdata.processor.service.mapper.StockQuaterlyResultFinanceMapper;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -27,14 +26,14 @@ import java.util.concurrent.Executor;
  */
 @Slf4j
 @Component
-public class StockOverviewDataOperation extends AbstractMarketDataOperation<BoardOfDirectors, Void> {
+public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<QuaterlyResult, Void> {
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockBoardOfDirectoeProcessingTimer")
+    @Qualifier("stockQuaterlyFinancialProcessingTimer")
     private final Timer fetchTimer;
-    private BoardOfDirectors lastFetchedData;
-    private final StockBoardOfDirectorsMapper boardOfDirectorsMapper;
+    private QuaterlyResult lastFetchedData;
+    private final StockQuaterlyResultFinanceMapper stockQuaterlyResultFinanceMapper;
     
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
@@ -42,28 +41,28 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     @Value("${market.data.retry.delay.ms:1000}")
     private long retryDelayMs;
     
-    public StockOverviewDataOperation(
+    public QuaterlyFinancialDataOperation(
             DataFetcher dataFetcher,
-            DataValidator<BoardOfDirectors> stockBoardOfDirectoeValidator,
-            DataProcessor<BoardOfDirectors, Void> stockBoardOfDirectoeProcessor,
+            DataValidator<QuaterlyResult> stockQuaterlyResultFinanceValidator,
+            DataProcessor<QuaterlyResult, Void> stockQuaterlyResultFinanceProcessor,
             MeterRegistry meterRegistry,
             Timer processingTimer,
             Executor executor,
             TradeBrainClient tradeBrainClient,
-            StockBoardOfDirectorsMapper boardOfDirectorsMapper) {
-        super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, processingTimer, executor);
+            StockQuaterlyResultFinanceMapper stockQuaterlyResultFinanceMapper) {
+        super(dataFetcher, stockQuaterlyResultFinanceValidator, stockQuaterlyResultFinanceProcessor, meterRegistry, processingTimer, executor);
         this.tradeBrainClient = tradeBrainClient;
-        this.boardOfDirectorsMapper = boardOfDirectorsMapper;
+        this.stockQuaterlyResultFinanceMapper = stockQuaterlyResultFinanceMapper;
         this.fetchTimer = processingTimer;
     }
 
-    public StockOverviewDataOperation withSymbol(String symbol) {
-        return (StockOverviewDataOperation) super.withIndexSymbol(symbol);
+    public QuaterlyFinancialDataOperation withSymbol(String symbol) {
+        return (QuaterlyFinancialDataOperation) super.withIndexSymbol(symbol);
     }
     
     @Override
     protected String getDataTypeName() {
-        return "stock-board-of-directors";
+        return "stock-quaterly-financials";
     }
     
     @Override
@@ -73,22 +72,24 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     
     @Override
     protected void handleSuccess(Void result) {
-        log.info("Successfully processed stock board of directors");
+        log.info("Successfully processed stock quaterly financials");
     }
     
     @Override
     @SneakyThrows
-    protected BoardOfDirectors fetchData() {
+    protected QuaterlyResult fetchData() {
+        log.info("Fetching stock quaterly financials for symbol: {}", getIndexSymbol());
         try {
-            ApiResponse response = tradeBrainClient.getBoardOfDirectors(getIndexSymbol());
-            List<BoardOfDirector> directors = boardOfDirectorsMapper.parseDirectors(response.getData());
-            if (directors == null) {
+            ApiResponse response = tradeBrainClient.getQuaterlyFinancials(getIndexSymbol());
+            log.info("Quaterly Financials Response: {}", response);
+            QuaterlyFinancialStatementResponse financials = stockQuaterlyResultFinanceMapper.parseQuaterlyFinancials(response.getData());
+            if (financials == null) {
                 return null;
             }
-            lastFetchedData = boardOfDirectorsMapper.toBoardOfDirectors(getIndexSymbol(), directors);
+            lastFetchedData = stockQuaterlyResultFinanceMapper.toQuarterlyFinancialMetrics(getIndexSymbol(), financials);
             return lastFetchedData;
         } catch (Exception e) {
-            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock board of directors data", e);
+            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock quaterly financials data", e);
         }
     }
     
@@ -106,7 +107,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
      * 
      * @return The last fetched data, or null if no data has been fetched yet
      */
-    public BoardOfDirectors getLastFetchedData() {
+    public QuaterlyResult getLastFetchedData() {
         return lastFetchedData;
     }
 }

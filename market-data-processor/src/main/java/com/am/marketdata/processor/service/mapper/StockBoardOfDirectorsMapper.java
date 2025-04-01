@@ -44,7 +44,7 @@ public class StockBoardOfDirectorsMapper {
         if (directors == null) {
             return null;
         }
-        BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "stock");
+        BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "TradeB");
         return BoardOfDirectors.builder()
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
