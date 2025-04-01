@@ -16,9 +16,12 @@
         
         <module>market-data-common</module>
         <module>market-data-kafka</module>
-        <!-- <module>market-data-service</module> -->
+        <module>market-data-service</module>
+        <module>market-data-external-api</module> 
         <module>market-data-scraper</module>
-        <module>market-data-api</module>
+        <module>market-data-processor</module> 
+        <module>market-data-scheduler</module>
+        <module>market-data-api</module>  
         <module>market-data-app</module>
     </modules>
 
@@ -29,10 +32,10 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <lombok.version>1.18.24</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <kong-unirest.version>3.14.5</kong-unirest.version>
-        <investment-model.version>1.6.0-SNAPSHOT</investment-model.version>
-        <investment-scraper.version>1.6.0-SNAPSHOT</investment-scraper.version>
+        <investment-model.version>1.6.10-SNAPSHOT</investment-model.version>
+        <investment-service.version>1.6.10-SNAPSHOT</investment-service.version>
     </properties>
 
     <dependencyManagement>
@@ -43,6 +46,11 @@
                 <version>${spring.boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-spring-boot3</artifactId>
+                <version>2.1.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

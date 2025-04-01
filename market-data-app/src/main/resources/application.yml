@@ -33,6 +33,8 @@ KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
 STOKUPATE_TOPIC_NAME: am-stock-price-update
 NSE_INDICES_TOPIC_NAME: nse-indices-update
 NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
+BOARD_OF_DIRECTORS_TOPIC_NAME: stock-board-of-directors
+QUATERLY_FINANCIALS_TOPIC_NAME: stock-quaterly-financials
 
 MARKET_DATA_MAX_RETRIES: 3
 MARKET_DATA_RETRY_DELAY_MS: 1000
@@ -62,19 +64,19 @@ spring:
       password: ${MONGO_PASSWORD}
       authentication-database: admin
   
-  # Database Configuration
-  datasource:
-    url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    
   # InfluxDB Configuration
   influx:
     url: ${INFLUXDB_URL}
     token: ${INFLUXDB_TOKEN}
     org: ${INFLUXDB_ORG}
     bucket: ${INFLUXDB_BUCKET}
+    
+  # Database Configuration
+  datasource:
+    url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
     
   # Kafka Configuration
   kafka:
@@ -87,6 +89,8 @@ spring:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
+      - classpath:application-external-api.yml
+      - classpath:application-endpoints.yml
 
   jpa:
     hibernate:
@@ -97,11 +101,22 @@ spring:
         format_sql: true
     show-sql: true
 
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: "*"
+    endpoint:
+      health:
+        show-details: always
+
 app:
   kafka:
     stock-price-topic: ${STOKUPATE_TOPIC_NAME}
     nse-indices-topic: ${NSE_INDICES_TOPIC_NAME}
     stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
+    board-of-directors-topic: ${BOARD_OF_DIRECTORS_TOPIC_NAME}
+    quaterly-financials-topic: ${QUATERLY_FINANCIALS_TOPIC_NAME}
 
 upstox:
   interval: I1
@@ -134,5 +149,6 @@ logging:
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
+    '[com.am.marketdata.external.api]': DEBUG
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'

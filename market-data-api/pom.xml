@@ -16,11 +16,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.am.common</groupId>
-            <artifactId>am-common-investment-service</artifactId>
-            <version>${investment-model.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-common</artifactId>
             <version>${project.version}</version>
@@ -33,6 +28,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-processor</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.marketdata</groupId>
