@@ -66,8 +66,8 @@ public class StockQuaterlyResultFinanceMapper {
         if (financials == null) {
             return null;
         }
-        return financials.getQuarterlyData().values().stream()
-            .map(quarterlyFinancialMetrics -> toFinancialResult(quarterlyFinancialMetrics))
+        return financials.getQuarterKeys().stream()
+            .map(quarterKey -> toFinancialResult(financials.getQuarterlyMetrics(quarterKey)))
             .collect(Collectors.toList());
     }
 
