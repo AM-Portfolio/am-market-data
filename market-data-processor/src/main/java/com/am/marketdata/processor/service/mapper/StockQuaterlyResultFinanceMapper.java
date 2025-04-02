@@ -67,7 +67,7 @@ public class StockQuaterlyResultFinanceMapper {
             return null;
         }
         return financials.getQuarterKeys().stream()
-            .map(quarterKey -> toFinancialResult(financials.getQuarterlyMetrics(quarterKey)))
+            .map(quarterKey -> toFinancialResult(financials.getMetrics(quarterKey)))
             .collect(Collectors.toList());
     }
 

@@ -2,7 +2,6 @@ package com.am.marketdata.processor.service.common;
 
 import com.am.marketdata.processor.exception.DataValidationException;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,7 +26,6 @@ public abstract class AbstractMarketDataOperation<T, R> {
     protected final DataValidator<T> validator;
     protected final DataProcessor<T, R> processor;
     protected final MeterRegistry meterRegistry;
-    protected final Timer processingTimer;
     protected final Executor executor;
     
     private String indexSymbol;
@@ -61,9 +59,7 @@ public abstract class AbstractMarketDataOperation<T, R> {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 // Step 1: Fetch data with retry
-                Timer.Sample fetchSample = Timer.start();
                 T data = fetchData();
-                fetchSample.stop(getFetchTimer());
                 
                 if (data == null) {
                     log.warn("Failed to fetch {} data", getDataTypeName());
@@ -76,10 +72,7 @@ public abstract class AbstractMarketDataOperation<T, R> {
                 //     throw new DataValidationException(getIndexSymbol(), getDataTypeName(), "Invalid or stale data");
                 // }
                 
-                // Step 3: Process data
-                Timer.Sample processSample = Timer.start();
                 R result = processor.process(data);
-                processSample.stop(processor.getProcessingTimer());
                 
                 // Step 4: Handle successful processing
                 handleSuccess(result);
@@ -103,13 +96,6 @@ public abstract class AbstractMarketDataOperation<T, R> {
      * @return The data type name
      */
     protected abstract String getDataTypeName();
-    
-    /**
-     * Get the timer for measuring fetch time
-     * 
-     * @return The timer
-     */
-    protected abstract Timer getFetchTimer();
     
     /**
      * Fetch the data with retry

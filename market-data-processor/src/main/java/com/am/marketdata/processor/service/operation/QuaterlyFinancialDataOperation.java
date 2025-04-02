@@ -11,15 +11,15 @@ import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockQuaterlyResultFinanceMapper;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.Executor;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 
 /**
  * Operation for fetching and processing NSE stock indices data
@@ -30,8 +30,6 @@ public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockQuaterlyFinancialProcessingTimer")
-    private final Timer fetchTimer;
     private QuaterlyResult lastFetchedData;
     private final StockQuaterlyResultFinanceMapper stockQuaterlyResultFinanceMapper;
     
@@ -46,14 +44,12 @@ public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<
             DataValidator<QuaterlyResult> stockQuaterlyResultFinanceValidator,
             DataProcessor<QuaterlyResult, Void> stockQuaterlyResultFinanceProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockQuaterlyResultFinanceMapper stockQuaterlyResultFinanceMapper) {
-        super(dataFetcher, stockQuaterlyResultFinanceValidator, stockQuaterlyResultFinanceProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockQuaterlyResultFinanceValidator, stockQuaterlyResultFinanceProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.stockQuaterlyResultFinanceMapper = stockQuaterlyResultFinanceMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public QuaterlyFinancialDataOperation withSymbol(String symbol) {
@@ -63,11 +59,6 @@ public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<
     @Override
     protected String getDataTypeName() {
         return "stock-quaterly-financials";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

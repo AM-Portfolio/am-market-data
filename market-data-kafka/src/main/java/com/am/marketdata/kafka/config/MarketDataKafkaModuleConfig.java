@@ -8,7 +8,8 @@ import org.springframework.context.annotation.Import;
 @ComponentScan(basePackages = {
     "com.am.marketdata.kafka",
     "com.am.marketdata.common",
-    "com.am.marketdata.external"
+    "com.am.marketdata.external",
+    "com.am.marketdata.kafka.config"
 })
 @Import(KafkaConfig.class)
 public class MarketDataKafkaModuleConfig {

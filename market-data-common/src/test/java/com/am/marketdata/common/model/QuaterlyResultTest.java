@@ -19,18 +19,19 @@ class QuaterlyResultTest {
         assertNotNull(response.getStock(), "Stock data should not be null");
 
         // Verify the latest quarter (202412)
-        var metrics202412 = response.getStock().getQuarterlyMetrics("202412");
+        var metrics202412 = response.getStock().getMetrics("202412");
         assertNotNull(metrics202412, "Latest quarter metrics should not be null");
         assertEquals("Y202412", metrics202412.getYearEnd(), "Year end should be Y202412");
         assertEquals(244200.0, metrics202412.getTotalRevenue(), "Total revenue should match");
         assertEquals(7.46, metrics202412.getNetProfitMargin(), "Net profit margin should match");
         assertEquals(13.7, metrics202412.getAdjEpsInRsBasic(), "Adjusted EPS basic should match");
         assertEquals(13.7, metrics202412.getAdjEpsInRsDiluted(), "Adjusted EPS diluted should match");
+
         assertEquals(17.63, metrics202412.getOpmPercentage(), "OPM percentage should match");
         assertEquals(4.05, metrics202412.getPatMarginGrowth(), "PAT margin growth should match");
 
         // Verify a previous quarter (202409)
-        var metrics202409 = response.getStock().getQuarterlyMetrics("202409");
+        var metrics202409 = response.getStock().getMetrics("202409");
         assertNotNull(metrics202409, "Previous quarter metrics should not be null");
         assertEquals("Y202409", metrics202409.getYearEnd(), "Year end should be Y202409");
         assertEquals(236411.0, metrics202409.getTotalRevenue(), "Total revenue should match");
