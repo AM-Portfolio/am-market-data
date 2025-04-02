@@ -10,17 +10,25 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
+import com.am.common.investment.model.equity.financial.factsheetdividend.StockFactSheetDividend;
+import com.am.common.investment.model.equity.financial.profitandloss.StockProfitAndLoss;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.service.StockFinancialPerformanceService;
 import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
+import com.am.marketdata.processor.service.mapper.StockFactSheetFinanceMapper;
+import com.am.marketdata.processor.service.mapper.StockProfitLossFinanceMapper;
 import com.am.marketdata.processor.service.mapper.StockQuaterlyResultFinanceMapper;
 import com.am.marketdata.processor.service.processor.QuaterlyFinancialResultProcessor;
 import com.am.marketdata.processor.service.processor.StockBoardOfDiretorsProcessor;
+import com.am.marketdata.processor.service.processor.StockFactSheetDividendProcessor;
+import com.am.marketdata.processor.service.processor.StockProfitAndLossProcessor;
 import com.am.marketdata.processor.service.validator.QuaterlyFinanceResultValidator;
 import com.am.marketdata.processor.service.validator.StockBoardOfDirectorValidator;
+import com.am.marketdata.processor.service.validator.StockFactSheetDividendValidator;
+import com.am.marketdata.processor.service.validator.StockProfitAndLossValidator;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -66,6 +74,7 @@ public class ProcessorModuleConfig {
         return executor;
     }
 
+    // Stock Board of Directors
     @Bean
     public DataValidator<BoardOfDirectors> stockBoardOfDirectoreValidator() {
         return new StockBoardOfDirectorValidator();
@@ -91,6 +100,7 @@ public class ProcessorModuleConfig {
             .register(meterRegistry);
     }
 
+    // Stock Quaterly Financials
     @Bean("quaterlyFinancialsProcessingTimer")
     public Timer quaterlyFinancialsProcessingTimer(MeterRegistry meterRegistry) {
         return Timer.builder("quaterly.financials.processing.time")
@@ -116,6 +126,59 @@ public class ProcessorModuleConfig {
             StockFinancialPerformanceService stockFinancialPerformanceService,
             @Qualifier("quaterlyFinancialsProcessingTimer") Timer processTimer) {
         return new QuaterlyFinancialResultProcessor(stockPortfolioProducer, stockFinancialPerformanceService, processTimer);
+    }
+
+    // Stock Fact Sheet Dividend
+    @Bean
+    public DataValidator<StockFactSheetDividend> stockFactSheetDividendValidator() {
+        return new StockFactSheetDividendValidator();
+    }
+
+    @Bean
+    public StockFactSheetFinanceMapper stockFactSheetDividendMapper() {
+        return new StockFactSheetFinanceMapper();
+    }
+
+    @Bean
+    public DataProcessor<StockFactSheetDividend, Void> stockFactSheetDividendProcessor(
+            StockPortfolioProducerService stockPortfolioProducer,
+            StockFinancialPerformanceService stockFinancialPerformanceService,
+            @Qualifier("factSheetDividendProcessingTimer") Timer processTimer) {
+        return new StockFactSheetDividendProcessor(stockPortfolioProducer, stockFinancialPerformanceService, processTimer);
+    }
+
+    @Bean("factSheetDividendProcessingTimer")
+    public Timer factSheetDividendProcessingTimer(MeterRegistry meterRegistry) {
+        return Timer.builder("fact.sheet.dividend.processing.time")
+            .description("Time taken to process stock fact sheet dividend data")
+            .register(meterRegistry);
+    }
+
+    // Stock Profit and Loss
+    @Bean
+    public DataValidator<StockProfitAndLoss> stockProfitAndLossValidator() {
+        return new StockProfitAndLossValidator();
+    }
+
+    @Bean
+    public StockProfitLossFinanceMapper stockProfitAndLossMapper() {
+        return new StockProfitLossFinanceMapper();
+    }
+
+    @Bean
+    public DataProcessor<StockProfitAndLoss, Void> stockProfitAndLossProcessor(
+            StockPortfolioProducerService stockPortfolioProducer,
+            StockFinancialPerformanceService stockFinancialPerformanceService,
+            @Qualifier("profitAndLossProcessingTimer") Timer processTimer) {
+        return new StockProfitAndLossProcessor(stockPortfolioProducer, stockFinancialPerformanceService, processTimer);
+    }
+    
+
+    @Bean("profitAndLossProcessingTimer")
+    public Timer profitAndLossProcessingTimer(MeterRegistry meterRegistry) {
+        return Timer.builder("profit.and.loss.processing.time")
+            .description("Time taken to process stock profit and loss data")
+            .register(meterRegistry);
     }
 
 }
