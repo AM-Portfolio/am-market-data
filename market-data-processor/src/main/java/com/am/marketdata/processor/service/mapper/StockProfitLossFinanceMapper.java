@@ -1,6 +1,9 @@
 package com.am.marketdata.processor.service.mapper;
 
 import com.am.common.investment.model.equity.financial.BaseModel;
+import com.am.common.investment.model.equity.financial.profitandloss.ProfitAndLoss;
+import com.am.common.investment.model.equity.financial.profitandloss.ProfitAndLoss.ProfitAndLossBuilder;
+import com.am.common.investment.model.equity.financial.profitandloss.StockProfitAndLoss;
 import com.am.common.investment.model.equity.financial.resultstatement.FinancialResult;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.model.equity.metrics.CostMetrics;
@@ -8,6 +11,7 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
 import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
@@ -27,39 +31,32 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
-public class StockQuaterlyResultFinanceMapper {
+public class StockProfitLossFinanceMapper {
 
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public QuaterlyFinancialStatementResponse parseQuaterlyFinancials(String jsonData) {
+    public ProfitLossStatementResponse parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
-            TypeFactory.defaultInstance().constructType(QuaterlyFinancialStatementResponse.class));
+            TypeFactory.defaultInstance().constructType(ProfitLossStatementResponse.class));
     }
 
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
-    /**
-     * Create QuarterlyFinancialMetrics from symbol and QuaterlyFinancialStatementResponse object
-     * 
-     * @param symbol Stock symbol
-     * @param financials QuaterlyFinancialStatementResponse object
-     * @return FinancialResult object
-     */
-    public QuaterlyResult toQuarterlyFinancialMetrics(String symbol, QuaterlyFinancialStatementResponse financials) {
+    public StockProfitAndLoss toStockProfitAndLoss(String symbol, ProfitLossStatementResponse financials) {
         if (financials == null) {
             return null;
         }
         BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "TradeB");
-        var QuaterlyResultBuilder = QuaterlyResult.builder()
+        var StockProfitAndLossBuilder = StockProfitAndLoss.builder()
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
             .source(baseModel.getSource())
-            .audit(baseModel.getAudit())
-            .financialResults(toFinancialResults(financials.getStock()));
+            .audit(baseModel.getAudit());
+            // .financialResults(toFinancialResults(financials.getStock()));
 
-        return QuaterlyResultBuilder.build();
+        return StockProfitAndLossBuilder.build();
     }
 
     private List<FinancialResult> toFinancialResults(StockFinancialData financials) {

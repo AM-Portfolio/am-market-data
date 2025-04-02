@@ -35,6 +35,11 @@ NSE_INDICES_TOPIC_NAME: nse-indices-update
 NSE_STOCK_INDICES_TOPIC_NAME: nse-stock-indices-update
 BOARD_OF_DIRECTORS_TOPIC_NAME: stock-board-of-directors
 QUATERLY_FINANCIALS_TOPIC_NAME: stock-quaterly-financials
+STOCK_RESULTS_FINANCIALS_TOPIC_NAME: stock-results-financials
+STOCK_PROFIT_AND_LOSS_FINANCIALS_TOPIC_NAME: stock-profit-and-loss-financials
+STOCK_BALANCE_SHEET_FINANCIALS_TOPIC_NAME: stock-balance-sheet-financials
+STOCK_CASH_FLOW_FINANCIALS_TOPIC_NAME: stock-cash-flow-financials
+STOCK_FACT_SHEET_DIVIDEND_FINANCIALS_TOPIC_NAME: stock-fact-sheet-dividend-financials
 
 MARKET_DATA_MAX_RETRIES: 3
 MARKET_DATA_RETRY_DELAY_MS: 1000
@@ -117,6 +122,11 @@ app:
     stock-indices-topic: ${NSE_STOCK_INDICES_TOPIC_NAME}
     board-of-directors-topic: ${BOARD_OF_DIRECTORS_TOPIC_NAME}
     quaterly-financials-topic: ${QUATERLY_FINANCIALS_TOPIC_NAME}
+    stock-results-financials-topic: ${STOCK_RESULTS_FINANCIALS_TOPIC_NAME}
+    stock-profit-and-loss-financials-topic: ${STOCK_PROFIT_AND_LOSS_FINANCIALS_TOPIC_NAME}
+    stock-balance-sheet-financials-topic: ${STOCK_BALANCE_SHEET_FINANCIALS_TOPIC_NAME}
+    stock-cash-flow-financials-topic: ${STOCK_CASH_FLOW_FINANCIALS_TOPIC_NAME}
+    stock-fact-sheet-dividend-financials-topic: ${STOCK_FACT_SHEET_DIVIDEND_FINANCIALS_TOPIC_NAME}
 
 upstox:
   interval: I1

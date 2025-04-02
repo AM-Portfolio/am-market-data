@@ -51,14 +51,12 @@ public class TradeBrainClient {
     public static final String TRADEBRAIN_STOCK_ENDPOINT_HEATMAP = STOCK_PREFIX + "heatmap";
     public static final String TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS = PROFILE_PREFIX + "board-of-directors";
     public static final String TRADEBRAIN_PROFILE_QUATERLY_FINANCIALS = FINANCIAL_PREFIX + "quaterly-financials";
+    public static final String TRADEBRAIN_PROFILE_PROFIT_AND_LOSS = FINANCIAL_PREFIX + "profit-and-loss";
+    public static final String TRADEBRAIN_PROFILE_BALANCE_SHEET = FINANCIAL_PREFIX + "balance-sheet";
+    public static final String TRADEBRAIN_PROFILE_CASH_FLOW = FINANCIAL_PREFIX + "cash-flow";
+    public static final String TRADEBRAIN_PROFILE_HALF_YEARLY_RESULTS = FINANCIAL_PREFIX + "half-yearly-results";
+    public static final String TRADEBRAIN_PROFILE_DIVIDENDS = FINANCIAL_PREFIX + "dividends";
     
-    /**
-     * Constructor with dependencies
-     * 
-     * @param apiClient Base API client
-     * @param tradeBrainConfig TradeBrain configuration
-     * @param endpointRegistry API endpoint registry
-     */
     public TradeBrainClient(
             ApiClient apiClient, 
             TradeBrainConfig tradeBrainConfig,
@@ -68,9 +66,6 @@ public class TradeBrainClient {
         this.endpointRegistry = endpointRegistry;
     }
     
-    /**
-     * Initialize the client and register endpoints
-     */
     @PostConstruct
     public void init() {
         // Create default headers
@@ -83,11 +78,6 @@ public class TradeBrainClient {
         log.info("TradeBrain API client initialized with base URL: {}", tradeBrainConfig.getBaseUrl());
     }
     
-    /**
-     * Create default headers for API requests
-     * 
-     * @return Map of default headers
-     */
     private Map<String, String> createDefaultHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put("User-Agent", tradeBrainConfig.getHeaders().getUserAgent());
@@ -96,11 +86,6 @@ public class TradeBrainClient {
         return headers;
     }
     
-    /**
-     * Register indices endpoints
-     * 
-     * @param headers Default headers
-     */
     private void registerIndicesEndpoints(Map<String, String> headers) {
         if (tradeBrainConfig.getApi().getIndices() != null) {
             registerEndpoint(
@@ -112,11 +97,6 @@ public class TradeBrainClient {
         }
     }
     
-    /**
-     * Register all company-related endpoints
-     * 
-     * @param headers Default headers
-     */
     private void registerCompanyEndpoints(Map<String, String> headers) {
         Company company = tradeBrainConfig.getApi().getCompany();
         if (company == null) {
@@ -142,12 +122,6 @@ public class TradeBrainClient {
         registerAnalyticsEndpoints(company.getAnalytics(), headers);
     }
     
-    /**
-     * Register profile endpoints
-     * 
-     * @param profile Profile configuration
-     * @param headers Default headers
-     */
     private void registerProfileEndpoints(Profile profile, Map<String, String> headers) {
         if (profile == null) {
             return;
@@ -217,26 +191,20 @@ public class TradeBrainClient {
         );
     }
     
-    /**
-     * Register financial endpoints
-     * 
-     * @param financial Financial configuration
-     * @param headers Default headers
-     */
     private void registerFinancialEndpoints(Financial financial, Map<String, String> headers) {
         if (financial == null) {
             return;
         }
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "dividends",
+            TRADEBRAIN_PROFILE_DIVIDENDS,
             "TradeBrain Financial Dividends",
             financial.getDividends(),
             headers
         );
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "half-yearly-statement",
+            TRADEBRAIN_PROFILE_HALF_YEARLY_RESULTS,
             "TradeBrain Financial Half Yearly Statement",
             financial.getHalfYearly(),
             headers
@@ -250,33 +218,27 @@ public class TradeBrainClient {
         );
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "profit-and-loss-standalone",
-            "TradeBrain Financial Profit and Loss Standalone",
+            TRADEBRAIN_PROFILE_PROFIT_AND_LOSS,
+            "TradeBrain Financial Profit and Loss",
             financial.getProfitAndLoss(),
             headers
         );
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "balance-sheet-standalone",
-            "TradeBrain Financial Balance Sheet Standalone",
+            TRADEBRAIN_PROFILE_BALANCE_SHEET,
+            "TradeBrain Financial Balance Sheet",
             financial.getBalanceSheet(),
             headers
         );
         
         registerEndpoint(
-            FINANCIAL_PREFIX + "cash-flow-standalone",
-            "TradeBrain Financial Cash Flow Standalone",
+            TRADEBRAIN_PROFILE_CASH_FLOW,
+            "TradeBrain Financial Cash Flow",
             financial.getCashFlow(),
             headers
         );
     }
     
-    /**
-     * Register documents endpoints
-     * 
-     * @param documents Documents configuration
-     * @param headers Default headers
-     */
     private void registerDocumentsEndpoints(Documents documents, Map<String, String> headers) {
         if (documents == null) {
             return;
@@ -297,12 +259,6 @@ public class TradeBrainClient {
         );
     }
     
-    /**
-     * Register reports endpoints
-     * 
-     * @param reports Reports configuration
-     * @param headers Default headers
-     */
     private void registerReportsEndpoints(Reports reports, Map<String, String> headers) {
         if (reports == null) {
             return;
@@ -337,12 +293,6 @@ public class TradeBrainClient {
         );
     }
     
-    /**
-     * Register stock endpoints
-     * 
-     * @param stock Stock configuration
-     * @param headers Default headers
-     */
     private void registerStockEndpoints(Stock stock, Map<String, String> headers) {
         if (stock == null) {
             return;
@@ -384,12 +334,6 @@ public class TradeBrainClient {
         );
     }
     
-    /**
-     * Register analytics endpoints
-     * 
-     * @param analytics Analytics configuration
-     * @param headers Default headers
-     */
     private void registerAnalyticsEndpoints(Analytics analytics, Map<String, String> headers) {
         if (analytics == null) {
             return;
@@ -403,14 +347,6 @@ public class TradeBrainClient {
         );
     }
     
-    /**
-     * Register an endpoint with the registry
-     * 
-     * @param id Endpoint ID
-     * @param name Endpoint name
-     * @param path Endpoint path
-     * @param headers Default headers
-     */
     private void registerEndpoint(String id, String name, String path, Map<String, String> headers) {
         if (path == null || path.isEmpty()) {
             return;
@@ -430,91 +366,58 @@ public class TradeBrainClient {
         log.debug("Registered endpoint: {} -> {}", id, path);
     }
     
-    /**
-     * Get market indices data
-     * 
-     * @return ApiResponse containing indices data
-     */
     public ApiResponse getIndicesData() {
         return callEndpoint(TRADEBRAIN_ENDPOINT_INDEX);
     }
     
-    /**
-     * Get stock details data
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing stock details
-     */
     public ApiResponse getStockDetails(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_DETAILS, symbol);
     }
     
-    /**
-     * Get stock historical data
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing historical data
-     */
     public ApiResponse getStockHistorical(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_HISTORICAL, symbol);
     }
     
-    /**
-     * Get stock technical data
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing technical data
-     */
     public ApiResponse getStockTechnical(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_TECHNICAL, symbol);
     }
     
-    /**
-     * Get stock shareholding data
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing shareholding data
-     */
     public ApiResponse getStockShareholding(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_SHAREHOLDING, symbol);
     }
     
-    /**
-     * Get stock heatmap data
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing heatmap data
-     */
     public ApiResponse getStockHeatmap(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_STOCK_ENDPOINT_HEATMAP, symbol);
     }
     
-    /**
-     * Get board of directors data for a company
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing board of directors data
-     */
     public ApiResponse getBoardOfDirectors(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_PROFILE_BOARD_OF_DIRECTORS, symbol);
     }
 
-     /**
-     * Get quaterly financials data for a company
-     * 
-     * @param symbol Stock symbol
-     * @return ApiResponse containing quaterly financials data
-     */
+    public ApiResponse getProfitAndLoss(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_PROFIT_AND_LOSS, symbol);
+    }
+
+    public ApiResponse getBalanceSheet(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_BALANCE_SHEET, symbol);
+    }
+
+    public ApiResponse getCashFlow(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_CASH_FLOW, symbol);
+    }
+
+    public ApiResponse getDividends(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_DIVIDENDS, symbol);
+    }
+
+    public ApiResponse getHalfYearlyResults(String symbol) {
+        return callEndpointWithSymbol(TRADEBRAIN_PROFILE_HALF_YEARLY_RESULTS, symbol);
+    }
+
     public ApiResponse getQuaterlyFinancials(String symbol) {
         return callEndpointWithSymbol(TRADEBRAIN_PROFILE_QUATERLY_FINANCIALS, symbol);
     }
     
-    /**
-     * Call an endpoint
-     * 
-     * @param endpointId Endpoint ID
-     * @return ApiResponse from the endpoint
-     */
     private ApiResponse callEndpoint(String endpointId) {
         ApiEndpoint endpoint = endpointRegistry.getEndpoint(endpointId);
         if (endpoint == null) {
@@ -526,13 +429,6 @@ public class TradeBrainClient {
         return apiClient.get(url, endpoint.getHeaders());
     }
     
-    /**
-     * Call an endpoint with a symbol parameter
-     * 
-     * @param endpointId Endpoint ID
-     * @param symbol Stock symbol
-     * @return ApiResponse from the endpoint
-     */
     private ApiResponse callEndpointWithSymbol(String endpointId, String symbol) {
         ApiEndpoint endpoint = endpointRegistry.getEndpoint(endpointId);
         if (endpoint == null) {
@@ -544,23 +440,10 @@ public class TradeBrainClient {
         return apiClient.get(url, endpoint.getHeaders());
     }
     
-    /**
-     * Check health of a specific endpoint
-     * 
-     * @param endpointId Endpoint ID
-     * @return ApiResponse from the endpoint health check
-     */
     public ApiResponse checkEndpointHealth(String endpointId) {
         return callEndpoint(endpointId);
     }
     
-    /**
-     * Check health of a specific endpoint with a symbol parameter
-     * 
-     * @param endpointId Endpoint ID
-     * @param symbol Stock symbol to use
-     * @return ApiResponse from the endpoint health check
-     */
     public ApiResponse checkEndpointHealthWithSymbol(String endpointId, String symbol) {
         return callEndpointWithSymbol(endpointId, symbol);
     }

@@ -1,15 +1,15 @@
 package com.am.marketdata.processor.service.mapper;
 
 import com.am.common.investment.model.equity.financial.BaseModel;
+import com.am.common.investment.model.equity.financial.cashflow.StockCashFlow;
 import com.am.common.investment.model.equity.financial.resultstatement.FinancialResult;
-import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.model.equity.metrics.CostMetrics;
 import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
+import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -27,39 +27,39 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
-public class StockQuaterlyResultFinanceMapper {
+public class StockCashFlowFinanceMapper {
 
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public QuaterlyFinancialStatementResponse parseQuaterlyFinancials(String jsonData) {
+    public CashFlowResponse parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
-            TypeFactory.defaultInstance().constructType(QuaterlyFinancialStatementResponse.class));
+            TypeFactory.defaultInstance().constructType(CashFlowResponse.class));
     }
 
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
     /**
-     * Create QuarterlyFinancialMetrics from symbol and QuaterlyFinancialStatementResponse object
+     * Create CashFlowResponse from symbol and CashFlowResponse object
      * 
      * @param symbol Stock symbol
-     * @param financials QuaterlyFinancialStatementResponse object
-     * @return FinancialResult object
+     * @param financials CashFlowResponse object
+     * @return StockCashFlow object
      */
-    public QuaterlyResult toQuarterlyFinancialMetrics(String symbol, QuaterlyFinancialStatementResponse financials) {
+    public StockCashFlow toCashFlow(String symbol, CashFlowResponse financials) {
         if (financials == null) {
             return null;
         }
         BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "TradeB");
-        var QuaterlyResultBuilder = QuaterlyResult.builder()
+        var StockCashFlowBuilder = StockCashFlow.builder()
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
             .source(baseModel.getSource())
-            .audit(baseModel.getAudit())
-            .financialResults(toFinancialResults(financials.getStock()));
+            .audit(baseModel.getAudit());
+            //.financialResults(toFinancialResults(financials.getStock()));
 
-        return QuaterlyResultBuilder.build();
+        return StockCashFlowBuilder.build();
     }
 
     private List<FinancialResult> toFinancialResults(StockFinancialData financials) {
