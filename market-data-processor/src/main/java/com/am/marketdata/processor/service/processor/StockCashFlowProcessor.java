@@ -11,19 +11,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class StockCashFlowProcessor implements DataProcessor<StockCashFlow, Void> {
     
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
-
-    @Qualifier("boardOfDirectoreProcessingTimer")
-    private final Timer processTimer;
-    
 
     @Override
     @SneakyThrows
@@ -64,8 +61,4 @@ public class StockCashFlowProcessor implements DataProcessor<StockCashFlow, Void
         return "stock-cash-flow";
     }
     
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
-    }
 }

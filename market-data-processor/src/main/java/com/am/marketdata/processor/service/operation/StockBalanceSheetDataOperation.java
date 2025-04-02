@@ -30,8 +30,6 @@ public class StockBalanceSheetDataOperation extends AbstractMarketDataOperation<
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockBalanceSheetProcessingTimer")
-    private final Timer fetchTimer;
     private StockBalanceSheet lastFetchedData;
     private final StockBalanceSheetFinanceMapper balanceSheetMapper;
     
@@ -46,14 +44,12 @@ public class StockBalanceSheetDataOperation extends AbstractMarketDataOperation<
             DataValidator<StockBalanceSheet> stockBalanceSheetValidator,
             DataProcessor<StockBalanceSheet, Void> stockBalanceSheetProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockBalanceSheetFinanceMapper balanceSheetMapper) {
-        super(dataFetcher, stockBalanceSheetValidator, stockBalanceSheetProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockBalanceSheetValidator, stockBalanceSheetProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.balanceSheetMapper = balanceSheetMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public StockBalanceSheetDataOperation withSymbol(String symbol) {
@@ -63,11 +59,6 @@ public class StockBalanceSheetDataOperation extends AbstractMarketDataOperation<
     @Override
     protected String getDataTypeName() {
         return "stock-balance-sheet";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

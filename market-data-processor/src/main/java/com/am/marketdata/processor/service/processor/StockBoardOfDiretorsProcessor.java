@@ -11,23 +11,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 /**
  * Processor for NSE Stock Indices data
  * Transforms raw NSE stock indices data into domain model and publishes to Kafka
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class StockBoardOfDiretorsProcessor implements DataProcessor<BoardOfDirectors, Void> {
     
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
-
-    @Qualifier("boardOfDirectoreProcessingTimer")
-    private final Timer processTimer;
-    
 
     @Override
     @SneakyThrows
@@ -68,8 +65,4 @@ public class StockBoardOfDiretorsProcessor implements DataProcessor<BoardOfDirec
         return "stock-board-of-directors";
     }
     
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
-    }
 }

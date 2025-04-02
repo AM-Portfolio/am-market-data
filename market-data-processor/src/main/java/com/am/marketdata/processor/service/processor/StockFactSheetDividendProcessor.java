@@ -11,20 +11,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class StockFactSheetDividendProcessor implements DataProcessor<StockFactSheetDividend, Void> {
     
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
-
-    @Qualifier("factSheetDividendProcessingTimer")
-    private final Timer processTimer;
     
-
     @Override
     @SneakyThrows
     public Void process(StockFactSheetDividend data) {
@@ -64,8 +61,4 @@ public class StockFactSheetDividendProcessor implements DataProcessor<StockFactS
         return "stock-fact-sheet-dividend";
     }
     
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
-    }
 }

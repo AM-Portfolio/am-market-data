@@ -1,6 +1,5 @@
 package com.am.marketdata.processor.service.processor;
 
-import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
 import com.am.common.investment.service.StockFinancialPerformanceService;
 import com.am.marketdata.kafka.producer.StockPortfolioProducerService;
@@ -12,23 +11,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 /**
  * Processor for NSE Stock Indices data
  * Transforms raw NSE stock indices data into domain model and publishes to Kafka
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class QuaterlyFinancialResultProcessor implements DataProcessor<QuaterlyResult, Void> {
     
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
-
-    @Qualifier("quaterlyFinancialProcessingTimer")
-    private final Timer processTimer;
-    
 
     @Override
     @SneakyThrows
@@ -67,10 +63,5 @@ public class QuaterlyFinancialResultProcessor implements DataProcessor<QuaterlyR
     @Override
     public String getDataTypeName() {
         return "stock-quaterly-financials";
-    }
-    
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
     }
 }

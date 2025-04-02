@@ -1,41 +1,28 @@
 package com.am.marketdata.kafka.producer;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.MarketIndexIndices;
+import com.am.common.investment.model.events.StockInsidicesEventData;
+import com.am.marketdata.kafka.config.KafkaProperties;
+import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 import com.am.common.investment.model.events.MarketIndexIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.StockIndicesPriceUpdateEvent;
-import com.am.common.investment.model.events.StockInsidicesEventData;
-import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class KafkaProducerService {
 
     private final BaseKafkaProducer<EquityPriceUpdateEvent> equityProducer;
     private final BaseKafkaProducer<StockIndicesPriceUpdateEvent> stockIndicesProducer;
     private final BaseKafkaProducer<MarketIndexIndicesPriceUpdateEvent> indicesProducer;
-
-    @Value("${app.kafka.stock-price-topic}")
-    private String stockPriceTopic;
-
-    @Value("${app.kafka.stock-indices-topic}")
-    private String stockIndicesTopic;
-
-    @Value("${app.kafka.nse-indices-topic}")
-    private String nseIndicesTopic;
-    
-    public KafkaProducerService(KafkaTemplate<String, Object> kafkaTemplate) {
-        this.equityProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
-        this.stockIndicesProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
-        this.indicesProducer = new BaseKafkaProducer<>(kafkaTemplate) {};
-    }
+    private final KafkaProperties kafkaProperties;
 
     public void sendEquityPriceUpdates(List<EquityPrice> equityPrices) {
         var event = EquityPriceUpdateEvent.builder()
@@ -44,7 +31,7 @@ public class KafkaProducerService {
             .equityPrices(equityPrices)
             .build();
         
-        equityProducer.sendEvent(event, stockPriceTopic, event.getEventType(), event.getTimestamp());
+        equityProducer.sendEvent(event, kafkaProperties.getTopics().getStockPrice(), event.getEventType(), event.getTimestamp());
     }
 
     public void sendStockIndicesUpdate(StockInsidicesEventData stockIndice) {
@@ -54,7 +41,7 @@ public class KafkaProducerService {
             .stockIndices(stockIndice)
             .build();
         
-        stockIndicesProducer.sendEvent(event, stockIndicesTopic, event.getEventType(), event.getTimestamp());
+        stockIndicesProducer.sendEvent(event, kafkaProperties.getTopics().getStockIndices(), event.getEventType(), event.getTimestamp());
     }
 
     public void sendIndicesUpdate(List<MarketIndexIndices> marketIndexIndices) {
@@ -64,6 +51,6 @@ public class KafkaProducerService {
             .marketIndices(marketIndexIndices)
             .build();
         
-        indicesProducer.sendEvent(event, nseIndicesTopic, event.getEventType(), event.getTimestamp());
+        indicesProducer.sendEvent(event, kafkaProperties.getTopics().getNseIndices(), event.getEventType(), event.getTimestamp());
     }
 }

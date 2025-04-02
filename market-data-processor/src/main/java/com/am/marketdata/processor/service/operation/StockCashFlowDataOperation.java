@@ -11,10 +11,8 @@ import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockCashFlowFinanceMapper;
 import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -30,8 +28,6 @@ public class StockCashFlowDataOperation extends AbstractMarketDataOperation<Stoc
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockCashFlowProcessingTimer")
-    private final Timer fetchTimer;
     private StockCashFlow lastFetchedData;
     private final StockCashFlowFinanceMapper cashFlowMapper;
     
@@ -46,14 +42,12 @@ public class StockCashFlowDataOperation extends AbstractMarketDataOperation<Stoc
             DataValidator<StockCashFlow> stockCashFlowValidator,
             DataProcessor<StockCashFlow, Void> stockCashFlowProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockCashFlowFinanceMapper cashFlowMapper) {
-        super(dataFetcher, stockCashFlowValidator, stockCashFlowProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockCashFlowValidator, stockCashFlowProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.cashFlowMapper = cashFlowMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public StockCashFlowDataOperation withSymbol(String symbol) {
@@ -63,11 +57,6 @@ public class StockCashFlowDataOperation extends AbstractMarketDataOperation<Stoc
     @Override
     protected String getDataTypeName() {
         return "stock-cash-flow";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

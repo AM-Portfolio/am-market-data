@@ -15,8 +15,8 @@ import io.micrometer.core.instrument.Timer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -31,8 +31,6 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockBoardOfDirectoeProcessingTimer")
-    private final Timer fetchTimer;
     private BoardOfDirectors lastFetchedData;
     private final StockBoardOfDirectorsMapper boardOfDirectorsMapper;
     
@@ -47,14 +45,12 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
             DataValidator<BoardOfDirectors> stockBoardOfDirectoeValidator,
             DataProcessor<BoardOfDirectors, Void> stockBoardOfDirectoeProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockBoardOfDirectorsMapper boardOfDirectorsMapper) {
-        super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockBoardOfDirectoeValidator, stockBoardOfDirectoeProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.boardOfDirectorsMapper = boardOfDirectorsMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public StockOverviewDataOperation withSymbol(String symbol) {
@@ -64,11 +60,6 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     @Override
     protected String getDataTypeName() {
         return "stock-board-of-directors";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

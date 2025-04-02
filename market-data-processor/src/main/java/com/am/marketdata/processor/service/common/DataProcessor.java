@@ -1,9 +1,7 @@
 package com.am.marketdata.processor.service.common;
 
-import org.springframework.scheduling.annotation.Async;
 
 import com.am.marketdata.processor.exception.ProcessorException;
-import io.micrometer.core.instrument.Timer;
 
 /**
  * Interface for processing market data
@@ -27,11 +25,5 @@ public interface DataProcessor<T, R> {
      * @return The data type name
      */
     String getDataTypeName();
-    
-    /**
-     * Get the timer for measuring processing time
-     * 
-     * @return The timer
-     */
-    Timer getProcessingTimer();
+
 }

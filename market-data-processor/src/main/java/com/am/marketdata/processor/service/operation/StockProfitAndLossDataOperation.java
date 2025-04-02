@@ -34,8 +34,6 @@ public class StockProfitAndLossDataOperation extends AbstractMarketDataOperation
     
     private final TradeBrainClient tradeBrainClient;
     
-    @Qualifier("stockProfitAndLossProcessingTimer")
-    private final Timer fetchTimer;
     private StockProfitAndLoss lastFetchedData;
     private final StockProfitLossFinanceMapper profitAndLossMapper;
     
@@ -50,14 +48,12 @@ public class StockProfitAndLossDataOperation extends AbstractMarketDataOperation
             DataValidator<StockProfitAndLoss> stockProfitAndLossValidator,
             DataProcessor<StockProfitAndLoss, Void> stockProfitAndLossProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockProfitLossFinanceMapper profitAndLossMapper) {
-        super(dataFetcher, stockProfitAndLossValidator, stockProfitAndLossProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockProfitAndLossValidator, stockProfitAndLossProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.profitAndLossMapper = profitAndLossMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public StockProfitAndLossDataOperation withSymbol(String symbol) {
@@ -67,11 +63,6 @@ public class StockProfitAndLossDataOperation extends AbstractMarketDataOperation
     @Override
     protected String getDataTypeName() {
         return "stock-board-of-directors";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

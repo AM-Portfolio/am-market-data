@@ -15,21 +15,25 @@
     <description>Kafka consumer module for processing market data messages</description>
 
     <dependencies>
-    <dependency>
+        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-model</artifactId>
             <version>${investment-model.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.15.2</version>
@@ -41,7 +45,7 @@
             <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
-                <!-- Add SLF4J API for logging -->
+        <!-- Add SLF4J API for logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

@@ -11,23 +11,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 /**
  * Processor for NSE Stock Indices data
  * Transforms raw NSE stock indices data into domain model and publishes to Kafka
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class StockProfitAndLossProcessor implements DataProcessor<StockProfitAndLoss, Void> {
     
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
     private final StockPortfolioProducerService stockPortfolioProducer;
-
-    @Qualifier("profitAndLossProcessingTimer")
-    private final Timer processTimer;
-    
 
     @Override
     @SneakyThrows
@@ -68,8 +65,4 @@ public class StockProfitAndLossProcessor implements DataProcessor<StockProfitAnd
         return "stock-profit-and-loss";
     }
     
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
-    }
 }

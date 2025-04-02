@@ -34,9 +34,7 @@ import java.util.concurrent.Executor;
 public class StockFactsheetDividendDataOperation extends AbstractMarketDataOperation<StockFactSheetDividend, Void> {
     
     private final TradeBrainClient tradeBrainClient;
-    
-    @Qualifier("stockFactsheetDividendProcessingTimer")
-    private final Timer fetchTimer;
+
     private StockFactSheetDividend lastFetchedData;
     private final StockFactSheetFinanceMapper factSheetFinanceMapper;
     
@@ -51,14 +49,12 @@ public class StockFactsheetDividendDataOperation extends AbstractMarketDataOpera
             DataValidator<StockFactSheetDividend> stockFactSheetDividendValidator,
             DataProcessor<StockFactSheetDividend, Void> stockFactSheetDividendProcessor,
             MeterRegistry meterRegistry,
-            Timer processingTimer,
-            Executor executor,
+            @Qualifier("asyncExecutor") Executor executor,
             TradeBrainClient tradeBrainClient,
             StockFactSheetFinanceMapper factSheetFinanceMapper) {
-        super(dataFetcher, stockFactSheetDividendValidator, stockFactSheetDividendProcessor, meterRegistry, processingTimer, executor);
+        super(dataFetcher, stockFactSheetDividendValidator, stockFactSheetDividendProcessor, meterRegistry, executor);
         this.tradeBrainClient = tradeBrainClient;
         this.factSheetFinanceMapper = factSheetFinanceMapper;
-        this.fetchTimer = processingTimer;
     }
 
     public StockFactsheetDividendDataOperation withSymbol(String symbol) {
@@ -68,11 +64,6 @@ public class StockFactsheetDividendDataOperation extends AbstractMarketDataOpera
     @Override
     protected String getDataTypeName() {
         return "stock-board-of-directors";
-    }
-    
-    @Override
-    protected Timer getFetchTimer() {
-        return fetchTimer;
     }
     
     @Override

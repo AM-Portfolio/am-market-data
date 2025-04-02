@@ -6,6 +6,7 @@ import com.am.marketdata.processor.service.common.DataValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -14,6 +15,7 @@ import java.time.ZoneId;
  * Validator for NSE stock board of directors data
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class QuaterlyFinanceResultValidator implements DataValidator<QuaterlyResult> {
     

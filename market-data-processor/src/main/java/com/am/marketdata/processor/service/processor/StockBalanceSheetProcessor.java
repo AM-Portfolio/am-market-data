@@ -12,17 +12,15 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class StockBalanceSheetProcessor implements DataProcessor<StockBalanceSheet, Void> {
     
     private final StockPortfolioProducerService stockPortfolioProducer;
     private final StockFinancialPerformanceService stockFinancialPerformanceService;
-
-    @Qualifier("balanceSheetProcessingTimer")
-    private final Timer processTimer;
-    
 
     @Override
     @SneakyThrows
@@ -63,8 +61,4 @@ public class StockBalanceSheetProcessor implements DataProcessor<StockBalanceShe
         return "stock-balance-sheet";
     }
     
-    @Override
-    public Timer getProcessingTimer() {
-        return processTimer;
-    }
 }
