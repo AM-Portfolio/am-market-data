@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
@@ -43,46 +42,6 @@ public class KafkaConfig {
         Map<String, Object> configs = new HashMap<>();
         configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
         return new KafkaAdmin(configs);
-    }
-
-    @Bean
-    public NewTopic createTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockPrice(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createBoardOfDirectorsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockBoardOfDirectors(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createQuaterlyFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockQuaterlyFinancials(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createBalanceSheetFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockBalanceSheetFinancials(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createCashFlowFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockCashFlowFinancials(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createProfitAndLossFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockProfitAndLossFinancials(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createResultsFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockResultsFinancials(), 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic createFactSheetDividendFinancialsTopic() {
-        return new NewTopic(kafkaProperties.getTopics().getStockFactSheetDividendFinancials(), 1, (short) 1);
     }
 
     @Bean
