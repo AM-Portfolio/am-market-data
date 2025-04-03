@@ -1,14 +1,20 @@
 package com.am.marketdata.processor.service.mapper;
 
+import com.am.common.investment.model.equity.EquityFundamental.FinancialRatios;
 import com.am.common.investment.model.equity.financial.BaseModel;
+import com.am.common.investment.model.equity.financial.factsheetdividend.FactSheetDividend;
 import com.am.common.investment.model.equity.financial.factsheetdividend.StockFactSheetDividend;
+import com.am.common.investment.model.equity.financial.profitandloss.ProfitAndLoss;
 import com.am.common.investment.model.equity.financial.resultstatement.FinancialResult;
 import com.am.common.investment.model.equity.metrics.CostMetrics;
 import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
+import com.am.marketdata.common.model.tradeB.financials.dividend.DividendData;
+import com.am.marketdata.common.model.tradeB.financials.dividend.DividendMetrics;
 import com.am.marketdata.common.model.tradeB.financials.dividend.FactSheetDividendResponse;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossData;
 import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
 import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,80 +60,73 @@ public class StockFactSheetFinanceMapper {
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
             .source(baseModel.getSource())
-            .audit(baseModel.getAudit());
-            //.financialResults(toFinancialResults(financials.getStock()));
+            .audit(baseModel.getAudit())
+            .factSheetDividend(toFactSheetDividend(financials.getStock()));
 
         return StockFactSheetDividendBuilder.build();
     }
 
-    private List<FinancialResult> toFinancialResults(StockFinancialData financials) {
+    private List<FactSheetDividend> toFactSheetDividend(DividendData financials) {
         if (financials == null) {
             return null;
         }
         return financials.getQuarterKeys().stream()
-            .map(quarterKey -> toFinancialResult(financials.getMetrics(quarterKey)))
+            .map(quarterKey -> toFactSheetDividend(quarterKey, financials.getMetrics(quarterKey)))
             .collect(Collectors.toList());
     }
 
-    private FinancialResult toFinancialResult(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        if (quarterlyFinancialMetrics == null) {
+    private FactSheetDividend toFactSheetDividend(String quarterKey, DividendMetrics dividendMetrics) {
+        if (dividendMetrics == null) {
             return null;
         }
-        var FinancialResultBuilder = FinancialResult.builder()
-            .costMetrics(toCostMetrics(quarterlyFinancialMetrics))
-            .totalRevenue(quarterlyFinancialMetrics.getTotalRevenue())
-            .otherIncome(quarterlyFinancialMetrics.getOtherIncome())
-            .operatingRevenue(quarterlyFinancialMetrics.getOperatingRevenue())
-            .yearEnd(quarterlyFinancialMetrics.getYearEnd())
-            .growthMetrics(toGrowthMetrics(quarterlyFinancialMetrics))
-            .profitMetrics(toProfitMetrics(quarterlyFinancialMetrics))
-            .taxMetrics(toTaxMetrics(quarterlyFinancialMetrics))
-            .epsMetrics(toEpsMetrics(quarterlyFinancialMetrics));
+        var FactSheetDividendBuilder = FactSheetDividend.builder()
+            .yearEnd(quarterKey)
+            //.growthMetrics(toGrowthMetrics(dividendMetrics))
+            //.financialRatios(toFinancialRatios(dividendMetrics))
+            .dividendMetrics(toDividendMetrics(dividendMetrics))
+            .assetTurnoverRatio(dividendMetrics.getAssetTurnoverRatio())
+            .workingCapitalDays(dividendMetrics.getWorkingCapitalDays())
+            .inventoryTurnoverRatio(dividendMetrics.getInventoryTurnoverRatio())
+            .adjDividendPerShare(dividendMetrics.getAdjDividendPerShare())
+            .adjEarningsPerShare(dividendMetrics.getAdjEarningsPerShare())
+            .enterpriseValue(dividendMetrics.getEnterpriseValue())
+            .pegRatio(dividendMetrics.getPegRatio())
+            .priceSalesRatio(dividendMetrics.getPriceSalesRatio())
+            .freeCashFlowPerShare(dividendMetrics.getFreeCashFlowPerShare())
+            .freeCashFlowYield(dividendMetrics.getFreeCashFlowYield());
 
-        return FinancialResultBuilder.build();
+        return FactSheetDividendBuilder.build();
     }
 
-    private CostMetrics toCostMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return CostMetrics.builder()
-            .totalExpenditure(quarterlyFinancialMetrics.getTotalExpenses())
-            .manufacturingCost(quarterlyFinancialMetrics.getOperatingRevenue())
-            .employeeCost(quarterlyFinancialMetrics.getEmployeeCost())
-            .interest(quarterlyFinancialMetrics.getInterest())
-            .operatingExpenses(quarterlyFinancialMetrics.getOperatingExpenses())
-            .depreciationAndAmortization(quarterlyFinancialMetrics.getDepreciationAndAmortization())
+    private FinancialRatios toFinancialRatios(DividendMetrics dividendMetrics) {
+        return FinancialRatios.builder()
+            // .totalExpenditure(dividendMetrics.getTotalExpenses())
+            // .manufacturingCost(dividendMetrics.getOperatingRevenue())
+            // .employeeCost(dividendMetrics.getEmployeeCost())
+            // .interest(dividendMetrics.getInterest())
+            // .operatingExpenses(dividendMetrics.getOperatingExpenses())
+            // .depreciationAndAmortization(dividendMetrics.getDepreciationAndAmortization())
             .build();
     }
 
-    private ProfitMetrics toProfitMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return ProfitMetrics.builder()
-            .netProfit(quarterlyFinancialMetrics.getTotalExpenses())
-            .operationProfit(quarterlyFinancialMetrics.getOperationProfit())
-            .profitBeforeTax(quarterlyFinancialMetrics.getProfitBeforeTax())
-            .profitAfterTax(quarterlyFinancialMetrics.getProfitAfterTax())
-            .minorityShare(quarterlyFinancialMetrics.getMinorityShare())
+    private com.am.common.investment.model.equity.metrics.DividendMetrics toDividendMetrics(DividendMetrics dividendMetrics) {
+        return com.am.common.investment.model.equity.metrics.DividendMetrics.builder()
+            .dividendPerShare(dividendMetrics.getDividendPerShare())
+            .dividendYield(dividendMetrics.getDividendYield())
+            .adjDividendPerShare(dividendMetrics.getAdjDividendPerShare())
+            .dividendPayoutRatio(dividendMetrics.getDividendPayoutRatio())
+            .dividendYield(dividendMetrics.getDividendYield())
+            .freeCashFlowPerShare(dividendMetrics.getFreeCashFlowPerShare())
+            .freeCashFlowYield(dividendMetrics.getFreeCashFlowYield())
             .build();
     }
 
-    private TaxMetrics toTaxMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return TaxMetrics.builder()
-            .tax(quarterlyFinancialMetrics.getTax())
-            .taxPer(quarterlyFinancialMetrics.getTaxPer())
-            .build();
-    }
-
-    private EpsMetrics toEpsMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return EpsMetrics.builder()
-            .basicEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsBasic())
-            .dilutedEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsDiluted())
-            .build();
-    }
-
-    private GrowthMetrics toGrowthMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private GrowthMetrics toGrowthMetrics(DividendMetrics dividendMetrics) {
         return GrowthMetrics.builder()
-            .revenueGrowthPer(quarterlyFinancialMetrics.getRevenueGrowthPer())
-            .netProfitGrowth(quarterlyFinancialMetrics.getNetProfitGrowth())
-            .netProfitMarginGrowth(quarterlyFinancialMetrics.getNetProfitMarginGrowth())
-            .patMarginGrowth(quarterlyFinancialMetrics.getPatMarginGrowth())
+            .revenueGrowthPer(null)
+            .netProfitGrowth(null)
+            .netProfitMarginGrowth(null)
+            .patMarginGrowth(null)
             .build();
     }
 

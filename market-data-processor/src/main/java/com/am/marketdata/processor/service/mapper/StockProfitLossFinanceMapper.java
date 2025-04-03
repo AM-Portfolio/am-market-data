@@ -11,6 +11,8 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossData;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossMetrics;
 import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
 import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
@@ -53,80 +55,79 @@ public class StockProfitLossFinanceMapper {
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
             .source(baseModel.getSource())
-            .audit(baseModel.getAudit());
-            // .financialResults(toFinancialResults(financials.getStock()));
+            .audit(baseModel.getAudit())
+            .profitAndLoss(toProfitAndLoss(financials.getStock()));
 
         return StockProfitAndLossBuilder.build();
     }
 
-    private List<FinancialResult> toFinancialResults(StockFinancialData financials) {
+    private List<ProfitAndLoss> toProfitAndLoss(ProfitLossData financials) {
         if (financials == null) {
             return null;
         }
         return financials.getQuarterKeys().stream()
-            .map(quarterKey -> toFinancialResult(financials.getMetrics(quarterKey)))
+            .map(quarterKey -> toProfitAndLoss(quarterKey, financials.getMetrics(quarterKey)))
             .collect(Collectors.toList());
     }
 
-    private FinancialResult toFinancialResult(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        if (quarterlyFinancialMetrics == null) {
+    private ProfitAndLoss toProfitAndLoss(String quarterKey, ProfitLossMetrics profitLoss) {
+        if (profitLoss == null) {
             return null;
         }
-        var FinancialResultBuilder = FinancialResult.builder()
-            .costMetrics(toCostMetrics(quarterlyFinancialMetrics))
-            .totalRevenue(quarterlyFinancialMetrics.getTotalRevenue())
-            .otherIncome(quarterlyFinancialMetrics.getOtherIncome())
-            .operatingRevenue(quarterlyFinancialMetrics.getOperatingRevenue())
-            .yearEnd(quarterlyFinancialMetrics.getYearEnd())
-            .growthMetrics(toGrowthMetrics(quarterlyFinancialMetrics))
-            .profitMetrics(toProfitMetrics(quarterlyFinancialMetrics))
-            .taxMetrics(toTaxMetrics(quarterlyFinancialMetrics))
-            .epsMetrics(toEpsMetrics(quarterlyFinancialMetrics));
+        var ProfitAndLossBuilder = ProfitAndLoss.builder()
+            .yearEnd(quarterKey)
+            .costMetrics(toCostMetrics(profitLoss))
+            .totalRevenue(profitLoss.getTotalRevenue())
+            .operatingRevenue(profitLoss.getOperatingRevenue())
+            .growthMetrics(toGrowthMetrics(profitLoss))
+            .profitMetrics(toProfitMetrics(profitLoss))
+            .taxMetrics(toTaxMetrics(profitLoss))
+            .costMetrics(toCostMetrics(profitLoss))
+            .epsMetrics(toEpsMetrics(profitLoss));
 
-        return FinancialResultBuilder.build();
+        return ProfitAndLossBuilder.build();
     }
 
-    private CostMetrics toCostMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private CostMetrics toCostMetrics(ProfitLossMetrics profitLoss) {
         return CostMetrics.builder()
-            .totalExpenditure(quarterlyFinancialMetrics.getTotalExpenses())
-            .manufacturingCost(quarterlyFinancialMetrics.getOperatingRevenue())
-            .employeeCost(quarterlyFinancialMetrics.getEmployeeCost())
-            .interest(quarterlyFinancialMetrics.getInterest())
-            .operatingExpenses(quarterlyFinancialMetrics.getOperatingExpenses())
-            .depreciationAndAmortization(quarterlyFinancialMetrics.getDepreciationAndAmortization())
+            .totalExpenditure(profitLoss.getTotalExpenditure())
+            .manufacturingCost(profitLoss.getManufacturingCost())
+            .employeeCost(profitLoss.getEmployeeCost())
+            .interest(profitLoss.getInterest())
+            .operatingExpenses(profitLoss.getOperatingExpenses())
+            .depreciationAndAmortization(profitLoss.getDepreciationAndAmortization())
             .build();
     }
 
-    private ProfitMetrics toProfitMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private ProfitMetrics toProfitMetrics(ProfitLossMetrics profitLoss) {
         return ProfitMetrics.builder()
-            .netProfit(quarterlyFinancialMetrics.getTotalExpenses())
-            .operationProfit(quarterlyFinancialMetrics.getOperationProfit())
-            .profitBeforeTax(quarterlyFinancialMetrics.getProfitBeforeTax())
-            .profitAfterTax(quarterlyFinancialMetrics.getProfitAfterTax())
-            .minorityShare(quarterlyFinancialMetrics.getMinorityShare())
+            .netProfit(profitLoss.getNetProfit())
+            .operationProfit(profitLoss.getOperationProfit())
+            .profitBeforeTax(profitLoss.getProfitBeforeTax())
+            .profitAfterTax(profitLoss.getProfitAfterTax())
+            .minorityShare(profitLoss.getMinorityShare())
             .build();
     }
 
-    private TaxMetrics toTaxMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private TaxMetrics toTaxMetrics(ProfitLossMetrics profitLoss) {
         return TaxMetrics.builder()
-            .tax(quarterlyFinancialMetrics.getTax())
-            .taxPer(quarterlyFinancialMetrics.getTaxPer())
+            .tax(profitLoss.getTax())
+            .taxPer(profitLoss.getTaxPer())
             .build();
     }
 
-    private EpsMetrics toEpsMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private EpsMetrics toEpsMetrics(ProfitLossMetrics profitLoss) {
         return EpsMetrics.builder()
-            .basicEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsBasic())
-            .dilutedEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsDiluted())
+            .basicEpsRs(profitLoss.getBasicEpsRs())
+            .dilutedEpsRs(profitLoss.getDilutedEpsRs())
             .build();
     }
 
-    private GrowthMetrics toGrowthMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
+    private GrowthMetrics toGrowthMetrics(ProfitLossMetrics profitLoss) {
         return GrowthMetrics.builder()
-            .revenueGrowthPer(quarterlyFinancialMetrics.getRevenueGrowthPer())
-            .netProfitGrowth(quarterlyFinancialMetrics.getNetProfitGrowth())
-            .netProfitMarginGrowth(quarterlyFinancialMetrics.getNetProfitMarginGrowth())
-            .patMarginGrowth(quarterlyFinancialMetrics.getPatMarginGrowth())
+            .revenueGrowthPer(profitLoss.getRevenueGrowthPer())
+            .netProfitGrowth(profitLoss.getNetProfitGrowth())
+            .netProfitMarginGrowth(profitLoss.getNetProfitMarginGrowth())
             .build();
     }
 

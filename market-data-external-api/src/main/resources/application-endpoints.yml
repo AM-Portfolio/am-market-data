@@ -29,9 +29,9 @@ trade-brain:
         top-shareholders: /api/company/top/shareholders/quaters/{symbol}
       financial:
         dividends: /api/company/ratios/factsheet/dividends/{symbol}/consolidated
-        profit-loss: /api/company/profit-loss/statement/{symbol}/consolidated
-        balance-sheet: /api/company/balance-sheet/statement/{symbol}/consolidated
-        cash-flow: /api/company/cash-flow/statement/{symbol}/consolidated
+        profit-loss: /api/company/profit-and-loss/statement/{symbol}/consolidated
+        balance-sheet: /api/company/balance/sheet/{symbol}/consolidated
+        cash-flow: /api/company/cash-flow/results/{symbol}/consolidated
         quarterly-results: /api/company/quarterly-results/statement/{symbol}/consolidated
         half-yearly: /api/company/half-yearly/statement/{symbol}/consolidated
         ratios: /api/company/ratios/{symbol}/standalone

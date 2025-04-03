@@ -1,14 +1,20 @@
 package com.am.marketdata.processor.service.mapper;
 
 import com.am.common.investment.model.equity.financial.BaseModel;
+import com.am.common.investment.model.equity.financial.balancesheet.BalanceSheet;
 import com.am.common.investment.model.equity.financial.balancesheet.StockBalanceSheet;
 import com.am.common.investment.model.equity.financial.resultstatement.FinancialResult;
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
+import com.am.common.investment.model.equity.metrics.AssetsMetrics;
 import com.am.common.investment.model.equity.metrics.CostMetrics;
 import com.am.common.investment.model.equity.metrics.EpsMetrics;
+import com.am.common.investment.model.equity.metrics.EquityMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
+import com.am.common.investment.model.equity.metrics.LiabilitiesMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetData;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetMetrics;
 import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponse;
 import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
 import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
@@ -50,8 +56,8 @@ public class StockBalanceSheetFinanceMapper {
      * @param financials BalanceSheetResponse object
      * @return StockBalanceSheet object
      */
-    public StockBalanceSheet toBalanceSheet(String symbol, BalanceSheetResponse financials) {
-        if (financials == null) {
+    public StockBalanceSheet toBalanceSheet(String symbol, BalanceSheetResponse balanceSheetResponse) {
+        if (balanceSheetResponse == null) {
             return null;
         }
         BaseModel baseModel = baseModelMapper.getBaseModel(symbol, "TradeB");
@@ -59,81 +65,73 @@ public class StockBalanceSheetFinanceMapper {
             .id(baseModel.getId())
             .symbol(baseModel.getSymbol())
             .source(baseModel.getSource())
-            .audit(baseModel.getAudit());
-            //.financialResults(toFinancialResults(financials.getStock()));
+            .audit(baseModel.getAudit())
+            .balanceSheet(toBalanceSheet(balanceSheetResponse.getStock()));
 
         return StockBalanceSheetBuilder.build();
     }
 
-    private List<FinancialResult> toFinancialResults(StockFinancialData financials) {
-        if (financials == null) {
+    private List<BalanceSheet> toBalanceSheet(BalanceSheetData balanceSheet) {
+        if (balanceSheet == null) {
             return null;
         }
-        return financials.getQuarterKeys().stream()
-            .map(quarterKey -> toFinancialResult(financials.getMetrics(quarterKey)))
+        return balanceSheet.getQuarterKeys().stream()
+            .map(quarterKey -> toBalanceSheet(quarterKey, balanceSheet.getMetrics(quarterKey)))
             .collect(Collectors.toList());
     }
 
-    private FinancialResult toFinancialResult(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        if (quarterlyFinancialMetrics == null) {
+    private BalanceSheet toBalanceSheet(String key, BalanceSheetMetrics balanceSheet) {
+        if (balanceSheet == null) {
             return null;
         }
-        var FinancialResultBuilder = FinancialResult.builder()
-            .costMetrics(toCostMetrics(quarterlyFinancialMetrics))
-            .totalRevenue(quarterlyFinancialMetrics.getTotalRevenue())
-            .otherIncome(quarterlyFinancialMetrics.getOtherIncome())
-            .operatingRevenue(quarterlyFinancialMetrics.getOperatingRevenue())
-            .yearEnd(quarterlyFinancialMetrics.getYearEnd())
-            .growthMetrics(toGrowthMetrics(quarterlyFinancialMetrics))
-            .profitMetrics(toProfitMetrics(quarterlyFinancialMetrics))
-            .taxMetrics(toTaxMetrics(quarterlyFinancialMetrics))
-            .epsMetrics(toEpsMetrics(quarterlyFinancialMetrics));
+        var BalanceSheetBuilder = BalanceSheet.builder()
+            .yearEnd(balanceSheet.getYearEnd())
+            .quarter(key)
+            .assets(balanceSheet.getAssets())
+            .liabilitiesEquity(balanceSheet.getLiabilitiesEquity())
+            .totalDebits(balanceSheet.getTotalDebits())
+            .assetsMetrics(toAssetsMetrics(balanceSheet))
+            .liabilitiesMetrics(toLiabilitiesMetrics(balanceSheet))
+            .equityMetrics(toEquityMetrics(balanceSheet));
 
-        return FinancialResultBuilder.build();
+        return BalanceSheetBuilder.build();
     }
 
-    private CostMetrics toCostMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return CostMetrics.builder()
-            .totalExpenditure(quarterlyFinancialMetrics.getTotalExpenses())
-            .manufacturingCost(quarterlyFinancialMetrics.getOperatingRevenue())
-            .employeeCost(quarterlyFinancialMetrics.getEmployeeCost())
-            .interest(quarterlyFinancialMetrics.getInterest())
-            .operatingExpenses(quarterlyFinancialMetrics.getOperatingExpenses())
-            .depreciationAndAmortization(quarterlyFinancialMetrics.getDepreciationAndAmortization())
+    private AssetsMetrics toAssetsMetrics(BalanceSheetMetrics balanceSheet) {
+        return AssetsMetrics.builder()
+            .inventory(balanceSheet.getInventory())
+            .fixedAssets(balanceSheet.getFixedAssets())
+            .capitalWorkInProgress(balanceSheet.getCapitalWorkInProgress())
+            .intangibleAssets(balanceSheet.getIntangibleAssets())
+            .currentAssets(balanceSheet.getCurrentAssets())
+            .accountsReceivables(balanceSheet.getAccountsReceivables())
+            .shortTermInvestments(balanceSheet.getShortTermInvestments())
+            .cashAndBankBalances(balanceSheet.getCashAndBankBalances())
+            .nonCurrentAssets(balanceSheet.getNonCurrentAssets())
+            .intangibleAssetsUnderDev(balanceSheet.getIntangibleAssetsUnderDev())
+            .longTermInvestments(balanceSheet.getLongTermInvestments())
+            .netBlock(balanceSheet.getNetBlock())
             .build();
     }
 
-    private ProfitMetrics toProfitMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return ProfitMetrics.builder()
-            .netProfit(quarterlyFinancialMetrics.getTotalExpenses())
-            .operationProfit(quarterlyFinancialMetrics.getOperationProfit())
-            .profitBeforeTax(quarterlyFinancialMetrics.getProfitBeforeTax())
-            .profitAfterTax(quarterlyFinancialMetrics.getProfitAfterTax())
-            .minorityShare(quarterlyFinancialMetrics.getMinorityShare())
+    private LiabilitiesMetrics toLiabilitiesMetrics(BalanceSheetMetrics balanceSheet) {
+        return LiabilitiesMetrics.builder()
+            .provisions(balanceSheet.getProvisions())
+            .shortTermBorrowings(balanceSheet.getShortTermBorrowings())
+            .currentLiabilities(balanceSheet.getCurrentLiabilities())
+            .accountPayables(balanceSheet.getAccountPayables())
+            .nonCurrentLiabilities(balanceSheet.getNonCurrentLiabilities())
+            .otherCurrentLiabilities(balanceSheet.getOtherCurrentLiabilities())
             .build();
     }
 
-    private TaxMetrics toTaxMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return TaxMetrics.builder()
-            .tax(quarterlyFinancialMetrics.getTax())
-            .taxPer(quarterlyFinancialMetrics.getTaxPer())
+    private EquityMetrics toEquityMetrics(BalanceSheetMetrics balanceSheet) {
+        return EquityMetrics.builder()
+            .shareCapital(balanceSheet.getShareCapital())
+            .preferenceCapital(balanceSheet.getPreferenceCapital())
+            .equityCapital(balanceSheet.getEquityCapital())
+            .shareholdersFunds(balanceSheet.getShareholdersFunds())
+            .reserves(balanceSheet.getReserves())
             .build();
     }
-
-    private EpsMetrics toEpsMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return EpsMetrics.builder()
-            .basicEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsBasic())
-            .dilutedEpsRs(quarterlyFinancialMetrics.getAdjEpsInRsDiluted())
-            .build();
-    }
-
-    private GrowthMetrics toGrowthMetrics(QuarterlyFinancialMetrics quarterlyFinancialMetrics) {
-        return GrowthMetrics.builder()
-            .revenueGrowthPer(quarterlyFinancialMetrics.getRevenueGrowthPer())
-            .netProfitGrowth(quarterlyFinancialMetrics.getNetProfitGrowth())
-            .netProfitMarginGrowth(quarterlyFinancialMetrics.getNetProfitMarginGrowth())
-            .patMarginGrowth(quarterlyFinancialMetrics.getPatMarginGrowth())
-            .build();
-    }
-
 }
