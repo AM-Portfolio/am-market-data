@@ -35,7 +35,11 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
     @ComponentScan("com.am.marketdata.model"),
     @ComponentScan("com.am.common.investment.service"),
     @ComponentScan("com.am.common.investment.persistence"),
-    @ComponentScan("com.am.marketdata.processor")
+    @ComponentScan("com.am.marketdata.processor"),
+    @ComponentScan("com.marketdata"),
+    @ComponentScan("com.marketdata.common"),
+    @ComponentScan("com.marketdata.service"),
+    @ComponentScan("com.marketdata.config")
 })
 @EnableJpaRepositories(
     basePackages = {

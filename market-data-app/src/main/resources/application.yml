@@ -57,6 +57,7 @@ UPSTOX_CODE: rNLu2Q
 spring:
   profiles:
     active: dev  # Default to development profile
+
   application:
     name: market-data-service
 
@@ -97,6 +98,7 @@ spring:
       - classpath:application-external-api.yml
       - classpath:application-endpoints.yml
       - classpath:application-kafka.yml
+      - classpath:application-zerodha.yml
 
   jpa:
     hibernate:
