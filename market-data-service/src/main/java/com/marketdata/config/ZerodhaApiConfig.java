@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import com.marketdata.service.zerodha.ZerodhaApiService;
 import com.marketdata.service.zerodha.ZerodhaMarketDataProvider;

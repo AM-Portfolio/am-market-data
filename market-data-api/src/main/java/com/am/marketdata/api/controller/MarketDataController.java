@@ -89,7 +89,7 @@ public class MarketDataController {
      * @return Map of instrument to OHLC data
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, Object>> getOHLC(@RequestParam String instruments) {
+    public ResponseEntity<Map<String, Object>> getOHLC(@RequestParam("instruments") String instruments) {
         try {
             MarketDataProvider provider = providerFactory.getProvider();
             String[] instrumentArray = instruments.split(",");

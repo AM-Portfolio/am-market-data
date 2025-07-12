@@ -126,7 +126,7 @@ public class ZerodhaApiService {
             // Check if KiteConnect is properly initialized
             if (kiteConnect == null) {
                 log.info("KiteConnect is null, initializing it now");
-                initializeKiteConnect();
+                initialize();
             }
             
             // First try to refresh the token if we have a refresh token
