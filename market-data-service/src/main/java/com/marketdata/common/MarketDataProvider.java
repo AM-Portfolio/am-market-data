@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.zerodhatech.models.HistoricalData;
+import com.zerodhatech.models.Instrument;
+
 /**
  * Common interface for market data providers (Zerodha, Upstox, etc.)
  * This abstraction allows switching between different providers through configuration
@@ -71,7 +74,7 @@ public interface MarketDataProvider {
      * @param additionalParams Additional provider-specific parameters
      * @return Historical data
      */
-    Object getHistoricalData(String instrumentId, Date from, Date to, String interval, 
+    HistoricalData getHistoricalData(String instrumentId, Date from, Date to, String interval, 
                             boolean continuous, Map<String, Object> additionalParams);
     
     /**
@@ -92,7 +95,7 @@ public interface MarketDataProvider {
      * Get all available instruments
      * @return List of instruments
      */
-    List<Object> getAllInstruments();
+    List<Instrument> getAllInstruments();
     
     /**
      * Get instruments for a specific exchange

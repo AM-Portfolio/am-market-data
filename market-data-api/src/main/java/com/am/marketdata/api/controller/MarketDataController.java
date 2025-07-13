@@ -4,8 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.marketdata.common.MarketDataProvider;
-import com.marketdata.common.MarketDataProviderFactory;
+import com.am.common.investment.model.equity.Instrument;
+import com.am.common.investment.model.historical.HistoricalData;
+import com.am.marketdata.service.MarketDataService;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -19,11 +20,11 @@ import java.util.*;
 @RequestMapping("/api/v1/market-data")
 public class MarketDataController {
 
-    private final MarketDataProviderFactory providerFactory;
+    private final MarketDataService marketDataService;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
-    public MarketDataController(MarketDataProviderFactory providerFactory) {
-        this.providerFactory = providerFactory;
+    public MarketDataController(MarketDataService marketDataService) {
+        this.marketDataService = marketDataService;
         dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
     }
 
@@ -34,13 +35,7 @@ public class MarketDataController {
     @GetMapping("/auth/login-url")
     public ResponseEntity<Map<String, String>> getLoginUrl() {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
-            String loginUrl = provider.getLoginUrl();
-            
-            Map<String, String> response = new HashMap<>();
-            response.put("loginUrl", loginUrl);
-            response.put("provider", provider.getProviderName());
-            
+            Map<String, String> response = marketDataService.getLoginUrl();
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting login URL: {}", e.getMessage(), e);
@@ -56,8 +51,7 @@ public class MarketDataController {
     @PostMapping("/auth/session")
     public ResponseEntity<Object> generateSession(@RequestParam("requestToken") String requestToken) {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
-            Object session = provider.generateSession(requestToken);
+            Object session = marketDataService.generateSession(requestToken);
             return ResponseEntity.ok(session);
         } catch (Exception e) {
             log.error("Error generating session: {}", e.getMessage(), e);
@@ -73,9 +67,8 @@ public class MarketDataController {
     @GetMapping("/quotes")
     public ResponseEntity<Map<String, Object>> getQuotes(@RequestParam String instruments) {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
             String[] instrumentArray = instruments.split(",");
-            Map<String, Object> quotes = provider.getQuotes(instrumentArray);
+            Map<String, Object> quotes = marketDataService.getQuotes(instrumentArray);
             return ResponseEntity.ok(quotes);
         } catch (Exception e) {
             log.error("Error getting quotes: {}", e.getMessage(), e);
@@ -91,9 +84,8 @@ public class MarketDataController {
     @GetMapping("/ohlc")
     public ResponseEntity<Map<String, Object>> getOHLC(@RequestParam("instruments") String instruments) {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
             String[] instrumentArray = instruments.split(",");
-            Map<String, Object> ohlc = provider.getOHLC(instrumentArray);
+            Map<String, Object> ohlc = marketDataService.getOHLC(instrumentArray);
             return ResponseEntity.ok(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC: {}", e.getMessage(), e);
@@ -109,9 +101,8 @@ public class MarketDataController {
     @GetMapping("/ltp")
     public ResponseEntity<Map<String, Object>> getLTP(@RequestParam("instruments") String instruments) {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
             String[] instrumentArray = instruments.split(",");
-            Map<String, Object> ltp = provider.getLTP(instrumentArray);
+            Map<String, Object> ltp = marketDataService.getLTP(instrumentArray);
             return ResponseEntity.ok(ltp);
         } catch (Exception e) {
             log.error("Error getting LTP: {}", e.getMessage(), e);
@@ -129,7 +120,7 @@ public class MarketDataController {
      * @return Historical data
      */
     @GetMapping("/historical")
-    public ResponseEntity<Object> getHistoricalData(
+    public ResponseEntity<HistoricalData> getHistoricalData(
             @RequestParam("instrumentId") String instrumentId,
             @RequestParam("from") String from,
             @RequestParam("to") String to,
@@ -138,11 +129,10 @@ public class MarketDataController {
             @RequestParam(required = false) Map<String, Object> additionalParams) {
         
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
             Date fromDate = dateFormat.parse(from);
             Date toDate = dateFormat.parse(to);
             
-            Object historicalData = provider.getHistoricalData(
+            HistoricalData historicalData = marketDataService.getHistoricalData(
                     instrumentId, fromDate, toDate, interval, continuous, additionalParams);
             
             return ResponseEntity.ok(historicalData);
@@ -160,13 +150,59 @@ public class MarketDataController {
      * @return List of instruments
      */
     @GetMapping("/instruments")
-    public ResponseEntity<List<Object>> getAllInstruments() {
+    public ResponseEntity<List<Instrument>> getAllInstruments() {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
-            List<Object> instruments = provider.getAllInstruments();
+            List<Instrument> instruments = marketDataService.getAllInstruments();
             return ResponseEntity.ok(instruments);
         } catch (Exception e) {
             log.error("Error getting all instruments: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    /**
+     * Get paginated and filtered instruments
+     * 
+     * @param page Page number (0-based)
+     * @param size Number of records per page (default 10)
+     * @param symbol Filter by trading symbol (optional)
+     * @param type Filter by instrument type (optional)
+     * @param exchange Filter by exchange (optional)
+     * @return Filtered and paginated list of instruments
+     */
+    @GetMapping("/instruments/search")
+    public ResponseEntity<Map<String, Object>> searchInstruments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String symbol,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String exchange) {
+        try {
+            List<Instrument> instruments = marketDataService.getInstrumentPagination(page, size, symbol, type, exchange);
+            
+            // Get total count for pagination metadata
+            List<Instrument> allInstruments = marketDataService.getAllInstruments();
+            long totalCount = allInstruments.stream()
+                .filter(instrument -> symbol == null || symbol.isEmpty() || 
+                    instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
+                .filter(instrument -> type == null || type.isEmpty() || 
+                    (instrument.getInstrumentType() != null && 
+                     instrument.getInstrumentType().toString().equalsIgnoreCase(type)))
+                .filter(instrument -> exchange == null || exchange.isEmpty() || 
+                    (instrument.getSegment() != null && 
+                     instrument.getSegment().toString().equalsIgnoreCase(exchange)))
+                .count();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("instruments", instruments);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("totalItems", totalCount);
+            response.put("totalPages", Math.ceil((double) totalCount / size));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting paginated instruments: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -179,8 +215,7 @@ public class MarketDataController {
     @GetMapping("/instruments/{exchange}")
     public ResponseEntity<List<Object>> getInstrumentsForExchange(@PathVariable String exchange) {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
-            List<Object> instruments = provider.getInstrumentsForExchange(exchange);
+            List<Object> instruments = marketDataService.getInstrumentsForExchange(exchange);
             return ResponseEntity.ok(instruments);
         } catch (Exception e) {
             log.error("Error getting instruments for exchange: {}", e.getMessage(), e);
@@ -195,13 +230,7 @@ public class MarketDataController {
     @PostMapping("/auth/logout")
     public ResponseEntity<Map<String, Object>> logout() {
         try {
-            MarketDataProvider provider = providerFactory.getProvider();
-            boolean success = provider.logout();
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", success);
-            response.put("provider", provider.getProviderName());
-            
+            Map<String, Object> response = marketDataService.logout();
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error logging out: {}", e.getMessage(), e);

@@ -121,7 +121,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public List<Object> getAllInstruments() {
+    public List<Instrument> getAllInstruments() {
         try {
             List<Instrument> instruments = zerodhaApiService.getAllInstruments();
             return new ArrayList<>(instruments);
