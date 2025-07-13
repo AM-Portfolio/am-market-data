@@ -51,9 +51,10 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.max.age.minutes:15}")
     private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
+        this.historicalDataService = historicalDataService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
     }
@@ -188,6 +189,11 @@ public class MarketDataServiceImpl implements MarketDataService {
             if (interval == null || interval.trim().isEmpty()) {
                 throw new IllegalArgumentException("Interval cannot be null or empty");
             }
+
+            Optional<Instrument> instrument = instrumentService.getInstrumentByInstrumentToken(Long.valueOf(instrumentId));
+            if (instrument.isEmpty()) {
+                throw new IllegalArgumentException("Instrument not found for instrument token: " + instrumentId);
+            }
             
             MarketDataProvider provider = providerFactory.getProvider();
             com.zerodhatech.models.HistoricalData zerodhaHistoricalData = retryOnFailure(() -> provider.getHistoricalData(
@@ -195,6 +201,9 @@ public class MarketDataServiceImpl implements MarketDataService {
 
             HistoryDataMapper historicalDataMapper = new HistoryDataMapper();
             HistoricalData historicalData = historicalDataMapper.toCommonHistoricalData(zerodhaHistoricalData);
+
+            Instrument instrumentData = instrument.get();
+            historicalData.setTradingSymbol(instrumentData.getTradingSymbol());
             
             // Make saveHistoricalData asynchronous but wait for the result
             CompletableFuture<Void> saveTask = CompletableFuture.supplyAsync(() -> {

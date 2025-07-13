@@ -97,7 +97,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Object getHistoricalData(String instrumentId, Date from, Date to, String interval, 
+    public HistoricalData getHistoricalData(String instrumentId, Date from, Date to, String interval, 
                                    boolean continuous, Map<String, Object> additionalParams) {
         boolean oi = additionalParams != null && additionalParams.containsKey("oi") ? 
                     (Boolean) additionalParams.get("oi") : false;

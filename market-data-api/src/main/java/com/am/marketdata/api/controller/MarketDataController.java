@@ -136,9 +136,6 @@ public class MarketDataController {
                     instrumentId, fromDate, toDate, interval, continuous, additionalParams);
             
             return ResponseEntity.ok(historicalData);
-        } catch (ParseException e) {
-            log.error("Invalid date format: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid date format. Use yyyy-MM-dd"));
         } catch (Exception e) {
             log.error("Error getting historical data: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();

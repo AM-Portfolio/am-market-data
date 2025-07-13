@@ -6,6 +6,7 @@ import com.am.common.investment.model.historical.OHLCVTPoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +34,17 @@ public class HistoryDataMapper {
             
             for (com.zerodhatech.models.HistoricalData data : zerodhaHistoricalData.dataArrayList) {
                 OHLCVTPoint dataPoint = new OHLCVTPoint();
-            
+                // Convert string timestamp to Instant
+                try {
+                    // Parse ISO-8601 format with timezone offset (e.g., 2024-11-25T14:05:00+0530)
+                    String timestampStr = data.timeStamp; // Using correct field name 'timeStamp'
+                    Instant instant = Instant.parse(timestampStr.replace("+0530", "+05:30"));
+                    dataPoint.setTime(instant);
+                } catch (Exception e) {
+                    log.warn("Failed to parse timestamp: {}", data.timeStamp, e);
+                    // Use current time as fallback
+                    dataPoint.setTime(Instant.now());
+                }
                 dataPoint.setOpen(data.open);
                 dataPoint.setHigh(data.high);
                 dataPoint.setLow(data.low);
