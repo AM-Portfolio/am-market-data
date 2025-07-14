@@ -118,12 +118,14 @@ public class ZerodhaApiConfig {
     /**
      * Creates the Zerodha market data provider
      * @param zerodhaApiService Zerodha API service
+     * @param instrumentService Instrument service for symbol to token mapping
      * @return ZerodhaMarketDataProvider instance
      */
     @Bean(name = "zerodhaMarketDataProvider")
-    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService) {
+    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, 
+            com.am.common.investment.service.instrument.InstrumentService instrumentService) {
         log.info("Creating Zerodha market data provider");
-        return new ZerodhaMarketDataProvider(zerodhaApiService);
+        return new ZerodhaMarketDataProvider(zerodhaApiService, instrumentService);
     }
     
     /**

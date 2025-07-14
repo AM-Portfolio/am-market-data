@@ -1,18 +1,21 @@
 package com.am.marketdata.api.controller;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+
+import com.zerodhatech.models.OHLCQuote;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.am.common.investment.model.equity.EquityPrice;
-import com.am.common.investment.model.equity.Instrument;
-import com.am.common.investment.model.historical.HistoricalData;
+import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.service.MarketDataService;
-import com.zerodhatech.models.OHLCQuote;
-
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 /**
  * REST API controller for market data operations
@@ -23,10 +26,12 @@ import java.util.*;
 public class MarketDataController {
 
     private final MarketDataService marketDataService;
+    private final InvestmentInstrumentService investmentInstrumentService;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
-    public MarketDataController(MarketDataService marketDataService) {
+    public MarketDataController(MarketDataService marketDataService, InvestmentInstrumentService investmentInstrumentService) {
         this.marketDataService = marketDataService;
+        this.investmentInstrumentService = investmentInstrumentService;
         dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
     }
 
@@ -64,17 +69,38 @@ public class MarketDataController {
     /**
      * Get quotes for instruments
      * @param instruments Comma-separated list of instruments
-     * @return Map of instrument to quote data
+     * @return Map of instrument to quote data with metadata
      */
     @GetMapping("/quotes")
     public ResponseEntity<Map<String, Object>> getQuotes(@RequestParam String instruments) {
         try {
-            String[] instrumentArray = instruments.split(",");
-            Map<String, Object> quotes = marketDataService.getQuotes(instrumentArray);
-            return ResponseEntity.ok(quotes);
+            log.info("Controller received request for quotes for instruments: {}", instruments);
+            List<String> instrumentList = Arrays.asList(instruments.split(","));
+            
+            // Delegate to the service for business logic
+            Map<String, Map<String, Object>> quotesMap = investmentInstrumentService.getQuotes(instrumentList);
+            
+            // Check if there was an error
+            if (quotesMap.containsKey("ERROR")) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", quotesMap.get("ERROR").get("error"));
+                errorResponse.put("message", quotesMap.get("ERROR").get("message"));
+                return ResponseEntity.internalServerError().body(errorResponse);
+            }
+            
+            // Convert to the response format expected by clients
+            Map<String, Object> response = new HashMap<>();
+            response.put("quotes", quotesMap);
+            response.put("count", quotesMap.size());
+            response.put("timestamp", new Date());
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error getting quotes: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to get quotes");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
@@ -114,33 +140,58 @@ public class MarketDataController {
 
     /**
      * Get historical data for an instrument
-     * @param instrumentId Instrument identifier
+     * @param symbol Trading symbol
      * @param from From date (yyyy-MM-dd)
      * @param to To date (yyyy-MM-dd)
      * @param interval Interval (minute, day, etc.)
-     * @param continuous Continuous flag
-     * @return Historical data
+     * @param continuous Whether to use continuous data
+     * @param instrumentType Type of instrument (STOCK, OPTION, MUTUAL_FUND, etc.)
+     * @param additionalParams Additional parameters
+     * @return Historical data with metadata
      */
-    @GetMapping("/historical")
-    public ResponseEntity<HistoricalData> getHistoricalData(
-            @RequestParam("instrumentId") String instrumentId,
+    @GetMapping("/historical-data")
+    public ResponseEntity<Object> getHistoricalData(
+            @RequestParam("symbol") String symbol,
             @RequestParam("from") String from,
             @RequestParam("to") String to,
             @RequestParam("interval") String interval,
-            @RequestParam(name = "continuous") boolean continuous,
+            @RequestParam(value = "continuous", required = false, defaultValue = "true") boolean continuous,
+            @RequestParam(value = "instrumentType", required = false) String instrumentType,
             @RequestParam(required = false) Map<String, Object> additionalParams) {
         
         try {
+            // Parse dates
             Date fromDate = dateFormat.parse(from);
             Date toDate = dateFormat.parse(to);
             
-            HistoricalData historicalData = marketDataService.getHistoricalData(
-                    instrumentId, fromDate, toDate, interval, continuous, additionalParams);
+            // Add continuous flag to additionalParams
+            if (additionalParams == null) {
+                additionalParams = new HashMap<>();
+            }
+            additionalParams.put("continuous", continuous);
             
-            return ResponseEntity.ok(historicalData);
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.getHistoricalData(
+                    symbol, fromDate, toDate, interval, instrumentType, additionalParams);
+            
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (ParseException e) {
+            log.error("Error parsing dates: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid date format");
+            errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
-            log.error("Error getting historical data: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Unexpected error in controller while fetching historical data: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch historical data");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
@@ -149,27 +200,6 @@ public class MarketDataController {
      * @return List of instruments
      */
     @GetMapping("/instruments")
-    public ResponseEntity<List<Instrument>> getAllInstruments() {
-        try {
-            List<Instrument> instruments = marketDataService.getAllInstruments();
-            return ResponseEntity.ok(instruments);
-        } catch (Exception e) {
-            log.error("Error getting all instruments: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-    
-    /**
-     * Get paginated and filtered instruments
-     * 
-     * @param page Page number (0-based)
-     * @param size Number of records per page (default 10)
-     * @param symbol Filter by trading symbol (optional)
-     * @param type Filter by instrument type (optional)
-     * @param exchange Filter by exchange (optional)
-     * @return Filtered and paginated list of instruments
-     */
-    @GetMapping("/instruments/search")
     public ResponseEntity<Map<String, Object>> searchInstruments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -177,32 +207,24 @@ public class MarketDataController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String exchange) {
         try {
-            List<Instrument> instruments = marketDataService.getInstrumentPagination(page, size, symbol, type, exchange);
+            log.info("Controller received request to search instruments with page={}, size={}, symbol={}, type={}, exchange={}", 
+                    page, size, symbol, type, exchange);
             
-            // Get total count for pagination metadata
-            List<Instrument> allInstruments = marketDataService.getAllInstruments();
-            long totalCount = allInstruments.stream()
-                .filter(instrument -> symbol == null || symbol.isEmpty() || 
-                    instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
-                .filter(instrument -> type == null || type.isEmpty() || 
-                    (instrument.getInstrumentType() != null && 
-                     instrument.getInstrumentType().toString().equalsIgnoreCase(type)))
-                .filter(instrument -> exchange == null || exchange.isEmpty() || 
-                    (instrument.getSegment() != null && 
-                     instrument.getSegment().toString().equalsIgnoreCase(exchange)))
-                .count();
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.searchInstruments(page, size, symbol, type, exchange);
             
-            Map<String, Object> response = new HashMap<>();
-            response.put("instruments", instruments);
-            response.put("currentPage", page);
-            response.put("pageSize", size);
-            response.put("totalItems", totalCount);
-            response.put("totalPages", Math.ceil((double) totalCount / size));
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error getting paginated instruments: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Unexpected error in controller while searching instruments: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to search instruments");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
@@ -211,10 +233,10 @@ public class MarketDataController {
      * @param exchange Exchange name
      * @return List of instruments for the exchange
      */
-    @GetMapping("/instruments/{exchange}")
-    public ResponseEntity<List<Object>> getInstrumentsForExchange(@PathVariable String exchange) {
+    @GetMapping("/symbols/{exchange}")
+    public ResponseEntity<List<Object>> getSymbolsForExchange(@PathVariable String exchange) {
         try {
-            List<Object> instruments = marketDataService.getInstrumentsForExchange(exchange);
+            List<Object> instruments = marketDataService.getSymbolsForExchange(exchange);
             return ResponseEntity.ok(instruments);
         } catch (Exception e) {
             log.error("Error getting instruments for exchange: {}", e.getMessage(), e);
@@ -238,37 +260,156 @@ public class MarketDataController {
     }
     
     /**
+     * Get option chain data for a given underlying instrument
+     * 
+     * @param underlyingSymbol Symbol of the underlying instrument
+     * @param expiryDate Optional expiry date (yyyy-MM-dd)
+     * @return Option chain data with calls and puts
+     */
+    @GetMapping("/option-chain")
+    public ResponseEntity<Map<String, Object>> getOptionChain(
+            @RequestParam("symbol") String underlyingSymbol,
+            @RequestParam(required = false) String expiryDate) {
+        try {
+            log.info("Controller received request for option chain for symbol: {} and expiry: {}", 
+                    underlyingSymbol, expiryDate);
+            
+            Date expiry = null;
+            if (expiryDate != null && !expiryDate.isEmpty()) {
+                try {
+                    expiry = dateFormat.parse(expiryDate);
+                } catch (ParseException e) {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "Invalid date format");
+                    errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
+            }
+            
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.getOptionChain(underlyingSymbol, expiry);
+            
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Unexpected error in controller while fetching option chain: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch option chain");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /**
+     * Get mutual fund details including NAV, returns, etc.
+     * 
+     * @param schemeCode Mutual fund scheme code
+     * @return Mutual fund details
+     */
+    @GetMapping("/mutual-fund/{schemeCode}")
+    public ResponseEntity<Map<String, Object>> getMutualFundDetails(
+            @PathVariable String schemeCode) {
+        try {
+            log.info("Controller received request for mutual fund details for scheme code: {}", schemeCode);
+            
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.getMutualFundDetails(schemeCode);
+            
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Unexpected error in controller while fetching mutual fund details: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch mutual fund details");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /**
+     * Get mutual fund NAV history
+     * 
+     * @param schemeCode Mutual fund scheme code
+     * @param from Start date (yyyy-MM-dd)
+     * @param to End date (yyyy-MM-dd)
+     * @return NAV history data
+     */
+    @GetMapping("/mutual-fund/{schemeCode}/history")
+    public ResponseEntity<Map<String, Object>> getMutualFundNavHistory(
+            @PathVariable String schemeCode,
+            @RequestParam("from") String from,
+            @RequestParam("to") String to) {
+        try {
+            log.info("Controller received request for mutual fund NAV history for scheme code: {} from {} to {}", 
+                    schemeCode, from, to);
+            
+            Date fromDate;
+            Date toDate;
+            try {
+                fromDate = dateFormat.parse(from);
+                toDate = dateFormat.parse(to);
+            } catch (ParseException e) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Invalid date format");
+                errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.getMutualFundNavHistory(schemeCode, fromDate, toDate);
+            
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Unexpected error in controller while fetching mutual fund NAV history: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch mutual fund NAV history");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /**
      * Get live prices for all instruments or filtered by instrument IDs
      * 
-     * @param instrumentIds Optional comma-separated list of instrument IDs to filter by
-     * @return List of equity prices with current market data
+     * @param symbols Optional comma-separated list of trading symbols to filter by
+     * @return Map containing prices, count, timestamp and processing time
      */
     @GetMapping("/live-prices")
     public ResponseEntity<Map<String, Object>> getLivePrices(
             @RequestParam(name = "symbols", required = false) String symbols) {
         try {
-            List<String> idList = null;
+            List<String> symbolList = null;
             if (symbols != null && !symbols.isEmpty()) {
-                idList = Arrays.asList(symbols.split(","));
-                log.info("Fetching live prices for {} instruments", idList.size());
+                symbolList = Arrays.asList(symbols.split(","));
+                log.info("Controller received request for live prices for {} instruments", symbolList.size());
             } else {
-                log.info("Fetching live prices for all available instruments");
+                log.info("Controller received request for all available instruments");
             }
             
-            long startTime = System.currentTimeMillis();
-            List<EquityPrice> prices = marketDataService.getLivePrices(idList);
-            long endTime = System.currentTimeMillis();
+            // Delegate to the service for business logic
+            Map<String, Object> response = investmentInstrumentService.getLivePrices(symbolList);
             
-            Map<String, Object> response = new HashMap<>();
-            response.put("prices", prices);
-            response.put("count", prices.size());
-            response.put("timestamp", new Date());
-            response.put("processingTimeMs", (endTime - startTime));
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
             
-            log.info("Successfully fetched {} live prices in {}ms", prices.size(), (endTime - startTime));
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error fetching live prices: {}", e.getMessage(), e);
+            log.error("Unexpected error in controller while fetching live prices: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch live prices");
             errorResponse.put("message", e.getMessage());

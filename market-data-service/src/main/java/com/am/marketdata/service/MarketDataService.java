@@ -33,25 +33,25 @@ public interface MarketDataService {
      * @param instruments Array of instrument identifiers
      * @return Map of instrument to quote data
      */
-    Map<String, Object> getQuotes(String[] instruments);
+    Map<String, Object> getQuotes(String[] symbols);
     
     /**
      * Get OHLC data for instruments
      * @param instruments Array of instrument identifiers
      * @return Map of instrument to OHLC data
      */
-    Map<String, OHLCQuote> getOHLC(String[] instruments);
+    Map<String, OHLCQuote> getOHLC(String[] symbols);
     
     /**
      * Get last traded price for instruments
-     * @param instruments Array of instrument identifiers
+     * @param symbols Array of instrument identifiers
      * @return Map of instrument to LTP data
      */
-    Map<String, Object> getLTP(String[] instruments);
+    Map<String, Object> getLTP(String[] symbols);
     
     /**
      * Get historical data for an instrument
-     * @param instrumentId Instrument identifier
+     * @param symbol Trading symbol
      * @param fromDate From date
      * @param toDate To date
      * @param interval Interval (minute, day, etc.)
@@ -60,7 +60,7 @@ public interface MarketDataService {
      * @return Historical data
      */
     HistoricalData getHistoricalData(
-            String instrumentId, 
+            String symbol, 
             Date fromDate, 
             Date toDate, 
             String interval, 
@@ -90,7 +90,7 @@ public interface MarketDataService {
      * @param exchange Exchange name
      * @return List of instruments for the exchange
      */
-    List<Object> getInstrumentsForExchange(String exchange);
+    List<Object> getSymbolsForExchange(String exchange);
     
     /**
      * Logout and invalidate session
@@ -103,5 +103,5 @@ public interface MarketDataService {
      * @param instrumentIds Optional list of instrument IDs to filter by (if null or empty, returns all available prices)
      * @return List of equity prices with current market data
      */
-    List<EquityPrice> getLivePrices(List<String> instrumentIds);
+    List<EquityPrice> getLivePrices(List<String> symbols);
 }

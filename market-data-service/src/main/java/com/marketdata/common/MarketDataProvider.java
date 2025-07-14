@@ -45,29 +45,29 @@ public interface MarketDataProvider {
     Object generateSession(String requestToken);
     
     /**
-     * Get quotes for instruments
-     * @param instruments Array of instruments
-     * @return Map of instrument to quote data
+     * Get quotes for symbols
+     * @param symbols Array of symbols
+     * @return Map of symbol to quote data
      */
-    Map<String, Object> getQuotes(String[] instruments);
+    Map<String, Object> getQuotes(String[] symbols);
     
     /**
-     * Get OHLC data for instruments
-     * @param instruments Array of instruments
-     * @return Map of instrument to OHLC data
+     * Get OHLC data for symbols
+     * @param symbols Array of symbols
+     * @return Map of symbol to OHLC data
      */
-    Map<String, OHLCQuote> getOHLC(String[] instruments);
+    Map<String, OHLCQuote> getOHLC(String[] symbols);
     
     /**
-     * Get last traded price for instruments
-     * @param instruments Array of instruments
-     * @return Map of instrument to LTP data
+     * Get last traded price for symbols
+     * @param symbols Array of symbols
+     * @return Map of symbol to LTP data
      */
-    Map<String, Object> getLTP(String[] instruments);
+    Map<String, Object> getLTP(String[] symbols);
     
     /**
-     * Get historical data for an instrument
-     * @param instrumentId Instrument identifier
+     * Get historical data for a symbol
+     * @param symbol Symbol identifier
      * @param from From date
      * @param to To date
      * @param interval Interval (minute, day, etc.)
@@ -75,16 +75,16 @@ public interface MarketDataProvider {
      * @param additionalParams Additional provider-specific parameters
      * @return Historical data
      */
-    HistoricalData getHistoricalData(String instrumentId, Date from, Date to, String interval, 
+    HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, 
                             boolean continuous, Map<String, Object> additionalParams);
     
     /**
      * Initialize ticker for real-time data
-     * @param instrumentIds List of instrument identifiers
+     * @param symbolIds List of symbol identifiers
      * @param tickListener Callback for tick data
      * @return Ticker instance
      */
-    Object initializeTicker(List<String> instrumentIds, Object tickListener);
+    Object initializeTicker(List<String> symbolIds, Object tickListener);
     
     /**
      * Check if ticker is connected
@@ -93,17 +93,17 @@ public interface MarketDataProvider {
     boolean isTickerConnected();
     
     /**
-     * Get all available instruments
-     * @return List of instruments
+     * Get all available symbols
+     * @return List of symbols
      */
     List<Instrument> getAllInstruments();
     
     /**
-     * Get instruments for a specific exchange
+     * Get symbols for a specific exchange
      * @param exchange Exchange name
-     * @return List of instruments
+     * @return List of symbols
      */
-    List<Object> getInstrumentsForExchange(String exchange);
+    List<Object> getSymbolsForExchange(String exchange);
     
     /**
      * Execute operation asynchronously

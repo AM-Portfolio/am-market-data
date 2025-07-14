@@ -130,13 +130,13 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public Map<String, Object> getQuotes(String[] instruments) {
+    public Map<String, Object> getQuotes(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateInstruments(instruments);
+            validateInstruments(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.getQuotes(instruments), "getQuotes");
+            return retryOnFailure(() -> provider.getQuotes(symbols), "getQuotes");
         } catch (Exception e) {
             log.error("Error getting quotes: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getQuotes").increment();
@@ -147,13 +147,13 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(String[] instruments) {
+    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateInstruments(instruments);
+            validateInstruments(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.getOHLC(instruments), "getOHLC");
+            return retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
         } catch (Exception e) {
             log.error("Error getting OHLC data: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getOHLC").increment();
@@ -181,12 +181,12 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public HistoricalData getHistoricalData(String instrumentId, Date fromDate, Date toDate, String interval, boolean continuous, Map<String, Object> additionalParams) {
+    public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, String interval, boolean continuous, Map<String, Object> additionalParams) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             // Validate inputs
-            if (instrumentId == null || instrumentId.trim().isEmpty()) {
-                throw new IllegalArgumentException("Instrument ID cannot be null or empty");
+            if (symbol == null || symbol.trim().isEmpty()) {
+                throw new IllegalArgumentException("Symbol cannot be null or empty");
             }
             if (fromDate == null || toDate == null) {
                 throw new IllegalArgumentException("From date and to date cannot be null");
@@ -197,28 +197,22 @@ public class MarketDataServiceImpl implements MarketDataService {
             if (interval == null || interval.trim().isEmpty()) {
                 throw new IllegalArgumentException("Interval cannot be null or empty");
             }
-
-            Optional<Instrument> instrument = instrumentService.getInstrumentByInstrumentToken(Long.valueOf(instrumentId));
-            if (instrument.isEmpty()) {
-                throw new IllegalArgumentException("Instrument not found for instrument token: " + instrumentId);
-            }
             
             MarketDataProvider provider = providerFactory.getProvider();
             com.zerodhatech.models.HistoricalData zerodhaHistoricalData = retryOnFailure(() -> provider.getHistoricalData(
-                    instrumentId, fromDate, toDate, interval, continuous, additionalParams), "getHistoricalData");
+                    symbol, fromDate, toDate, interval, continuous, additionalParams), "getHistoricalData");
 
             HistoryDataMapper historicalDataMapper = new HistoryDataMapper();
             HistoricalData historicalData = historicalDataMapper.toCommonHistoricalData(zerodhaHistoricalData);
 
-            Instrument instrumentData = instrument.get();
-            historicalData.setTradingSymbol(instrumentData.getTradingSymbol());
+            historicalData.setTradingSymbol(symbol);
             
             // Make saveHistoricalData asynchronous but wait for the result
             CompletableFuture<Void> saveTask = CompletableFuture.supplyAsync(() -> {
                 try {
-                    log.debug("Saving historical data asynchronously for instrument: {}", instrumentId);
+                    log.debug("Saving historical data asynchronously for symbol: {}", symbol);
                     historicalDataService.saveHistoricalData(historicalData);
-                    log.debug("Successfully saved historical data for instrument: {}", instrumentId);
+                    log.debug("Successfully saved historical data for symbol: {}", symbol);
                     return null;
                 } catch (Exception e) {
                     log.error("Error saving historical data asynchronously: {}", e.getMessage(), e);
@@ -337,7 +331,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public List<Object> getInstrumentsForExchange(String exchange) {
+    public List<Object> getSymbolsForExchange(String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             if (exchange == null || exchange.trim().isEmpty()) {

@@ -1,5 +1,6 @@
 package com.marketdata.service.zerodha;
 
+import com.am.common.investment.service.instrument.InstrumentService;
 import com.marketdata.common.MarketDataProvider;
 import com.zerodhatech.models.*;
 import com.zerodhatech.ticker.OnTicks;
@@ -13,6 +14,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -28,9 +30,11 @@ import java.util.stream.Collectors;
 public class ZerodhaMarketDataProvider implements MarketDataProvider {
 
     private final ZerodhaApiService zerodhaApiService;
+    private final InstrumentService instrumentService;
 
-    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService) {
+    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, InstrumentService instrumentService) {
         this.zerodhaApiService = zerodhaApiService;
+        this.instrumentService = instrumentService;
         log.info("Initialized Zerodha market data provider");
     }
 
@@ -63,10 +67,25 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
         return zerodhaApiService.generateSession(requestToken);
     }
 
+    /**
+     * Convert trading symbols to instrument token IDs
+     * 
+     * @param symbols Array of trading symbols
+     * @return Array of instrument token IDs as strings
+     */
+    private String[] convertSymbolsToInstrumentIds(String[] symbols) {
+        List<com.am.common.investment.model.equity.Instrument> instruments = instrumentService.getInstrumentByTradingsymbols(Arrays.asList(symbols));
+        List<Long> instrumentIds = instruments.stream()
+                .map(com.am.common.investment.model.equity.Instrument::getInstrumentToken)
+                .collect(Collectors.toList());
+        return instrumentIds.stream().map(Object::toString).toArray(String[]::new);
+    }
+    
     @Override
-    public Map<String, Object> getQuotes(String[] instruments) {
+    public Map<String, Object> getQuotes(String[] symbols) {
         try {
-            Map<String, Quote> quotes = zerodhaApiService.getQuotes(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, Quote> quotes = zerodhaApiService.getQuotes(instrumentIdsArray);
             return new HashMap<>(quotes);
         } catch (Exception e) {
             log.error("Error getting quotes from Zerodha: {}", e.getMessage(), e);
@@ -75,9 +94,10 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(String[] instruments) {
+    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         try {
-            Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(instrumentIdsArray);
             return new HashMap<>(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC from Zerodha: {}", e.getMessage(), e);
@@ -86,9 +106,10 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, Object> getLTP(String[] instruments) {
+    public Map<String, Object> getLTP(String[] symbols) {
         try {
-            Map<String, LTPQuote> ltp = zerodhaApiService.getLTP(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, LTPQuote> ltp = zerodhaApiService.getLTP(instrumentIdsArray);
             return new HashMap<>(ltp);
         } catch (Exception e) {
             log.error("Error getting LTP from Zerodha: {}", e.getMessage(), e);
@@ -97,12 +118,13 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public HistoricalData getHistoricalData(String instrumentId, Date from, Date to, String interval, 
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, 
                                    boolean continuous, Map<String, Object> additionalParams) {
         boolean oi = additionalParams != null && additionalParams.containsKey("oi") ? 
                     (Boolean) additionalParams.get("oi") : false;
+        String[] instrumentIdsArray = convertSymbolsToInstrumentIds(new String[] { symbol });
         
-        return zerodhaApiService.getHistoricalData(instrumentId, from, to, interval, continuous, oi);
+        return zerodhaApiService.getHistoricalData(instrumentIdsArray[0], from, to, interval, continuous, oi);
     }
 
     @Override
@@ -132,7 +154,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public List<Object> getInstrumentsForExchange(String exchange) {
+    public List<Object> getSymbolsForExchange(String exchange) {
         try {
             List<Instrument> instruments = zerodhaApiService.getInstrumentsForExchange(exchange);
             return new ArrayList<>(instruments);
