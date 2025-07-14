@@ -532,14 +532,44 @@ public class MarketDataServiceImpl implements MarketDataService {
                     // First try to get prices from the database
                     List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(symbols);
                     
-                    // If database query returns empty results, fetch directly from the provider
+                    // If database query returns empty results, fetch all from the provider
                     if (equityPrices == null || equityPrices.isEmpty()) {
                         log.info("[DATA_SOURCE] No prices found in DATABASE, switching to PROVIDER source");
                         equityPrices = fetchLivePricesFromProvider(instrumentIds);
                         log.info("[DATA_SOURCE] Successfully fetched {} prices from PROVIDER", equityPrices.size());
+                        return equityPrices;
                     }
-                    else {
-                        log.info("[DATA_SOURCE] Successfully fetched {} prices from DATABASE", equityPrices.size());
+                    
+                    log.info("[DATA_SOURCE] Successfully fetched {} prices from DATABASE", equityPrices.size());
+                    
+                    // Check if we got all requested symbols from the database
+                    Set<String> foundSymbols = equityPrices.stream()
+                            .map(EquityPrice::getSymbol)
+                            .collect(Collectors.toSet());
+                    
+                    // Find missing symbols
+                    List<String> missingSymbols = symbols.stream()
+                            .filter(symbol -> !foundSymbols.contains(symbol))
+                            .collect(Collectors.toList());
+                    
+                    // If we have missing symbols, fetch them from the provider
+                    if (!missingSymbols.isEmpty()) {
+                        log.info("[DATA_SOURCE] Found {} symbols in DATABASE, fetching {} missing symbols from PROVIDER", 
+                                foundSymbols.size(), missingSymbols.size());
+                        
+                        // Get instrument IDs for missing symbols
+                        List<Long> missingInstrumentIds = instruments.stream()
+                                .filter(instrument -> missingSymbols.contains(instrument.getTradingSymbol()))
+                                .map(Instrument::getInstrumentToken)
+                                .collect(Collectors.toList());
+                        
+                        // Fetch missing symbols from provider
+                        List<EquityPrice> missingPrices = fetchLivePricesFromProvider(missingInstrumentIds);
+                        log.info("[DATA_SOURCE] Successfully fetched {} missing prices from PROVIDER", missingPrices.size());
+                        
+                        // Merge results
+                        equityPrices.addAll(missingPrices);
+                        log.info("[DATA_SOURCE] Combined {} total prices from DATABASE and PROVIDER", equityPrices.size());
                     }
                     
                     return equityPrices;
