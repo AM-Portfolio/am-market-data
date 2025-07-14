@@ -8,6 +8,7 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.service.MarketDataService;
+import com.zerodhatech.models.OHLCQuote;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -83,10 +84,10 @@ public class MarketDataController {
      * @return Map of instrument to OHLC data
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, Object>> getOHLC(@RequestParam("instruments") String instruments) {
+    public ResponseEntity<Map<String, OHLCQuote>> getOHLC(@RequestParam("instruments") String instruments) {
         try {
             String[] instrumentArray = instruments.split(",");
-            Map<String, Object> ohlc = marketDataService.getOHLC(instrumentArray);
+            Map<String, OHLCQuote> ohlc = marketDataService.getOHLC(instrumentArray);
             return ResponseEntity.ok(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC: {}", e.getMessage(), e);
@@ -244,11 +245,11 @@ public class MarketDataController {
      */
     @GetMapping("/live-prices")
     public ResponseEntity<Map<String, Object>> getLivePrices(
-            @RequestParam(required = false) String instrumentIds) {
+            @RequestParam(name = "symbols", required = false) String symbols) {
         try {
             List<String> idList = null;
-            if (instrumentIds != null && !instrumentIds.isEmpty()) {
-                idList = Arrays.asList(instrumentIds.split(","));
+            if (symbols != null && !symbols.isEmpty()) {
+                idList = Arrays.asList(symbols.split(","));
                 log.info("Fetching live prices for {} instruments", idList.size());
             } else {
                 log.info("Fetching live prices for all available instruments");

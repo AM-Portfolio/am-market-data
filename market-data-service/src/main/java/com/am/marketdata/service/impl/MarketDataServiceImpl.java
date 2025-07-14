@@ -1,7 +1,6 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.service.MarketDataService;
-import com.am.marketdata.service.EquityPriceProcessingService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import com.zerodhatech.models.OHLCQuote;
@@ -13,6 +12,7 @@ import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
+import com.am.marketdata.mapper.OHLCMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +38,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final HistoricalDataService historicalDataService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
+    private final OHLCMapper ohlcMapper;
     private final EquityService equityService;
     private ThreadPoolTaskExecutor marketDataExecutor;
 
@@ -56,12 +57,13 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.max.age.minutes:15}")
     private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, EquityService equityService) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, OHLCMapper ohlcMapper, EquityService equityService) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.historicalDataService = historicalDataService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
+        this.ohlcMapper = ohlcMapper;
         this.equityService = equityService;
     }
 
@@ -261,7 +263,6 @@ public class MarketDataServiceImpl implements MarketDataService {
             List<com.zerodhatech.models.Instrument> instruments = retryOnFailure(() -> provider.getAllInstruments(), "getAllInstruments");
             
             // Convert the generic List<Object> to List<com.zerodhatech.models.Instrument>
-            @SuppressWarnings("unchecked")
             List<com.zerodhatech.models.Instrument> zerodhaInstruments = instruments.stream()
                 .filter(obj -> obj instanceof com.zerodhatech.models.Instrument)
                 .map(obj -> (com.zerodhatech.models.Instrument) obj)
@@ -378,17 +379,18 @@ public class MarketDataServiceImpl implements MarketDataService {
     /**
      * Generic method to retry operations on failure with exponential backoff
      * 
-     * @param supplier The operation to retry
+     * @param callable The operation to retry
      * @param operationName Name of the operation for metrics and logging
      * @param <T> Return type of the operation
      * @return Result of the operation
+     * @throws Exception If all retry attempts fail
      */
-    private <T> T retryOnFailure(Callable<T> supplier, String operationName) {
+    private <T> T retryOnFailure(Callable<T> callable, String operationName) throws Exception {
         Exception lastException = null;
         
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                T result = supplier.call();
+                T result = callable.call();
                 if (attempt > 1) {
                     log.info("Operation {} succeeded after {} attempts", operationName, attempt);
                 }
@@ -434,38 +436,112 @@ public class MarketDataServiceImpl implements MarketDataService {
         }
     }
     
+    /**
+     * Get instruments by instrument IDs or all available instruments if no IDs provided
+     * 
+     * @param instrumentIds List of instrument IDs or null/empty for all instruments
+     * @return Map of trading symbols to Instrument objects
+     */
+    private List<Instrument> getSymbolsToProcess(List<String> tradingSymbols) {
+       return instrumentService.getInstrumentByTradingsymbols(tradingSymbols);
+    }
+    
+    /**
+     * Fetch live prices directly from the provider using instrument IDs
+     * 
+     * @param instrumentIds List of instrument IDs
+     * @return List of equity prices
+     */
+    private List<EquityPrice> fetchLivePricesFromProvider(List<Long> instrumentIds) {
+        log.info("[DATA_SOURCE] Fetching live prices directly from PROVIDER with {} instrument IDs", instrumentIds.size());
+        
+        if (instrumentIds == null || instrumentIds.isEmpty()) {
+            log.warn("No valid instrument IDs provided");
+            return Collections.emptyList();
+        }
+        
+        log.info("Fetching live prices for {} instruments", instrumentIds.size());
+        
+        // Convert instrument IDs to string array for provider API
+        String[] instrumentArray = instrumentIds.stream()
+            .map(id -> id.toString())
+            .toArray(String[]::new);
+        
+        // Create a map of trading symbols to instruments for the mapper
+        Map<String, Instrument> instrumentMap = new HashMap<>();
+        for (Long id : instrumentIds) {
+            try {
+                Optional<Instrument> instrumentOpt = instrumentService.getInstrumentByInstrumentToken(id);
+                if (instrumentOpt.isPresent()) {
+                    Instrument instrument = instrumentOpt.get();
+                    String instrumentToken = instrument.getInstrumentToken().toString();
+                    if (instrumentToken != null) {
+                        instrumentMap.put(instrumentToken, instrument);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Error retrieving instrument for ID {}: {}", id, e.getMessage());
+            }
+        }
+        
+        if (instrumentMap.isEmpty()) {
+            log.warn("Could not find any instruments matching the provided IDs");
+            return Collections.emptyList();
+        }
+        
+        // Get OHLC data from provider with retry mechanism
+        log.debug("[DATA_SOURCE] Calling provider.getOHLC with instrument IDs: {}", Arrays.toString(instrumentArray));
+        Map<String, OHLCQuote> ohlcData;
+        try {
+            ohlcData = retryOnFailure(() -> providerFactory.getProvider().getOHLC(instrumentArray), "getOHLC");
+        } catch (Exception e) {
+            log.error("Error fetching OHLC data from provider: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+        log.debug("[DATA_SOURCE] Provider returned {} OHLC quotes", ohlcData != null ? ohlcData.size() : 0);
+        
+        if (ohlcData == null || ohlcData.isEmpty()) {
+            log.warn("Provider returned empty OHLC data");
+            return Collections.emptyList();
+        }
+        
+        // Map OHLC data to equity prices using the mapper
+        List<EquityPrice> prices = ohlcMapper.toEquityPrices(ohlcData, instrumentMap);
+        log.info("[DATA_SOURCE] Successfully mapped {} OHLC quotes to {} equity prices from PROVIDER", 
+                ohlcData != null ? ohlcData.size() : 0, prices.size());
+        
+        return prices;
+    }
+    
     @Override
     public List<EquityPrice> getLivePrices(List<String> tradingSymbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
             
-            List<String> symbols;
-            if (tradingSymbols == null || tradingSymbols.isEmpty()) {
-                // If no specific instruments are requested, get all available instruments
-                List<Instrument> allInstruments = instrumentService.getInstrumentByTradingsymbols(tradingSymbols);
-                symbols = allInstruments.stream()
-                    .map(Instrument::getTradingSymbol)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-                log.info("Fetching live prices for all {} available instruments", symbols.size());
-            } else {
-                symbols = tradingSymbols;
-            }
+            // Get symbols to process
+            List<Instrument> instruments = getSymbolsToProcess(tradingSymbols);
+            List<Long> instrumentIds = instruments.stream().map(Instrument::getInstrumentToken).collect(Collectors.toList());
+            List<String> symbols = instruments.stream().map(Instrument::getTradingSymbol).collect(Collectors.toList());
             
             // Use the retry mechanism for resilience
             return retryOnFailure(new Callable<List<EquityPrice>>() {
                 @Override
                 public List<EquityPrice> call() throws Exception {
-                    // Process the equity prices using the EquityPriceProcessingService
+                    log.info("[DATA_SOURCE] Attempting to fetch prices from DATABASE first for {} symbols", symbols.size());
+                    // First try to get prices from the database
                     List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(symbols);
+                    
+                    // If database query returns empty results, fetch directly from the provider
                     if (equityPrices == null || equityPrices.isEmpty()) {
-                        log.warn("Processing equity prices was not fully successful");
+                        log.info("[DATA_SOURCE] No prices found in DATABASE, switching to PROVIDER source");
+                        equityPrices = fetchLivePricesFromProvider(instrumentIds);
+                        log.info("[DATA_SOURCE] Successfully fetched {} prices from PROVIDER", equityPrices.size());
+                    }
+                    else {
+                        log.info("[DATA_SOURCE] Successfully fetched {} prices from DATABASE", equityPrices.size());
                     }
                     
-                    // Return the processed equity prices
-                    // Note: Since processEquityPrices doesn't return the prices directly,
-                    // we need to fetch them from the database or adapt the method to return prices
                     return equityPrices;
                 }
             }, "getLivePrices");
