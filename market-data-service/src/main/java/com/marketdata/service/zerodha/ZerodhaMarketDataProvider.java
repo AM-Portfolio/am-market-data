@@ -75,7 +75,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, Object> getOHLC(String[] instruments) {
+    public Map<String, OHLCQuote> getOHLC(String[] instruments) {
         try {
             Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(instruments);
             return new HashMap<>(ohlc);

@@ -4,8 +4,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
+import com.zerodhatech.models.OHLCQuote;
 
 /**
  * Service for market data operations
@@ -38,7 +40,7 @@ public interface MarketDataService {
      * @param instruments Array of instrument identifiers
      * @return Map of instrument to OHLC data
      */
-    Map<String, Object> getOHLC(String[] instruments);
+    Map<String, OHLCQuote> getOHLC(String[] instruments);
     
     /**
      * Get last traded price for instruments
@@ -95,4 +97,11 @@ public interface MarketDataService {
      * @return Success status and provider information
      */
     Map<String, Object> logout();
+    
+    /**
+     * Get live prices for all instruments or filtered by instrument IDs
+     * @param instrumentIds Optional list of instrument IDs to filter by (if null or empty, returns all available prices)
+     * @return List of equity prices with current market data
+     */
+    List<EquityPrice> getLivePrices(List<String> instrumentIds);
 }

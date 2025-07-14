@@ -108,4 +108,60 @@ public class EquityPriceProcessingService {
             .stream()
             .toList();
     }
+    
+    /**
+     * Get the latest equity prices for the specified ISINs
+     * This method fetches the latest prices directly from the data source without persisting them
+     * 
+     * @param isins List of ISINs to get prices for
+     * @return List of equity prices with current market data
+     */
+    public List<EquityPrice> getLatestEquityPrices(List<String> isins) {
+        if (isins == null || isins.isEmpty()) {
+            log.warn("No ISINs provided to fetch prices for");
+            return List.of();
+        }
+        
+        Timer.Sample fetchTimer = Timer.start(meterRegistry);
+        log.info("Fetching latest prices for {} ISINs", isins.size());
+        
+        try {
+            // Format ISINs with NSE prefix
+            Set<String> formattedIsins = formatIsins(isins);
+            
+            // Process in batches for better performance
+            List<List<String>> batches = partition(formattedIsins.stream().toList(), BATCH_SIZE);
+            log.debug("Processing {} ISINs in {} batches", isins.size(), batches.size());
+            
+            // Use a thread-safe collection to store results from all batches
+            List<EquityPrice> allPrices = new ArrayList<>();
+            
+            // Process each batch and collect results
+            for (List<String> batch : batches) {
+                try {
+                    var equityPrices = upStockAdapter.getStocksOHLC(batch);
+                    if (!equityPrices.isEmpty()) {
+                        allPrices.addAll(equityPrices);
+                        meterRegistry.counter("equity.price.fetch.success").increment();
+                    } else {
+                        log.warn("Received empty response for batch");
+                        meterRegistry.counter("equity.price.fetch.empty").increment();
+                    }
+                } catch (Exception e) {
+                    log.error("Error fetching prices for batch: {}", e.getMessage(), e);
+                    meterRegistry.counter("equity.price.fetch.error").increment();
+                }
+            }
+            
+            log.info("Successfully fetched {} equity prices", allPrices.size());
+            fetchTimer.stop(meterRegistry.timer("equity.price.fetch.time"));
+            return allPrices;
+            
+        } catch (Exception e) {
+            log.error("Error fetching latest equity prices: {}", e.getMessage(), e);
+            meterRegistry.counter("equity.price.fetch.error").increment();
+            fetchTimer.stop(meterRegistry.timer("equity.price.fetch.time"));
+            return List.of();
+        }
+    }
 }

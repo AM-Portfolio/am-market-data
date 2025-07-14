@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.zerodhatech.models.HistoricalData;
 import com.zerodhatech.models.Instrument;
+import com.zerodhatech.models.OHLCQuote;
 
 /**
  * Common interface for market data providers (Zerodha, Upstox, etc.)
@@ -55,7 +56,7 @@ public interface MarketDataProvider {
      * @param instruments Array of instruments
      * @return Map of instrument to OHLC data
      */
-    Map<String, Object> getOHLC(String[] instruments);
+    Map<String, OHLCQuote> getOHLC(String[] instruments);
     
     /**
      * Get last traded price for instruments

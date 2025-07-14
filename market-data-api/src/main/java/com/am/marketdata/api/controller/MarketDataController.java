@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.service.MarketDataService;
@@ -232,6 +233,45 @@ public class MarketDataController {
         } catch (Exception e) {
             log.error("Error logging out: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    /**
+     * Get live prices for all instruments or filtered by instrument IDs
+     * 
+     * @param instrumentIds Optional comma-separated list of instrument IDs to filter by
+     * @return List of equity prices with current market data
+     */
+    @GetMapping("/live-prices")
+    public ResponseEntity<Map<String, Object>> getLivePrices(
+            @RequestParam(required = false) String instrumentIds) {
+        try {
+            List<String> idList = null;
+            if (instrumentIds != null && !instrumentIds.isEmpty()) {
+                idList = Arrays.asList(instrumentIds.split(","));
+                log.info("Fetching live prices for {} instruments", idList.size());
+            } else {
+                log.info("Fetching live prices for all available instruments");
+            }
+            
+            long startTime = System.currentTimeMillis();
+            List<EquityPrice> prices = marketDataService.getLivePrices(idList);
+            long endTime = System.currentTimeMillis();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("prices", prices);
+            response.put("count", prices.size());
+            response.put("timestamp", new Date());
+            response.put("processingTimeMs", (endTime - startTime));
+            
+            log.info("Successfully fetched {} live prices in {}ms", prices.size(), (endTime - startTime));
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching live prices: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch live prices");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }

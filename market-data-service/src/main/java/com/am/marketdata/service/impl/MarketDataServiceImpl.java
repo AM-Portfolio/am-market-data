@@ -1,10 +1,14 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.service.MarketDataService;
+import com.am.marketdata.service.EquityPriceProcessingService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
+import com.zerodhatech.models.OHLCQuote;
+import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
+import com.am.common.investment.service.EquityService;
 import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.mapper.HistoryDataMapper;
@@ -34,6 +38,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final HistoricalDataService historicalDataService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
+    private final EquityService equityService;
     private ThreadPoolTaskExecutor marketDataExecutor;
 
     @Value("${market.data.thread.pool.size:5}")
@@ -51,12 +56,13 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.max.age.minutes:15}")
     private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, EquityService equityService) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.historicalDataService = historicalDataService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
+        this.equityService = equityService;
     }
 
     @PostConstruct
@@ -139,7 +145,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public Map<String, Object> getOHLC(String[] instruments) {
+    public Map<String, OHLCQuote> getOHLC(String[] instruments) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             validateInstruments(instruments);
@@ -425,6 +431,50 @@ public class MarketDataServiceImpl implements MarketDataService {
             if (instrument == null || instrument.trim().isEmpty()) {
                 throw new IllegalArgumentException("Instrument cannot be null or empty");
             }
+        }
+    }
+    
+    @Override
+    public List<EquityPrice> getLivePrices(List<String> tradingSymbols) {
+        Timer.Sample timer = Timer.start(meterRegistry);
+        try {
+            log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
+            
+            List<String> symbols;
+            if (tradingSymbols == null || tradingSymbols.isEmpty()) {
+                // If no specific instruments are requested, get all available instruments
+                List<Instrument> allInstruments = instrumentService.getInstrumentByTradingsymbols(tradingSymbols);
+                symbols = allInstruments.stream()
+                    .map(Instrument::getTradingSymbol)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+                log.info("Fetching live prices for all {} available instruments", symbols.size());
+            } else {
+                symbols = tradingSymbols;
+            }
+            
+            // Use the retry mechanism for resilience
+            return retryOnFailure(new Callable<List<EquityPrice>>() {
+                @Override
+                public List<EquityPrice> call() throws Exception {
+                    // Process the equity prices using the EquityPriceProcessingService
+                    List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(symbols);
+                    if (equityPrices == null || equityPrices.isEmpty()) {
+                        log.warn("Processing equity prices was not fully successful");
+                    }
+                    
+                    // Return the processed equity prices
+                    // Note: Since processEquityPrices doesn't return the prices directly,
+                    // we need to fetch them from the database or adapt the method to return prices
+                    return equityPrices;
+                }
+            }, "getLivePrices");
+        } catch (Exception e) {
+            log.error("Error fetching live prices: {}", e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getLivePrices").increment();
+            throw new RuntimeException("Failed to get live prices", e);
+        } finally {
+            timer.stop(meterRegistry.timer("market.data.request.time", "operation", "getLivePrices"));
         }
     }
 
