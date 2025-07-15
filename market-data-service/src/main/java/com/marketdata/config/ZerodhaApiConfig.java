@@ -40,6 +40,8 @@ public class ZerodhaApiConfig {
     @Value("${market-data.zerodha.api.max.retries:3}")
     private int maxRetries;
 
+    
+
     @Value("${market-data.zerodha.api.retry.delay.ms:1000}")
     private int retryDelayMs;
 
@@ -110,22 +112,20 @@ public class ZerodhaApiConfig {
      * @return ZerodhaApiService instance
      */
     @Bean
-    public ZerodhaApiService zerodhaApiService(MeterRegistry meterRegistry, ThreadPoolExecutor threadPoolExecutor) {
+    public ZerodhaApiService zerodhaApiService(MeterRegistry meterRegistry, ThreadPoolExecutor threadPoolExecutor, com.am.common.investment.service.instrument.InstrumentService instrumentService) {
         log.info("Creating Zerodha API service");
-        return new ZerodhaApiService(meterRegistry, threadPoolExecutor);
+        return new ZerodhaApiService(instrumentService, meterRegistry, threadPoolExecutor);
     }
     
     /**
      * Creates the Zerodha market data provider
      * @param zerodhaApiService Zerodha API service
-     * @param instrumentService Instrument service for symbol to token mapping
      * @return ZerodhaMarketDataProvider instance
      */
     @Bean(name = "zerodhaMarketDataProvider")
-    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, 
-            com.am.common.investment.service.instrument.InstrumentService instrumentService) {
+    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService) {
         log.info("Creating Zerodha market data provider");
-        return new ZerodhaMarketDataProvider(zerodhaApiService, instrumentService);
+        return new ZerodhaMarketDataProvider(zerodhaApiService);
     }
     
     /**

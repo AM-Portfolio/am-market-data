@@ -8,7 +8,6 @@ import com.zerodhatech.ticker.OnConnect;
 import com.zerodhatech.ticker.OnDisconnect;
 import com.zerodhatech.ticker.OnTicks;
 import com.zerodhatech.ticker.OnError;
-import com.zerodhatech.ticker.OnOrderUpdate;
 
 import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -16,7 +15,6 @@ import io.micrometer.core.instrument.Timer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +25,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Service for interacting with Zerodha Kite Connect API
@@ -38,6 +37,7 @@ public class ZerodhaApiService {
 
     private KiteConnect kiteConnect;
     private KiteTicker tickerProvider;
+    private final com.am.common.investment.service.instrument.InstrumentService instrumentService;
     private final MeterRegistry meterRegistry;
     private final ThreadPoolExecutor threadPoolExecutor;
     
@@ -65,11 +65,88 @@ public class ZerodhaApiService {
     @Value("${market-data.zerodha.api.refresh.token:}")
     private String refreshToken;
 
-    public ZerodhaApiService(MeterRegistry meterRegistry, ThreadPoolExecutor threadPoolExecutor) {
+    public ZerodhaApiService(com.am.common.investment.service.instrument.InstrumentService instrumentService, MeterRegistry meterRegistry, ThreadPoolExecutor threadPoolExecutor) {
+        this.instrumentService = instrumentService;
         this.meterRegistry = meterRegistry;
         this.threadPoolExecutor = threadPoolExecutor;
         initialize();
         log.info("Initializing Zerodha API service");
+    }
+
+        /**
+     * Convert trading symbols to instrument token IDs
+     * 
+     * @param symbols Array of trading symbols
+     * @return Array of instrument token IDs as strings
+     */
+    private String[] convertSymbolsToInstrumentIds(String[] symbols) {
+        List<com.am.common.investment.model.equity.Instrument> instruments = instrumentService.getInstrumentByTradingsymbols(Arrays.asList(symbols));
+        List<Long> instrumentIds = instruments.stream()
+                .map(com.am.common.investment.model.equity.Instrument::getInstrumentToken)
+                .collect(Collectors.toList());
+        return instrumentIds.stream().map(Object::toString).toArray(String[]::new);
+    }
+
+    /**
+     * Convert a map with instrument IDs as keys to a map with symbols as keys
+     * 
+     * @param <T> Type of the value in the map
+     * @param instrumentMap Map with instrument IDs as keys
+     * @return Map with symbols as keys and the original values
+     */
+    private <T> Map<String, T> convertInstrumentMaptoSymbolMap(Map<String, T> instrumentMap) {
+        if (instrumentMap == null || instrumentMap.isEmpty()) {
+            return new HashMap<>();
+        }
+        
+        Map<String, T> symbolMap = new HashMap<>();
+        
+        try {
+            // Get all instruments by their IDs
+            List<String> instrumentIds = new ArrayList<>(instrumentMap.keySet());
+            List<com.am.common.investment.model.equity.Instrument> instruments = 
+                    instrumentService.getInstrumentByInstrumentTokens(
+                            instrumentIds.stream()
+                            .map(Long::parseLong)
+                            .collect(Collectors.toList()));
+            
+            // Create mapping from instrument ID to trading symbol
+            Map<String, String> idToSymbolMap = instruments.stream()
+                    .collect(Collectors.toMap(
+                            instrument -> instrument.getInstrumentToken().toString(),
+                            com.am.common.investment.model.equity.Instrument::getTradingSymbol,
+                            (existing, replacement) -> existing)); // Keep first in case of duplicates
+            
+            // Convert the original map using the ID to symbol mapping
+            for (Map.Entry<String, T> entry : instrumentMap.entrySet()) {
+                String instrumentId = entry.getKey();
+                String symbol = idToSymbolMap.get(instrumentId);
+                if (symbol != null) {
+                    symbolMap.put(symbol, entry.getValue());
+                } else {
+                    log.warn("No symbol found for instrument ID: {}", instrumentId);
+                    // Fallback to using the instrument ID as the key
+                    symbolMap.put(instrumentId, entry.getValue());
+                }
+            }
+            
+            return symbolMap;
+        } catch (Exception e) {
+            log.error("Error converting instrument map to symbol map: {}", e.getMessage(), e);
+            return instrumentMap; // Return original map on error
+        }
+    }
+    
+    /**
+     * Handle HistoricalData conversion - this is not a map so needs special handling
+     * 
+     * @param historicalData The historical data to process
+     * @return The same historical data (symbol conversion happens at the instrument level)
+     */
+    private HistoricalData convertInstrumentMaptoSymbolMap(HistoricalData historicalData) {
+        // HistoricalData is not a map, so we can't convert keys
+        // Just return the original data - the symbol conversion is handled at the API call level
+        return historicalData;
     }
 
     @PostConstruct
@@ -261,16 +338,17 @@ public class ZerodhaApiService {
      * @return Map of instrument to Quote object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public Map<String, Quote> getQuotes(String[] instruments) {
+    public Map<String, Quote> getQuotes(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            Map<String, Quote> quotes = kiteConnect.getQuote(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, Quote> quotes = kiteConnect.getQuote(instrumentIdsArray);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.quotes.time"));
             meterRegistry.counter("market-data.zerodha.api.quotes.success").increment();
-            return quotes;
+            return convertInstrumentMaptoSymbolMap(quotes);
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.quotes.error", "error_type", getErrorType(e)).increment();
-            log.error("Failed to get quotes for instruments {}: {}", Arrays.toString(instruments), e.getMessage(), e);
+            log.error("Failed to get quotes for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
             throw new ZerodhaApiException("Failed to get quotes", e);
         }
     }
@@ -281,16 +359,17 @@ public class ZerodhaApiService {
      * @return Map of instrument to OHLC object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public Map<String, OHLCQuote> getOHLC(String[] instruments) {
+    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(instrumentIdsArray);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ohlc.time"));
             meterRegistry.counter("market-data.zerodha.api.ohlc.success").increment();
-            return ohlc;
+            return convertInstrumentMaptoSymbolMap(ohlc);
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ohlc.error", "error_type", getErrorType(e)).increment();
-            log.error("Failed to get OHLC for instruments {}: {}", Arrays.toString(instruments), e.getMessage(), e);
+            log.error("Failed to get OHLC for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
             throw new ZerodhaApiException("Failed to get OHLC", e);
         }
     }
@@ -301,16 +380,17 @@ public class ZerodhaApiService {
      * @return Map of instrument to LTP object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public Map<String, LTPQuote> getLTP(String[] instruments) {
+    public Map<String, LTPQuote> getLTP(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            Map<String, LTPQuote> ltp = kiteConnect.getLTP(instruments);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
+            Map<String, LTPQuote> ltp = kiteConnect.getLTP(instrumentIdsArray);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ltp.time"));
             meterRegistry.counter("market-data.zerodha.api.ltp.success").increment();
-            return ltp;
+            return convertInstrumentMaptoSymbolMap(ltp);
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ltp.error", "error_type", getErrorType(e)).increment();
-            log.error("Failed to get LTP for instruments {}: {}", Arrays.toString(instruments), e.getMessage(), e);
+            log.error("Failed to get LTP for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
             throw new ZerodhaApiException("Failed to get LTP", e);
         }
     }
@@ -326,16 +406,17 @@ public class ZerodhaApiService {
      * @return Historical data object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public HistoricalData getHistoricalData(String instrumentToken, Date from, Date to, String interval, boolean continuous, boolean oi) {
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, boolean continuous, boolean oi) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentToken, interval, continuous, oi);
+            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(new String[] { symbol });
+            HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentIdsArray[0], interval, continuous, oi);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.historical.time"));
             meterRegistry.counter("market-data.zerodha.api.historical.success").increment();
-            return historicalData;
+            return convertInstrumentMaptoSymbolMap(historicalData);
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.historical.error", "error_type", getErrorType(e)).increment();
-            log.error("Failed to get historical data for instrument {}: {}", instrumentToken, e.getMessage(), e);
+            log.error("Failed to get historical data for instrument {}: {}", symbol, e.getMessage(), e);
             throw new ZerodhaApiException("Failed to get historical data", e);
         }
     }

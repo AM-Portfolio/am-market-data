@@ -133,7 +133,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     public Map<String, Object> getQuotes(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateInstruments(symbols);
+            validateSymbols(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
             return retryOnFailure(() -> provider.getQuotes(symbols), "getQuotes");
@@ -150,7 +150,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateInstruments(symbols);
+            validateSymbols(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
             return retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
@@ -164,13 +164,15 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public Map<String, Object> getLTP(String[] instruments) {
+    public Map<String, Object> getLTP(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateInstruments(instruments);
+            validateSymbols(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.getLTP(instruments), "getLTP");
+            Map<String, Object> ltpData = retryOnFailure(() -> provider.getLTP(symbols), "getLTP");
+            
+            return ltpData;
         } catch (Exception e) {
             log.error("Error getting LTP data: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getLTP").increment();
@@ -239,7 +241,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public List<Instrument> getAllInstruments() {
+    public List<Instrument> getAllSymbols() {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             // First check if instruments are already present in the database
@@ -263,7 +265,7 @@ public class MarketDataServiceImpl implements MarketDataService {
                 .collect(Collectors.toList());
             
             if (zerodhaInstruments != null && !zerodhaInstruments.isEmpty()) {
-                log.info("Fetched {} instruments from provider, converting to common model", zerodhaInstruments.size());
+                log.info("Fetched {} symbols from provider, converting to common model", zerodhaInstruments.size());
                 
                 // Convert Zerodha instruments to common Instrument model
                 List<Instrument> commonInstruments = instrumentMapper.toCommonInstruments(zerodhaInstruments);
@@ -281,20 +283,20 @@ public class MarketDataServiceImpl implements MarketDataService {
                 return new ArrayList<>();
             }
         } catch (Exception e) {
-            log.error("Error getting all instruments: {}", e.getMessage(), e);
-            meterRegistry.counter("market.data.failure.count", "operation", "getAllInstruments").increment();
+            log.error("Error fetching all symbols: {}", e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getAllSymbols").increment();
             throw new RuntimeException("Failed to get all instruments", e);
         } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getAllInstruments"));
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getAllSymbols"));
         }
     }
     
     @Override
-    public List<Instrument> getInstrumentPagination(int page, int size, String symbol, String type, String exchange) {
+    public List<Instrument> getSymbolPagination(int page, int size, String symbol, String type, String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             // Get all instruments first
-            List<Instrument> allInstruments = getAllInstruments();
+            List<Instrument> allInstruments = getAllSymbols();
             
             // Apply filters if provided
             List<Instrument> filteredInstruments = allInstruments.stream()
@@ -322,11 +324,11 @@ public class MarketDataServiceImpl implements MarketDataService {
                 
             return filteredInstruments.subList(fromIndex, toIndex);
         } catch (Exception e) {
-            log.error("Error getting paginated instruments: {}", e.getMessage(), e);
-            meterRegistry.counter("market.data.failure.count", "operation", "getInstruments").increment();
+            log.error("Error fetching paginated symbols: {}", e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getSymbolPagination").increment();
             throw new RuntimeException("Failed to get paginated instruments", e);
         } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getInstruments"));
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getSymbolPagination"));
         }
     }
 
@@ -339,13 +341,13 @@ public class MarketDataServiceImpl implements MarketDataService {
             }
             
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.getInstrumentsForExchange(exchange), "getInstrumentsForExchange");
+            return retryOnFailure(() -> provider.getSymbolsForExchange(exchange), "getSymbolsForExchange");
         } catch (Exception e) {
-            log.error("Error getting instruments for exchange {}: {}", exchange, e.getMessage(), e);
-            meterRegistry.counter("market.data.failure.count", "operation", "getInstrumentsForExchange").increment();
-            throw new RuntimeException("Failed to get instruments for exchange", e);
+            log.error("Error getting symbols for exchange {}: {}", exchange, e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getSymbolsForExchange").increment();
+            throw new RuntimeException("Failed to get symbols for exchange", e);
         } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getInstrumentsForExchange"));
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getSymbolsForExchange"));
         }
     }
 
@@ -414,24 +416,24 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     /**
-     * Validate instrument array
+     * Validate symbols array
      * 
-     * @param instruments Array of instruments to validate
+     * @param symbols Array of symbols to validate
      */
-    private void validateInstruments(String[] instruments) {
-        if (instruments == null || instruments.length == 0) {
-            throw new IllegalArgumentException("Instruments cannot be null or empty");
+    private void validateSymbols(String[] symbols) {
+        if (symbols == null || symbols.length == 0) {
+            throw new IllegalArgumentException("Symbols cannot be null or empty");
         }
         
-        for (String instrument : instruments) {
-            if (instrument == null || instrument.trim().isEmpty()) {
-                throw new IllegalArgumentException("Instrument cannot be null or empty");
+        for (String symbol : symbols) {
+            if (symbol == null || symbol.trim().isEmpty()) {
+                throw new IllegalArgumentException("Symbol cannot be null or empty");
             }
         }
     }
     
     /**
-     * Get instruments by instrument IDs or all available instruments if no IDs provided
+     * Get symbols by trading symbols or all available symbols if no IDs provided
      * 
      * @param instrumentIds List of instrument IDs or null/empty for all instruments
      * @return Map of trading symbols to Instrument objects

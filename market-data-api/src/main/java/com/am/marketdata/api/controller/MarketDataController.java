@@ -67,18 +67,18 @@ public class MarketDataController {
     }
 
     /**
-     * Get quotes for instruments
-     * @param instruments Comma-separated list of instruments
-     * @return Map of instrument to quote data with metadata
+     * Get quotes for symbols
+     * @param symbols Comma-separated list of symbols
+     * @return Map of symbol to quote data with metadata
      */
     @GetMapping("/quotes")
-    public ResponseEntity<Map<String, Object>> getQuotes(@RequestParam String instruments) {
+    public ResponseEntity<Map<String, Object>> getQuotes(@RequestParam("symbols") String symbols) {
         try {
-            log.info("Controller received request for quotes for instruments: {}", instruments);
-            List<String> instrumentList = Arrays.asList(instruments.split(","));
+            log.info("Controller received request for quotes for symbols: {}", symbols);
+            List<String> symbolList = Arrays.asList(symbols.split(","));
             
             // Delegate to the service for business logic
-            Map<String, Map<String, Object>> quotesMap = investmentInstrumentService.getQuotes(instrumentList);
+            Map<String, Map<String, Object>> quotesMap = investmentInstrumentService.getQuotes(symbolList);
             
             // Check if there was an error
             if (quotesMap.containsKey("ERROR")) {
@@ -95,7 +95,7 @@ public class MarketDataController {
             response.put("timestamp", new Date());
             
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (Exception e) {                                                                                                                                                                        
             log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to get quotes");
@@ -105,15 +105,15 @@ public class MarketDataController {
     }
 
     /**
-     * Get OHLC data for instruments
-     * @param instruments Comma-separated list of instruments
-     * @return Map of instrument to OHLC data
+     * Get OHLC data for symbols
+     * @param symbols Comma-separated list of symbols
+     * @return Map of symbol to OHLC data
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, OHLCQuote>> getOHLC(@RequestParam("instruments") String instruments) {
+    public ResponseEntity<Map<String, OHLCQuote>> getOHLC(@RequestParam("symbols") String symbols) {
         try {
-            String[] instrumentArray = instruments.split(",");
-            Map<String, OHLCQuote> ohlc = marketDataService.getOHLC(instrumentArray);
+            String[] symbolArray = symbols.split(",");
+            Map<String, OHLCQuote> ohlc = marketDataService.getOHLC(symbolArray);
             return ResponseEntity.ok(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC: {}", e.getMessage(), e);
@@ -122,15 +122,15 @@ public class MarketDataController {
     }
 
     /**
-     * Get last traded price for instruments
-     * @param instruments Comma-separated list of instruments
-     * @return Map of instrument to LTP data
+     * Get last traded price for symbols
+     * @param symbols Comma-separated list of symbols
+     * @return Map of symbol to LTP data
      */
     @GetMapping("/ltp")
-    public ResponseEntity<Map<String, Object>> getLTP(@RequestParam("instruments") String instruments) {
+    public ResponseEntity<Map<String, Object>> getLTP(@RequestParam("symbols") String symbols) {
         try {
-            String[] instrumentArray = instruments.split(",");
-            Map<String, Object> ltp = marketDataService.getLTP(instrumentArray);
+            String[] symbolArray = symbols.split(",");
+            Map<String, Object> ltp = marketDataService.getLTP(symbolArray);
             return ResponseEntity.ok(ltp);
         } catch (Exception e) {
             log.error("Error getting LTP: {}", e.getMessage(), e);
@@ -196,18 +196,18 @@ public class MarketDataController {
     }
 
     /**
-     * Get all available instruments
-     * @return List of instruments
+     * Get all available symbols
+     * @return List of symbols
      */
-    @GetMapping("/instruments")
-    public ResponseEntity<Map<String, Object>> searchInstruments(
+    @GetMapping("/symbols")
+    public ResponseEntity<Map<String, Object>> searchSymbols(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String symbol,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String exchange) {
         try {
-            log.info("Controller received request to search instruments with page={}, size={}, symbol={}, type={}, exchange={}", 
+            log.info("Controller received request to search symbols with page={}, size={}, symbol={}, type={}, exchange={}", 
                     page, size, symbol, type, exchange);
             
             // Delegate to the service for business logic
@@ -220,26 +220,26 @@ public class MarketDataController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while searching instruments: {}", e.getMessage(), e);
+            log.error("Unexpected error in controller while searching symbols: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to search instruments");
+            errorResponse.put("error", "Failed to search symbols");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
     /**
-     * Get instruments for a specific exchange
+     * Get symbols for a specific exchange
      * @param exchange Exchange name
-     * @return List of instruments for the exchange
+     * @return List of symbols for the exchange
      */
     @GetMapping("/symbols/{exchange}")
     public ResponseEntity<List<Object>> getSymbolsForExchange(@PathVariable String exchange) {
         try {
-            List<Object> instruments = marketDataService.getSymbolsForExchange(exchange);
-            return ResponseEntity.ok(instruments);
+            List<Object> symbols = marketDataService.getSymbolsForExchange(exchange);
+            return ResponseEntity.ok(symbols);
         } catch (Exception e) {
-            log.error("Error getting instruments for exchange: {}", e.getMessage(), e);
+            log.error("Error getting symbols for exchange: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -382,7 +382,7 @@ public class MarketDataController {
     }
     
     /**
-     * Get live prices for all instruments or filtered by instrument IDs
+     * Get live prices for all symbols or filtered by symbol IDs
      * 
      * @param symbols Optional comma-separated list of trading symbols to filter by
      * @return Map containing prices, count, timestamp and processing time
@@ -394,9 +394,9 @@ public class MarketDataController {
             List<String> symbolList = null;
             if (symbols != null && !symbols.isEmpty()) {
                 symbolList = Arrays.asList(symbols.split(","));
-                log.info("Controller received request for live prices for {} instruments", symbolList.size());
+                log.info("Controller received request for live prices for {} symbols", symbolList.size());
             } else {
-                log.info("Controller received request for all available instruments");
+                log.info("Controller received request for all available symbols");
             }
             
             // Delegate to the service for business logic

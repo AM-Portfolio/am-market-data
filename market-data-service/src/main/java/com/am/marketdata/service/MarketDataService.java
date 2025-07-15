@@ -29,16 +29,16 @@ public interface MarketDataService {
     Object generateSession(String requestToken);
     
     /**
-     * Get quotes for instruments
-     * @param instruments Array of instrument identifiers
-     * @return Map of instrument to quote data
+     * Get quotes for symbols
+     * @param symbols Array of symbol identifiers
+     * @return Map of symbol to quote data
      */
     Map<String, Object> getQuotes(String[] symbols);
     
     /**
-     * Get OHLC data for instruments
-     * @param instruments Array of instrument identifiers
-     * @return Map of instrument to OHLC data
+     * Get OHLC data for symbols
+     * @param symbols Array of symbol identifiers
+     * @return Map of symbol to OHLC data
      */
     Map<String, OHLCQuote> getOHLC(String[] symbols);
     
@@ -68,27 +68,27 @@ public interface MarketDataService {
             Map<String, Object> additionalParams);
     
     /**
-     * Get all available instruments
-     * @return List of instruments
+     * Get all available symbols
+     * @return List of symbols
      */
-    List<Instrument> getAllInstruments();
+    List<Instrument> getAllSymbols();
     
     /**
-     * Get paginated and filtered instruments
+     * Get paginated and filtered symbols
      * 
      * @param page Page number (0-based)
      * @param size Number of records per page
      * @param symbol Filter by trading symbol (optional)
-     * @param type Filter by instrument type (optional)
+     * @param type Filter by symbol type (optional)
      * @param exchange Filter by exchange (optional)
-     * @return Filtered and paginated list of instruments
+     * @return Filtered and paginated list of symbols
      */
-    List<Instrument> getInstrumentPagination(int page, int size, String symbol, String type, String exchange);
+    List<Instrument> getSymbolPagination(int page, int size, String symbol, String type, String exchange);
     
     /**
-     * Get instruments for a specific exchange
+     * Get symbols for a specific exchange
      * @param exchange Exchange name
-     * @return List of instruments for the exchange
+     * @return List of symbols for the exchange
      */
     List<Object> getSymbolsForExchange(String exchange);
     
@@ -99,8 +99,8 @@ public interface MarketDataService {
     Map<String, Object> logout();
     
     /**
-     * Get live prices for all instruments or filtered by instrument IDs
-     * @param instrumentIds Optional list of instrument IDs to filter by (if null or empty, returns all available prices)
+     * Get live prices for all symbols or filtered by symbol IDs
+     * @param symbols Optional list of symbol IDs to filter by (if null or empty, returns all available prices)
      * @return List of equity prices with current market data
      */
     List<EquityPrice> getLivePrices(List<String> symbols);

@@ -115,16 +115,16 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Object> searchInstruments(int page, int size, String symbol, String type, String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing search instruments request with page={}, size={}, symbol={}, type={}, exchange={}", 
-                    page, size, symbol, type, exchange);
+            log.info("Processing search symbols request with page={}, size={}, symbol={}, type={}, exchange={}", 
+                page, size, symbol, type, exchange);
             
             long startTime = System.currentTimeMillis();
             
-            // Get paginated instruments
-            List<Instrument> instruments = marketDataService.getInstrumentPagination(page, size, symbol, type, exchange);
-            
+            // Get paginated symbols
+            List<Instrument> instruments = marketDataService.getSymbolPagination(page, size, symbol, type, exchange);
+        
             // Get total count for pagination
-            List<Instrument> allInstruments = marketDataService.getAllInstruments();
+            List<Instrument> allInstruments = marketDataService.getAllSymbols();
             long totalCount = allInstruments.stream()
                 .filter(instrument -> symbol == null || symbol.isEmpty() || 
                     instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
@@ -146,14 +146,14 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             response.put("totalPages", Math.ceil((double) totalCount / size));
             response.put("processingTimeMs", (endTime - startTime));
             
-            log.info("Successfully processed search with {} instruments in {}ms", instruments.size(), (endTime - startTime));
+            log.info("Successfully processed search with {} symbols in {}ms", instruments.size(), (endTime - startTime));
             return response;
         } catch (Exception e) {
-            log.error("Error processing instrument search: {}", e.getMessage(), e);
+            log.error("Error processing symbol search: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "searchInstruments").increment();
             
             Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to search instruments");
+            errorResponse.put("error", "Failed to search symbols");
             errorResponse.put("message", e.getMessage());
             return errorResponse;
         } finally {
