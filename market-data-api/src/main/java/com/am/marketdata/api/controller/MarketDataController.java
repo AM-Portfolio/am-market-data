@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import com.am.marketdata.api.service.MarketDataCacheService;
 import com.zerodhatech.models.OHLCQuote;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,11 +28,15 @@ public class MarketDataController {
 
     private final MarketDataService marketDataService;
     private final InvestmentInstrumentService investmentInstrumentService;
+    private final MarketDataCacheService marketDataCacheService;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
-    public MarketDataController(MarketDataService marketDataService, InvestmentInstrumentService investmentInstrumentService) {
+    public MarketDataController(MarketDataService marketDataService, 
+                               InvestmentInstrumentService investmentInstrumentService,
+                               MarketDataCacheService marketDataCacheService) {
         this.marketDataService = marketDataService;
         this.investmentInstrumentService = investmentInstrumentService;
+        this.marketDataCacheService = marketDataCacheService;
         dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
     }
 
@@ -72,13 +77,15 @@ public class MarketDataController {
      * @return Map of symbol to quote data with metadata
      */
     @GetMapping("/quotes")
-    public ResponseEntity<Map<String, Object>> getQuotes(@RequestParam("symbols") String symbols) {
+    public ResponseEntity<Map<String, Object>> getQuotes(
+            @RequestParam("symbols") String symbols,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for quotes for symbols: {}", symbols);
+            log.info("Controller received request for quotes for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
             List<String> symbolList = Arrays.asList(symbols.split(","));
             
-            // Delegate to the service for business logic
-            Map<String, Map<String, Object>> quotesMap = investmentInstrumentService.getQuotes(symbolList);
+            // Use cache service instead of direct service call
+            Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(symbolList, forceRefresh);
             
             // Check if there was an error
             if (quotesMap.containsKey("ERROR")) {
@@ -93,12 +100,13 @@ public class MarketDataController {
             response.put("quotes", quotesMap);
             response.put("count", quotesMap.size());
             response.put("timestamp", new Date());
+            response.put("cached", !forceRefresh);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {                                                                                                                                                                        
             log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to get quotes");
+            errorResponse.put("error", "Failed to fetch quotes");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
@@ -150,44 +158,49 @@ public class MarketDataController {
      * @return Historical data with metadata
      */
     @GetMapping("/historical-data")
-    public ResponseEntity<Object> getHistoricalData(
+    public ResponseEntity<Map<String, Object>> getHistoricalData(
             @RequestParam("symbol") String symbol,
             @RequestParam("from") String from,
             @RequestParam("to") String to,
-            @RequestParam("interval") String interval,
-            @RequestParam(value = "continuous", required = false, defaultValue = "true") boolean continuous,
+            @RequestParam(value = "interval", defaultValue = "day") String interval,
+            @RequestParam(value = "continuous", defaultValue = "false") boolean continuous,
             @RequestParam(value = "instrumentType", required = false) String instrumentType,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh,
             @RequestParam(required = false) Map<String, Object> additionalParams) {
         
         try {
-            // Parse dates
-            Date fromDate = dateFormat.parse(from);
-            Date toDate = dateFormat.parse(to);
+            log.info("Controller received request for historical data for symbol: {} from {} to {}, forceRefresh: {}", 
+                    symbol, from, to, forceRefresh);
             
-            // Add continuous flag to additionalParams
-            if (additionalParams == null) {
-                additionalParams = new HashMap<>();
+            Date fromDate;
+            Date toDate;
+            try {
+                fromDate = dateFormat.parse(from);
+                toDate = dateFormat.parse(to);
+            } catch (ParseException e) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Invalid date format");
+                errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+                return ResponseEntity.badRequest().body(errorResponse);
             }
-            additionalParams.put("continuous", continuous);
             
-            // Delegate to the service for business logic
-            Map<String, Object> response = investmentInstrumentService.getHistoricalData(
-                    symbol, fromDate, toDate, interval, instrumentType, additionalParams);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getHistoricalData(
+                symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
                 return ResponseEntity.internalServerError().body(response);
             }
             
+            // Add cache status to response
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
+            }
+            
             return ResponseEntity.ok(response);
-        } catch (ParseException e) {
-            log.error("Error parsing dates: {}", e.getMessage(), e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Invalid date format");
-            errorResponse.put("message", "Use yyyy-MM-dd format for dates");
-            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while fetching historical data: {}", e.getMessage(), e);
+            log.error("Unexpected error in controller while getting historical data: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch historical data");
             errorResponse.put("message", e.getMessage());
@@ -269,10 +282,11 @@ public class MarketDataController {
     @GetMapping("/option-chain")
     public ResponseEntity<Map<String, Object>> getOptionChain(
             @RequestParam("symbol") String underlyingSymbol,
-            @RequestParam(required = false) String expiryDate) {
+            @RequestParam(required = false) String expiryDate,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for option chain for symbol: {} and expiry: {}", 
-                    underlyingSymbol, expiryDate);
+            log.info("Controller received request for option chain for symbol: {} with expiry: {}, forceRefresh: {}", 
+                    underlyingSymbol, expiryDate, forceRefresh);
             
             Date expiry = null;
             if (expiryDate != null && !expiryDate.isEmpty()) {
@@ -281,22 +295,27 @@ public class MarketDataController {
                 } catch (ParseException e) {
                     Map<String, Object> errorResponse = new HashMap<>();
                     errorResponse.put("error", "Invalid date format");
-                    errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+                    errorResponse.put("message", "Use yyyy-MM-dd format for expiry date");
                     return ResponseEntity.badRequest().body(errorResponse);
                 }
             }
             
-            // Delegate to the service for business logic
-            Map<String, Object> response = investmentInstrumentService.getOptionChain(underlyingSymbol, expiry);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getOptionChain(underlyingSymbol, expiry, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
                 return ResponseEntity.internalServerError().body(response);
             }
             
+            // Add cache status to response
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
+            }
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while fetching option chain: {}", e.getMessage(), e);
+            log.error("Unexpected error in controller while getting option chain: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch option chain");
             errorResponse.put("message", e.getMessage());
@@ -312,16 +331,23 @@ public class MarketDataController {
      */
     @GetMapping("/mutual-fund/{schemeCode}")
     public ResponseEntity<Map<String, Object>> getMutualFundDetails(
-            @PathVariable String schemeCode) {
+            @PathVariable String schemeCode,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for mutual fund details for scheme code: {}", schemeCode);
+            log.info("Controller received request for mutual fund details for scheme code: {}, forceRefresh: {}", 
+                    schemeCode, forceRefresh);
             
-            // Delegate to the service for business logic
-            Map<String, Object> response = investmentInstrumentService.getMutualFundDetails(schemeCode);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getMutualFundDetails(schemeCode, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
                 return ResponseEntity.internalServerError().body(response);
+            }
+            
+            // Add cache status to response
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
             }
             
             return ResponseEntity.ok(response);
@@ -346,10 +372,11 @@ public class MarketDataController {
     public ResponseEntity<Map<String, Object>> getMutualFundNavHistory(
             @PathVariable String schemeCode,
             @RequestParam("from") String from,
-            @RequestParam("to") String to) {
+            @RequestParam("to") String to,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for mutual fund NAV history for scheme code: {} from {} to {}", 
-                    schemeCode, from, to);
+            log.info("Controller received request for mutual fund NAV history for scheme code: {} from {} to {}, forceRefresh: {}", 
+                    schemeCode, from, to, forceRefresh);
             
             Date fromDate;
             Date toDate;
@@ -363,12 +390,17 @@ public class MarketDataController {
                 return ResponseEntity.badRequest().body(errorResponse);
             }
             
-            // Delegate to the service for business logic
-            Map<String, Object> response = investmentInstrumentService.getMutualFundNavHistory(schemeCode, fromDate, toDate);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getMutualFundNavHistory(schemeCode, fromDate, toDate, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
                 return ResponseEntity.internalServerError().body(response);
+            }
+            
+            // Add cache status to response
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
             }
             
             return ResponseEntity.ok(response);
@@ -389,22 +421,28 @@ public class MarketDataController {
      */
     @GetMapping("/live-prices")
     public ResponseEntity<Map<String, Object>> getLivePrices(
-            @RequestParam(name = "symbols", required = false) String symbols) {
+            @RequestParam(name = "symbols", required = false) String symbols,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             List<String> symbolList = null;
             if (symbols != null && !symbols.isEmpty()) {
                 symbolList = Arrays.asList(symbols.split(","));
-                log.info("Controller received request for live prices for {} symbols", symbolList.size());
+                log.info("Controller received request for live prices for {} symbols, forceRefresh: {}", symbolList.size(), forceRefresh);
             } else {
-                log.info("Controller received request for all available symbols");
+                log.info("Controller received request for all available symbols, forceRefresh: {}", forceRefresh);
             }
             
-            // Delegate to the service for business logic
-            Map<String, Object> response = investmentInstrumentService.getLivePrices(symbolList);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getLivePrices(symbolList, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
                 return ResponseEntity.internalServerError().body(response);
+            }
+            
+            // Add cache status to response
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
             }
             
             return ResponseEntity.ok(response);

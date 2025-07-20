@@ -77,9 +77,15 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             long startTime = System.currentTimeMillis();
             
             // Default to continuous data unless specified otherwise
-            boolean continuous = additionalParams != null && 
-                                additionalParams.containsKey("continuous") ? 
-                                (boolean) additionalParams.get("continuous") : true;
+            boolean continuous = true; // Default value
+            if (additionalParams != null && additionalParams.containsKey("continuous")) {
+                Object continuousValue = additionalParams.get("continuous");
+                if (continuousValue instanceof Boolean) {
+                    continuous = (Boolean) continuousValue;
+                } else if (continuousValue instanceof String) {
+                    continuous = Boolean.parseBoolean((String) continuousValue);
+                }
+            }
             
             HistoricalData historicalData = marketDataService.getHistoricalData(
                     symbol, fromDate, toDate, interval, continuous, additionalParams);

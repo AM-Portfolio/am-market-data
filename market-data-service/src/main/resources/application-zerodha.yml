@@ -19,9 +19,9 @@ market-data:
         queue:
           capacity: ${ZERODHA_API_THREAD_QUEUE_CAPACITY:10}
       access:
-        token: ${ZERODHA_API_ACCESS_TOKEN:ax7aysMWUztoUGXX5pCa7v9zdG7PHnZG}
+        token: ${ZERODHA_API_ACCESS_TOKEN:s6qkuNYGCT32eHYSD4VR5cq1gSG4DNSM}
       refresh:
-        token: ${ZERODHA_API_REFRESH_TOKEN:ax7aysMWUztoUGXX5pCa7v9zdG7PHnZG}
+        token: ${ZERODHA_API_REFRESH_TOKEN:s6qkuNYGCT32eHYSD4VR5cq1gSG4DNSM}
   
     # Ticker Configuration
     ticker:
