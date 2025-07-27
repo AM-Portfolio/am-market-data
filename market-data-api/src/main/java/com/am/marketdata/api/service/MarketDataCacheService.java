@@ -1,5 +1,6 @@
 package com.am.marketdata.api.service;
 
+import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -92,4 +93,31 @@ public interface MarketDataCacheService {
      * @return Map containing cache statistics (hits, misses, etc.)
      */
     Map<String, Object> getCacheStatistics();
+    
+    /**
+     * Get OHLC data from cache or service
+     * 
+     * @param symbols Array of trading symbols
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return Map of symbol to OHLC data with cache status
+     */
+    Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh);
+    
+    /**
+     * Get latest stock index data from cache or service
+     * 
+     * @param indexSymbol Stock index symbol
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return Stock index market data with cache status information
+     */
+    StockIndicesMarketData getStockIndexData(String indexSymbol, boolean forceRefresh);
+    
+    /**
+     * Get latest stock indices data from cache or service
+     * 
+     * @param indexSymbols List of stock index symbols
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return List of stock indices market data with cache status information
+     */
+    List<StockIndicesMarketData> getStockIndicesData(List<String> indexSymbols, boolean forceRefresh);
 }

@@ -1,9 +1,12 @@
 package com.am.marketdata.api.service.impl;
 
+import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataCacheService;
+import com.am.marketdata.service.MarketDataService;
+import com.zerodhatech.models.OHLCQuote;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of MarketDataCacheService using Redis
@@ -23,7 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class MarketDataCacheServiceImpl implements MarketDataCacheService {
 
     private final InvestmentInstrumentService investmentInstrumentService;
+    private final MarketDataService marketDataService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StockIndicesMarketDataService stockIndicesMarketDataService;
     
     // Cache statistics counters
     private final AtomicLong cacheHits = new AtomicLong(0);
@@ -35,10 +41,14 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     @Value("${market.data.cache.enabled:true}")
     private boolean cacheEnabled;
 
-    public MarketDataCacheServiceImpl(InvestmentInstrumentService investmentInstrumentService, 
-                                     RedisTemplate<String, Object> redisTemplate) {
+    public MarketDataCacheServiceImpl(InvestmentInstrumentService investmentInstrumentService,
+                                     MarketDataService marketDataService,
+                                     RedisTemplate<String, Object> redisTemplate,
+                                     StockIndicesMarketDataService stockIndicesMarketDataService) {
         this.investmentInstrumentService = investmentInstrumentService;
+        this.marketDataService = marketDataService;
         this.redisTemplate = redisTemplate;
+        this.stockIndicesMarketDataService = stockIndicesMarketDataService;
     }
     
     /**
@@ -368,5 +378,184 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         }
         
         return (double) hits / total;
+    }
+    
+    @Override
+    public Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh) {
+        if (!cacheEnabled || forceRefresh) {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache disabled or force refresh requested for OHLC data");
+            return fetchAndCacheOHLC(symbols);
+        }
+        
+        String cacheKey = buildOHLCCacheKey(symbols);
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cachedData = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
+        
+        if (cachedData != null) {
+            cacheHits.incrementAndGet();
+            log.debug("Cache hit for OHLC data with key: {}", cacheKey);
+            return cachedData;
+        } else {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache miss for OHLC data with key: {}", cacheKey);
+            return fetchAndCacheOHLC(symbols);
+        }
+    }
+    
+    private Map<String, Object> fetchAndCacheOHLC(String[] symbols) {
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(symbols);
+        
+        // Create response with cache status
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", ohlcData);
+        response.put("cached", false);
+        response.put("timestamp", System.currentTimeMillis());
+        
+        // Don't cache if null or empty
+        if (ohlcData != null && !ohlcData.isEmpty()) {
+            String cacheKey = buildOHLCCacheKey(symbols);
+            redisTemplate.opsForValue().set(cacheKey, response, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+            log.debug("Cached OHLC data with key: {}", cacheKey);
+        }
+        
+        return response;
+    }
+    
+    private String buildOHLCCacheKey(String[] symbols) {
+        return "ohlc:" + (symbols != null ? String.join(",", symbols) : "all");
+    }
+    
+    @Override
+    public StockIndicesMarketData getStockIndexData(String indexSymbol, boolean forceRefresh) {
+        if (!cacheEnabled || forceRefresh) {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache disabled or force refresh requested for stock index data: {}", indexSymbol);
+            return fetchAndCacheStockIndexData(indexSymbol);
+        }
+        
+        String cacheKey = buildStockIndexCacheKey(indexSymbol);
+        
+        Object rawCachedData = redisTemplate.opsForValue().get(cacheKey);
+        StockIndicesMarketData cachedData = null;
+        
+        if (rawCachedData instanceof Map) {
+            // Handle the case where Redis returns a Map instead of the actual object
+            log.debug("Converting Map to StockIndicesMarketData for key: {}", cacheKey);
+            // We need to fetch the data again since we can't reliably convert the Map
+            cachedData = stockIndicesMarketDataService.findByIndexSymbol(indexSymbol);
+            // Update the cache with the proper object
+            if (cachedData != null) {
+                redisTemplate.opsForValue().set(cacheKey, cachedData, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+            }
+        } else if (rawCachedData instanceof StockIndicesMarketData) {
+            cachedData = (StockIndicesMarketData) rawCachedData;
+        }
+        
+        if (cachedData != null) {
+            cacheHits.incrementAndGet();
+            log.debug("Cache hit for stock index data with key: {}", cacheKey);
+            return cachedData;
+        } else {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache miss for stock index data with key: {}", cacheKey);
+            return fetchAndCacheStockIndexData(indexSymbol);
+        }
+    }
+    
+    private StockIndicesMarketData fetchAndCacheStockIndexData(String indexSymbol) {
+        StockIndicesMarketData indexData = stockIndicesMarketDataService.findByIndexSymbol(indexSymbol);
+        
+        // Don't cache if null
+        if (indexData != null) {
+            String cacheKey = buildStockIndexCacheKey(indexSymbol);
+            redisTemplate.opsForValue().set(cacheKey, indexData, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+            log.debug("Cached stock index data with key: {}", cacheKey);
+        }
+        
+        return indexData;
+    }
+    
+    private String buildStockIndexCacheKey(String indexSymbol) {
+        return "stock-index:" + indexSymbol;
+    }
+    
+    @Override
+    public List<StockIndicesMarketData> getStockIndicesData(List<String> indexSymbols, boolean forceRefresh) {
+        if (!cacheEnabled || forceRefresh) {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache disabled or force refresh requested for stock indices data");
+            return fetchAndCacheStockIndicesData(indexSymbols);
+        }
+        
+        String cacheKey = buildStockIndicesCacheKey(indexSymbols);
+        
+        Object rawCachedData = redisTemplate.opsForValue().get(cacheKey);
+        List<StockIndicesMarketData> cachedData = null;
+        
+        if (rawCachedData instanceof List) {
+            try {
+                List<?> dataList = (List<?>) rawCachedData;
+                
+                // Check if we can safely cast the list elements
+                if (!dataList.isEmpty() && dataList.get(0) instanceof StockIndicesMarketData) {
+                    @SuppressWarnings("unchecked")
+                    List<StockIndicesMarketData> typedList = (List<StockIndicesMarketData>) dataList;
+                    cachedData = typedList;
+                } else {
+                    // Need to fetch fresh data as we can't safely cast
+                    log.debug("Cannot safely cast cached list data for key: {}", cacheKey);
+                    cachedData = indexSymbols.stream()
+                        .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
+                        .filter(data -> data != null)
+                        .collect(Collectors.toList());
+                    // Update cache with properly typed objects
+                    if (cachedData != null && !cachedData.isEmpty()) {
+                        redisTemplate.opsForValue().set(cacheKey, cachedData, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+                    }
+                }
+            } catch (ClassCastException e) {
+                log.debug("ClassCastException when processing cached data: {}", e.getMessage());
+                cachedData = indexSymbols.stream()
+                    .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
+                    .filter(data -> data != null)
+                    .collect(Collectors.toList());
+                // Update cache with properly typed objects
+                if (cachedData != null && !cachedData.isEmpty()) {
+                    redisTemplate.opsForValue().set(cacheKey, cachedData, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+                }
+            }
+        }
+        
+        if (cachedData != null) {
+            cacheHits.incrementAndGet();
+            log.debug("Cache hit for stock indices data with key: {}", cacheKey);
+            return cachedData;
+        } else {
+            cacheMisses.incrementAndGet();
+            log.debug("Cache miss for stock indices data with key: {}", cacheKey);
+            return fetchAndCacheStockIndicesData(indexSymbols);
+        }
+    }
+    
+    private List<StockIndicesMarketData> fetchAndCacheStockIndicesData(List<String> indexSymbols) {
+        List<StockIndicesMarketData> indicesData = indexSymbols.stream()
+            .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
+            .filter(data -> data != null)
+            .collect(Collectors.toList());
+        
+        // Don't cache if null or empty
+        if (indicesData != null && !indicesData.isEmpty()) {
+            String cacheKey = buildStockIndicesCacheKey(indexSymbols);
+            redisTemplate.opsForValue().set(cacheKey, indicesData, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+            log.debug("Cached stock indices data with key: {}", cacheKey);
+        }
+        
+        return indicesData;
+    }
+    
+    private String buildStockIndicesCacheKey(List<String> indexSymbols) {
+        return "stock-indices:" + (indexSymbols != null ? String.join(",", indexSymbols) : "all");
     }
 }

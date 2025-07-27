@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/nse-indices")
@@ -21,16 +23,25 @@ public class MarketIndexController {
     @Operation(summary = "Get latest market data for a single NSE index")
     public ResponseEntity<StockIndicesMarketData> getLatestIndexData(
             @Parameter(description = "NSE Index symbol", required = true)
-            @PathVariable("indexSymbol") String indexSymbol
+            @PathVariable("indexSymbol") String indexSymbol,
+            @Parameter(description = "Force refresh from source instead of using cache")
+            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh
     ) {
-        return ResponseEntity.ok(stockIndicesService.getLatestIndexData(indexSymbol));
+        StockIndicesMarketData data = stockIndicesService.getLatestIndexData(indexSymbol, forceRefresh);
+        
+        return ResponseEntity.ok(data);
     }
 
     @PostMapping("/batch")
     @Operation(summary = "Get latest market data for multiple NSE indices")
     public ResponseEntity<List<StockIndicesMarketData>> getLatestIndicesData(
             @Parameter(description = "List of NSE Index symbols", required = true)
-            @RequestBody List<String> indexSymbols) {
-        return ResponseEntity.ok(stockIndicesService.getLatestIndicesData(indexSymbols));
+            @RequestBody List<String> indexSymbols,
+            @Parameter(description = "Force refresh from source instead of using cache")
+            @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh) {
+        
+        List<StockIndicesMarketData> data = stockIndicesService.getLatestIndicesData(indexSymbols, forceRefresh);
+        
+        return ResponseEntity.ok(data);
     }   
 }

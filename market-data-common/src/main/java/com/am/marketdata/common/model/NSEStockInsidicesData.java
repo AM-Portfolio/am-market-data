@@ -3,12 +3,13 @@ package com.am.marketdata.common.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.am.marketdata.common.util.CustomDoubleDeserializer;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 
 import java.util.List;
 
@@ -51,26 +52,41 @@ public class NSEStockInsidicesData {
         private String symbol;
         private String identifier;
         private String series;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double open;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double dayHigh;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double dayLow;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double lastPrice;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double previousClose;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double change;
         @JsonProperty("pChange")
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double pChange;
         private long totalTradedVolume;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double stockIndClosePrice;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double totalTradedValue;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double yearHigh;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double ffmc;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double yearLow;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double nearWKH;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double nearWKL;
         private String perChange365d;
         private String date365dAgo;
         private String chart365dPath;
         private String date30dAgo;
+        @JsonDeserialize(using = CustomDoubleDeserializer.class)
         private Double perChange30d;
         private String chart30dPath;
         private String chartTodayPath;

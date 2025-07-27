@@ -115,17 +115,37 @@ public class MarketDataController {
     /**
      * Get OHLC data for symbols
      * @param symbols Comma-separated list of symbols
-     * @return Map of symbol to OHLC data
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return Map of symbol to OHLC data with cache status
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, OHLCQuote>> getOHLC(@RequestParam("symbols") String symbols) {
+    public ResponseEntity<Map<String, Object>> getOHLC(
+            @RequestParam("symbols") String symbols,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
+            log.info("Controller received request for OHLC data for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
             String[] symbolArray = symbols.split(",");
-            Map<String, OHLCQuote> ohlc = marketDataService.getOHLC(symbolArray);
-            return ResponseEntity.ok(ohlc);
+            
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getOHLC(symbolArray, forceRefresh);
+            
+            // Check if there was an error
+            if (response.containsKey("error")) {
+                return ResponseEntity.internalServerError().body(response);
+            }
+            
+            // Add cache status to response if not already present
+            if (!response.containsKey("cached")) {
+                response.put("cached", !forceRefresh);
+            }
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting OHLC: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch OHLC data");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
