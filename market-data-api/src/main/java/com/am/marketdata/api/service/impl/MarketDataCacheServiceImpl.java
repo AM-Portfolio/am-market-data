@@ -1,5 +1,10 @@
 package com.am.marketdata.api.service.impl;
 
+import com.am.common.investment.model.historical.HistoricalData;
+import com.am.common.investment.model.historical.OHLCVTPoint;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
@@ -11,6 +16,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -199,6 +206,216 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
                             toDate.getTime(), 
                             interval, 
                             instrumentType != null ? instrumentType : "default");
+    }
+
+    @Override
+    public Map<String, Object> getHistoricalDataMultipleSymbols(List<String> symbols, Date fromDate, Date toDate, 
+                                                         String interval, String instrumentType, 
+                                                         Map<String, Object> additionalParams, boolean forceRefresh) {
+        log.info("Processing historical data request for multiple symbols: {} from {} to {}", 
+                symbols, fromDate, toDate);
+        
+        // Prepare the result container
+        Map<String, Object> aggregatedResult = new HashMap<>();
+        Map<String, Object> symbolsData = new HashMap<>();
+        long startTime = System.currentTimeMillis();
+        int totalDataPoints = 0;
+        int successCount = 0;
+        
+        // Process each symbol
+        for (String symbol : symbols) {
+            try {
+                Map<String, Object> singleResult = getHistoricalData(
+                    symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh);
+                
+                // Skip if there was an error for this symbol
+                if (singleResult.containsKey("error")) {
+                    log.warn("Error fetching historical data for symbol {}: {}", 
+                            symbol, singleResult.get("message"));
+                    symbolsData.put(symbol, singleResult);
+                    continue;
+                }
+                
+                // Apply filtering if needed
+                if (additionalParams != null && additionalParams.containsKey("filterType")) {
+                    singleResult = applyDataFiltering(singleResult, additionalParams);
+                }
+                
+                // Add to the results
+                symbolsData.put(symbol, singleResult);
+                successCount++;
+                
+                // Count data points
+                if (singleResult.containsKey("count")) {
+                    totalDataPoints += (int) singleResult.get("count");
+                }
+            } catch (Exception e) {
+                log.error("Error processing historical data for symbol {}: {}", symbol, e.getMessage(), e);
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("error", "Failed to fetch historical data");
+                errorResult.put("message", e.getMessage());
+                symbolsData.put(symbol, errorResult);
+            }
+        }
+        
+        long endTime = System.currentTimeMillis();
+        
+        // Build the aggregated response
+        aggregatedResult.put("data", symbolsData);
+        aggregatedResult.put("symbols", symbols);
+        aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
+        aggregatedResult.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
+        aggregatedResult.put("interval", interval);
+        aggregatedResult.put("totalSymbols", symbols.size());
+        aggregatedResult.put("successfulSymbols", successCount);
+        aggregatedResult.put("totalDataPoints", totalDataPoints);
+        aggregatedResult.put("processingTimeMs", (endTime - startTime));
+        
+        log.info("Successfully processed historical data for {}/{} symbols with {} total data points in {}ms", 
+                successCount, symbols.size(), totalDataPoints, (endTime - startTime));
+        
+        return aggregatedResult;
+    }
+    
+    /**
+     * Apply filtering to historical data based on filter parameters
+     * 
+     * @param data Original historical data response
+     * @param params Parameters containing filter settings
+     * @return Filtered historical data
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> applyDataFiltering(Map<String, Object> data, Map<String, Object> params) {
+        String filterType = params.get("filterType").toString();
+        int filterFrequency = params.containsKey("filterFrequency") ? 
+                Integer.parseInt(params.get("filterFrequency").toString()) : 1;
+        
+        // If no filtering needed (ALL type)
+        if ("ALL".equalsIgnoreCase(filterType)) {
+            return data;
+        }
+        
+        // For CUSTOM type, ensure filterFrequency is at least 2
+        if ("CUSTOM".equalsIgnoreCase(filterType) && filterFrequency < 2) {
+            log.warn("CUSTOM filter type specified but filterFrequency is less than 2 ({}). Using default of 2.", filterFrequency);
+            filterFrequency = 2;
+        }
+        
+        // Get the historical data points
+        Map<String, Object> result = new HashMap<>(data);
+        Object dataObj = data.get("data");
+        
+        // Handle different data types
+        List<OHLCVTPoint> originalPoints = new ArrayList<>();
+        String tradingSymbol = "";
+        String interval = "";
+        
+        // Extract data from either HistoricalData object or Map
+        if (dataObj instanceof HistoricalData) {
+            HistoricalData historicalData = (HistoricalData) dataObj;
+            originalPoints = historicalData.getDataPoints();
+            tradingSymbol = historicalData.getTradingSymbol();
+            interval = historicalData.getInterval();
+        } else if (dataObj instanceof Map) {
+            Map<String, Object> dataMap = (Map<String, Object>) dataObj;
+            
+            if (dataMap.containsKey("tradingSymbol")) {
+                tradingSymbol = dataMap.get("tradingSymbol").toString();
+            }
+            
+            if (dataMap.containsKey("interval")) {
+                interval = dataMap.get("interval").toString();
+            }
+            
+            if (dataMap.containsKey("dataPoints") && dataMap.get("dataPoints") instanceof List) {
+                List<Map<String, Object>> pointMaps = (List<Map<String, Object>>) dataMap.get("dataPoints");
+                
+                for (Map<String, Object> pointMap : pointMaps) {
+                    OHLCVTPoint point = new OHLCVTPoint();
+                    
+                    if (pointMap.containsKey("timestamp")) {
+                        // Convert Date to LocalDateTime if needed
+                        if (pointMap.get("timestamp") instanceof Date) {
+                            Date date = (Date) pointMap.get("timestamp");
+                            point.setTime(date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+                        } else if (pointMap.get("timestamp") instanceof LocalDateTime) {
+                            point.setTime((LocalDateTime) pointMap.get("timestamp"));
+                        }
+                    }
+                    
+                    if (pointMap.containsKey("open")) {
+                        point.setOpen(Double.parseDouble(pointMap.get("open").toString()));
+                    }
+                    
+                    if (pointMap.containsKey("high")) {
+                        point.setHigh(Double.parseDouble(pointMap.get("high").toString()));
+                    }
+                    
+                    if (pointMap.containsKey("low")) {
+                        point.setLow(Double.parseDouble(pointMap.get("low").toString()));
+                    }
+                    
+                    if (pointMap.containsKey("close")) {
+                        point.setClose(Double.parseDouble(pointMap.get("close").toString()));
+                    }
+                    
+                    if (pointMap.containsKey("volume")) {
+                        point.setVolume(Long.parseLong(pointMap.get("volume").toString()));
+                    }
+                    
+                    originalPoints.add(point);
+                }
+            }
+        } else {
+            log.warn("Unexpected data type for filtering: {}", dataObj != null ? dataObj.getClass().getName() : "null");
+            return data; // Return original data if unexpected type
+        }
+        
+        if (originalPoints.isEmpty()) {
+            log.warn("No data points found for filtering");
+            return data; // Nothing to filter
+        }
+        
+        // Apply filtering based on type
+        List<OHLCVTPoint> filteredPoints = new ArrayList<>();
+        
+        if ("START_END".equalsIgnoreCase(filterType)) {
+            // Only include first and last points
+            filteredPoints.add(originalPoints.get(0)); // First point
+            
+            if (originalPoints.size() > 1) {
+                filteredPoints.add(originalPoints.get(originalPoints.size() - 1)); // Last point
+            }
+        } else if ("CUSTOM".equalsIgnoreCase(filterType)) {
+            // Include every Nth point
+            for (int i = 0; i < originalPoints.size(); i += filterFrequency) {
+                filteredPoints.add(originalPoints.get(i));
+            }
+            
+            // Always include the last point if not already included
+            int lastIndex = originalPoints.size() - 1;
+            if (lastIndex >= 0 && lastIndex % filterFrequency != 0) {
+                filteredPoints.add(originalPoints.get(lastIndex));
+            }
+        }
+        
+        // Create a new HistoricalData object with filtered points
+        HistoricalData filteredData = new HistoricalData();
+        filteredData.setDataPoints(filteredPoints);
+        filteredData.setTradingSymbol(tradingSymbol);
+        filteredData.setInterval(interval);
+        
+        // Update the result
+        result.put("data", filteredData);
+        result.put("count", filteredPoints.size());
+        result.put("filtered", true);
+        result.put("filterType", filterType);
+        result.put("originalCount", originalPoints.size());
+        
+        log.debug("Applied {} filtering to historical data, reduced from {} to {} points", 
+                filterType, originalPoints.size(), filteredPoints.size());
+        
+        return result;
     }
 
     @Override

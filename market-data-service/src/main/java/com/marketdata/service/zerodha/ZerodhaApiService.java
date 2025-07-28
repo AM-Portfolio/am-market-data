@@ -1,5 +1,6 @@
 package com.marketdata.service.zerodha;
 
+import com.am.marketdata.common.model.TimeFrame;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.*;
@@ -409,8 +410,10 @@ public class ZerodhaApiService {
     public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, boolean continuous, boolean oi) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
+            // Convert interval to TimeFrame for proper mapping
+            String zerodhaInterval = TimeFrame.toZerodhaValue(interval);
             String[] instrumentIdsArray = convertSymbolsToInstrumentIds(new String[] { symbol });
-            HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentIdsArray[0], interval, continuous, oi);
+            HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentIdsArray[0], zerodhaInterval, continuous, oi);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.historical.time"));
             meterRegistry.counter("market-data.zerodha.api.historical.success").increment();
             return convertInstrumentMaptoSymbolMap(historicalData);

@@ -46,6 +46,24 @@ public interface MarketDataCacheService {
                                        Map<String, Object> additionalParams, boolean forceRefresh);
     
     /**
+     * Get historical data for multiple symbols from cache or service
+     * 
+     * @param symbols List of trading symbols
+     * @param fromDate Start date
+     * @param toDate End date
+     * @param interval Data interval (minute, day, etc.)
+     * @param instrumentType Type of instrument (STOCK, OPTION, MUTUAL_FUND, etc.)
+     * @param additionalParams Additional parameters specific to instrument type including:
+     *                        - filterType: Type of filtering (ALL, START_END, CUSTOM)
+     *                        - filterFrequency: When using CUSTOM filter, return every Nth data point
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return Historical data response with metadata for all symbols
+     */
+    Map<String, Object> getHistoricalDataMultipleSymbols(List<String> symbols, Date fromDate, Date toDate, 
+                                       String interval, String instrumentType, 
+                                       Map<String, Object> additionalParams, boolean forceRefresh);
+    
+    /**
      * Get option chain data from cache or service
      * 
      * @param underlyingSymbol Symbol of the underlying instrument
