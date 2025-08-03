@@ -22,7 +22,7 @@ spec:
         image: influxdb:2.6-alpine
         ports:
         - containerPort: 8086
-          name: api
+          name: http
         env:
         - name: DOCKER_INFLUXDB_INIT_MODE
           value: "setup"
@@ -45,6 +45,10 @@ spec:
             secretKeyRef:
               name: influxdb-secret
               key: token
+        - name: INFLUXD_CONFIG_PATH
+          value: ""
+        - name: INFLUXD_HTTP_BIND_ADDRESS
+          value: ":8086"
         resources:
           requests:
             memory: "64Mi"
@@ -55,7 +59,7 @@ spec:
         volumeMounts:
         - name: influxdb-data
           mountPath: /var/lib/influxdb2
-        - name: influxdb-config
+        - name: influxdb-config-dir
           mountPath: /etc/influxdb2
         readinessProbe:
           httpGet:
@@ -67,9 +71,8 @@ spec:
           successThreshold: 1
           failureThreshold: 3
       volumes:
-      - name: influxdb-config
-        configMap:
-          name: influxdb-config
+      - name: influxdb-config-dir
+        emptyDir: {}
   volumeClaimTemplates:
   - metadata:
       name: influxdb-data
