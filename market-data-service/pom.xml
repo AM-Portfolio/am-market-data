@@ -67,11 +67,11 @@
         </dependency>
         
         <!-- Database -->
-        <dependency>
+        <!-- <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
-        </dependency>
+        </dependency> -->
 
         <!-- Resilience4j for circuit breaking -->
         <dependency>

@@ -5,6 +5,7 @@ This directory contains Kubernetes deployment files for the core infrastructure 
 ## Services Included
 
 - **MongoDB**: Document database for storing market data
+- **PostgreSQL**: Relational database for structured data storage
 - **Redis**: In-memory cache for fast data access
 - **Kafka**: Message broker for event streaming
 - **InfluxDB**: Time-series database for metrics storage
@@ -77,6 +78,14 @@ kubectl apply -f influxdb/deployment.yaml
 kubectl apply -f influxdb/service.yaml
 ```
 
+#### PostgreSQL
+
+```bash
+kubectl apply -f postgresql/secret.yaml
+kubectl apply -f postgresql/deployment.yaml
+kubectl apply -f postgresql/service.yaml
+```
+
 ### 4. Verify Deployments
 
 ```bash
@@ -94,6 +103,7 @@ These deployments use `default` storage class, which is available in Azure AKS. 
 Resource requests and limits are set conservatively. Adjust them based on your workload requirements:
 
 - MongoDB: 256Mi-1Gi memory, 200m-500m CPU
+- PostgreSQL: 256Mi-512Mi memory, 100m-500m CPU
 - Redis: 128Mi-512Mi memory, 100m-300m CPU
 - Kafka: 512Mi-1Gi memory, 200m-500m CPU
 - InfluxDB: 512Mi-1Gi memory, 200m-500m CPU
@@ -130,6 +140,6 @@ kubectl port-forward svc/mongodb 27017:27017 -n dev
 kubectl port-forward svc/redis 6379:6379 -n dev
 kubectl port-forward svc/kafka 9092:9092 -n dev
 kubectl port-forward svc/zookeeper 2181:2181 -n dev
-
+kubectl port-forward svc/postgresql 5432:5432 -n dev
 kubectl port-forward svc/influxdb 8086:8086 -n dev
 ```

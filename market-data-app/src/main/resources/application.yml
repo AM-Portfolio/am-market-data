@@ -1,20 +1,21 @@
 # PostgreSQL Configuration
-POSTGRES_PASSWORD: password
-POSTGRES_USERNAME: postgres
-POSTGRES_URL: jdbc:postgresql://localhost:5456
-POSTGRES_DATABASE: portfolio
+# POSTGRES_PASSWORD: password
+# POSTGRES_USERNAME: postgres
+# POSTGRES_URL: jdbc:postgresql://localhost:5456
+# POSTGRES_DATABASE: portfolio
 
 #mongo
-MONGO_URL: mongodb://admin:password@localhost:27017/portfolio?authSource=admin
+MONGO_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
 MONGO_DATABASE: market_data
-MONGO_USERNAME: admin
-MONGO_PASSWORD: password
+MONGO_USERNAME: ssd2658
+MONGO_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
-INFLUXDB_TOKEN: my-super-secret-auth-token
-INFLUXDB_ORG: am_investment
+INFLUXDB_TOKEN: ssd2658admin123456789
+INFLUXDB_ORG: am-portfolio
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://localhost:8087
+INFLUXDB_URL: http://influxdb.dev.svc.cluster.local:8086
+
 
 # Grafana Configuration
 GRAFANA_ADMIN_USER: 1109403
@@ -78,11 +79,11 @@ spring:
     bucket: ${INFLUXDB_BUCKET}
     
   # Database Configuration
-  datasource:
-    url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: org.postgresql.Driver
+  # datasource:
+  #   url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
+  #   username: ${POSTGRES_USERNAME}
+  #   password: ${POSTGRES_PASSWORD}
+  #   driver-class-name: org.postgresql.Driver
     
   # Kafka Configuration
   kafka:
@@ -100,14 +101,14 @@ spring:
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-    show-sql: true
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: update
+  #   properties:
+  #     hibernate:
+  #       dialect: org.hibernate.dialect.PostgreSQLDialect
+  #       format_sql: true
+  #   show-sql: true
 
   management:
     endpoints:

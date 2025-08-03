@@ -2,6 +2,8 @@ package com.am.marketdata;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
@@ -18,7 +20,10 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {
+    DataSourceAutoConfiguration.class,
+    HibernateJpaAutoConfiguration.class
+})
 // @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 @EnableConfigurationProperties({NSEIndicesConfig.class})
@@ -43,15 +48,15 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
     @ComponentScan("com.marketdata.service"),
     @ComponentScan("com.marketdata.config")
 })
-@EnableJpaRepositories(
-    basePackages = {
-        "com.am.marketdata.repository",
-        "com.am.common.amcommondata.domain",
-        "com.am.common.amcommondata.domain.asset",
-        "com.am.common.amcommondata.repository.portfolio",
-        "com.am.common.amcommondata.repository.asset"
-    }
-)
+// @EnableJpaRepositories(
+//     basePackages = {
+//         "com.am.marketdata.repository",
+//         "com.am.common.amcommondata.domain",
+//         "com.am.common.amcommondata.domain.asset",
+//         "com.am.common.amcommondata.repository.portfolio",
+//         "com.am.common.amcommondata.repository.asset"
+//     }
+// )
 @EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
 @EnableRetry
 @EnableScheduling
