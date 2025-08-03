@@ -9,7 +9,7 @@ data:
   kafka_server_jaas.conf: |
     KafkaServer {
       org.apache.kafka.common.security.plain.PlainLoginModule required
-      username="${KAFKA_USERNAME}"
-      password="${KAFKA_PASSWORD}"
-      user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+      username="kafkaUser"
+      password="kafkaPassword123!"
+      user_kafkaUser="kafkaPassword123!";
     };

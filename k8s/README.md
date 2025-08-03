@@ -129,5 +129,7 @@ kubectl logs -f -l app=influxdb -n dev
 kubectl port-forward svc/mongodb 27017:27017 -n dev
 kubectl port-forward svc/redis 6379:6379 -n dev
 kubectl port-forward svc/kafka 9092:9092 -n dev
+kubectl port-forward svc/zookeeper 2181:2181 -n dev
+
 kubectl port-forward svc/influxdb 8086:8086 -n dev
 ```
