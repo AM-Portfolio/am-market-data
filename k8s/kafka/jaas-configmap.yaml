@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-jaas-config
+  labels:
+    app: kafka
+    service: market-data
+data:
+  kafka_server_jaas.conf: |
+    KafkaServer {
+      org.apache.kafka.common.security.plain.PlainLoginModule required
+      username="${KAFKA_USERNAME}"
+      password="${KAFKA_PASSWORD}"
+      user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+    };

@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: market-data
+---
+# Include all MongoDB resources
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: mongodb-secret
+    namespace: market-data
+    labels:
+      app: mongodb
+      service: market-data
+  type: Opaque
+  data:
+    username: YWRtaW4=  # admin (base64 encoded)
+    password: cGFzc3dvcmQ=  # password (base64 encoded)
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: mongodb
+    namespace: market-data
+    labels:
+      app: mongodb
+      service: market-data
+  spec:
+    serviceName: mongodb
+    replicas: 1
+    selector:
+      matchLabels:
+        app: mongodb
+    template:
+      metadata:
+        labels:
+          app: mongodb
+          service: market-data
+      spec:
+        containers:
+        - name: mongodb
+          image: mongo:5.0
+          ports:
+          - containerPort: 27017
+            name: mongodb
+          env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-secret
+                key: username
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-secret
+                key: password
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+          - name: mongodb-data
+            mountPath: /data/db
+          readinessProbe:
+            exec:
+              command:
+              - mongo
+              - --eval
+              - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+    volumeClaimTemplates:
+    - metadata:
+        name: mongodb-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: managed-premium
+        resources:
+          requests:
+            storage: 10Gi
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: mongodb
+    namespace: market-data
+    labels:
+      app: mongodb
+      service: market-data
+  spec:
+    ports:
+    - port: 27017
+      targetPort: 27017
+      name: mongodb
+    clusterIP: None
+    selector:
+      app: mongodb

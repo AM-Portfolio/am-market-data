@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    service: market-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        service: market-data
+    spec:
+      initContainers:
+      - name: init-redis-config
+        image: busybox:1.28
+        command: ['sh', '-c', "cat /tmp/redis/redis.conf | sed s/REDIS_PASSWORD_PLACEHOLDER/$(cat /tmp/redis-secret/password)/g > /etc/redis/redis.conf"]
+        volumeMounts:
+        - name: redis-config
+          mountPath: /tmp/redis
+        - name: redis-config-dir
+          mountPath: /etc/redis
+        - name: redis-secret
+          mountPath: /tmp/redis-secret
+      containers:
+      - name: redis
+        image: redis:7.0-alpine
+        command: ["redis-server", "/etc/redis/redis.conf"]
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config-dir
+          mountPath: /etc/redis
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+      - name: redis-secret
+        secret:
+          secretName: redis-secret
+      - name: redis-config-dir
+        emptyDir: {}
+      - name: redis-data
+        emptyDir: {}
