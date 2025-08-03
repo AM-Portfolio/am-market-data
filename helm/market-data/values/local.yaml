@@ -1,5 +1,5 @@
 # Local Development Configuration
-environment: local
+environment: dev
 
 # Image Configuration
 image:
@@ -35,30 +35,37 @@ resources:
     memory: 256Mi
 
 # Infrastructure Configuration
-postgresql:
-  enabled: true
-  fullname: host.docker.internal
-  auth:
-    database: portfolio
-    username: postgres
-    password: password
-  primary:
-    service:
-      port: 5456
+# postgresql:
+#   enabled: true
+#   fullname: host.docker.internal
+#   auth:
+#     database: portfolio
+#     username: postgres
+#     password: password
+#   primary:
+#     service:
+#       port: 5456
 
 influxdb:
   enabled: true
-  url: http://host.docker.internal:8087
+  url: http://influxdb.dev.svc.cluster.local:8086
   auth:
-    token: my-super-secret-auth-token
-    org: am_investment
-    bucket: market_data
+    token: ssd2658admin123456789
+    org: am-portfolio
+    bucket: market-data
+
+mongodb:
+  enabled: true
+  fullname: host.docker.internal
+  auth:
+    url: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
+    database: market_data
+    username: ssd2658
+    password: ssd2658
 
 kafka:
   enabled: true
-  bootstrapServers: host.docker.internal:9092
-  zookeeper:
-    connect: host.docker.internal:2181
+  bootstrapServers: kafka.dev.svc.cluster.local:9092
   config:
     consumerGroupId: am-market-data-service
     autoOffsetReset: earliest
