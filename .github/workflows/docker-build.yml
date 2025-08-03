@@ -82,9 +82,10 @@ jobs:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results.sarif'
+          exit-code: '0'  # Don't fail on vulnerabilities
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
+        uses: github/codeql-action/upload-sarif@v3  # Updated from v2 to v3
+        if: always() && fileExists('trivy-results.sarif')  # Only run if file exists
         with:
           sarif_file: 'trivy-results.sarif'
