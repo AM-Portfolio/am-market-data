@@ -28,40 +28,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-
-      - name: Configure Maven Settings
-        run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml << EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                                        http://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>github-investment</id>
-                <username>${GITHUB_USERNAME}</username>
-                <password>${GITHUB_TOKEN}</password>
-              </server>
-              <server>
-                <id>github-am-common</id>
-                <username>${GITHUB_USERNAME}</username>
-                <password>${GITHUB_TOKEN}</password>
-              </server>
-              <server>
-                <id>github</id>
-                <username>${GITHUB_USERNAME}</username>
-                <password>${GITHUB_TOKEN}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
+          server-id: github-investment,github-am-common
+          server-username: ${{ github.actor }}
+          server-password: ${{ secrets.GH_TOKEN }}
 
       - name: Build with Maven
         run: mvn clean package -DskipTests
-        env:
-          GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
