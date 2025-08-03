@@ -51,6 +51,7 @@ kubectl apply -f mongodb/service.yaml
 #### Redis
 
 ```bash
+kubectl apply -f redis/secret.yaml
 kubectl apply -f redis/configmap.yaml
 kubectl apply -f redis/deployment.yaml
 kubectl apply -f redis/service.yaml
@@ -59,6 +60,8 @@ kubectl apply -f redis/service.yaml
 #### Kafka (includes ZooKeeper)
 
 ```bash
+kubectl apply -f kafka/secret.yaml
+kubectl apply -f kafka/jaas-configmap.yaml
 kubectl apply -f kafka/zookeeper.yaml
 kubectl apply -f kafka/zookeeper-service.yaml
 kubectl apply -f kafka/kafka.yaml
