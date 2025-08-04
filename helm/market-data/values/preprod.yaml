@@ -1,6 +1,13 @@
 # Pre-production Environment Configuration
 environment: preprod
 
+
+# Image Configuration
+image:
+  repository: am-market-data-market-data-service
+  pullPolicy: Never
+  tag: "latest"
+
 # Application Configuration
 config:
   marketData:
@@ -10,85 +17,69 @@ config:
     threadQueueCapacity: 10
     maxAgeMinutes: 15
 
-# Pod Configuration
-replicaCount: 2
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "8084"
-  prometheus.io/path: "/actuator/prometheus"
-
 # Service Configuration
 service:
   type: ClusterIP
   port: 8084
 
+# Ingress Configuration
+ingress:
+  enabled: true
+
 # Resource Configuration
 resources:
   limits:
-    cpu: 1000m
-    memory: 1Gi
-  requests:
     cpu: 500m
     memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
 
-# Infrastructure Configuration
-postgresql:
-  enabled: true
-  fullname: am-preprod-postgresql
-  auth:
-    database: portfolio
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-  primary:
-    service:
-      port: 5432
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
+# postgresql:
+#   enabled: true
+#   fullname: host.docker.internal
+#   auth:
+#     database: portfolio
+#     username: postgres
+#     password: password
+#   primary:
+#     service:
+#       port: 5456
 
 influxdb:
   enabled: true
-  url: http://am-preprod-influxdb:8086
+  url: http://influxdb.dev.svc.cluster.local:8086
   auth:
-    token: ${INFLUXDB_TOKEN}
-    org: ${INFLUXDB_ORG}
-    bucket: ${INFLUXDB_BUCKET}
+    token: ssd2658admin123456789
+    org: am-portfolio
+    bucket: market-data
+
+mongodb:
+  enabled: true
+  fullname: host.docker.internal
+  auth:
+    url: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
+    database: market_data
+    username: ssd2658
+    password: ssd2658
 
 kafka:
   enabled: true
-  bootstrapServers: am-preprod-kafka:9092
-  zookeeper:
-    connect: am-preprod-zookeeper:2181
+  bootstrapServers: kafka.dev.svc.cluster.local:9092
   config:
-    consumerGroupId: am-market-data-service-preprod
+    consumerGroupId: am-market-data-service
     autoOffsetReset: earliest
     topics:
-      stockPrice: am-stock-price-update-preprod
-      nseIndices: nse-indices-update-preprod
-      nseEtf: nse-etf-update-preprod
-    replicationFactor: 2
-    numPartitions: 3
+      stockPrice: am-stock-price-update
+      nseIndices: nse-indices-update
+      nseEtf: nse-etf-update
 
 # Upstox Configuration
 upstox:
   enabled: true
   auth:
     baseUrl: https://api.upstox.com/v2
-    redirectUri: https://preprod.marketdata.aminvestment.com
-
-# Ingress Configuration
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-staging
-  hosts:
-    - host: preprod.marketdata.aminvestment.com
-      paths:
-        - path: /
-          pathType: Prefix
+    redirectUri: http://localhost:8080
 
 # Monitoring Configuration
 monitoring:
@@ -97,17 +88,3 @@ monitoring:
     scrape: true
     port: "8084"
     path: "/actuator/prometheus"
-
-# RBAC Configuration
-rbac:
-  enabled: true
-  rules:
-    - apiGroups: [""]
-      resources: ["secrets", "configmaps"]
-      verbs: ["get", "list", "watch"]
-
-# Service Account
-serviceAccount:
-  create: true
-  annotations:
-    azure.workload.identity/client-id: "market-data-preprod"

@@ -1,0 +1,137 @@
+name: Deployment
+
+on:
+  # Manual deployment with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'preprod'
+        type: choice
+        options:
+          - preprod
+          - prod
+      image_tag:
+        description: 'Docker image tag to deploy (leave empty for latest build)'
+        required: false
+        type: string
+  
+  # Called by docker-build workflow
+  workflow_call:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/market-data-service
+  HELM_CHART_PATH: ./helm/market-data
+
+jobs:
+  # Deploy to the selected environment
+  deploy:
+    name: Deploy to Environment
+    runs-on: ubuntu-latest
+    
+    env:
+      # Set environment based on workflow_dispatch input or default to preprod for workflow_call
+      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'preprod' }}
+    
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Set environment-specific variables
+      - name: Set environment variables
+        id: set-vars
+        run: |
+          # Set environment-specific variables
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            echo "RESOURCE_GROUP=am-investing-prod" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to PRODUCTION environment"
+          else
+            echo "RESOURCE_GROUP=am-investing-preprod" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to PRE-PRODUCTION environment"
+          fi
+      
+      # Get image tag - either from workflow_dispatch input, or download from artifact
+      - name: Get image tag
+        id: get-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.image_tag }}" != "" ]]; then
+            # Use the manually provided tag
+            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+            echo "Using manually provided image tag: ${{ github.event.inputs.image_tag }}"
+          else
+            # Download artifact from build workflow
+            echo "Downloading image tag from build workflow artifact"
+          fi
+      
+      # Download artifact if no manual tag was provided
+      - name: Download artifact
+        uses: dawidd6/action-download-artifact@v3
+        if: ${{ github.event.inputs.image_tag == '' || github.event_name == 'workflow_run' }}
+        with:
+          workflow: docker-build.yml
+          name: image-tag
+          path: .
+      
+      # Set image tag from artifact if needed
+      - name: Set image tag from artifact
+        if: ${{ github.event.inputs.image_tag == '' || github.event_name == 'workflow_run' }}
+        run: |
+          IMAGE_TAG=$(cat image-tag.txt)
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "Using image tag from artifact: $IMAGE_TAG"
+      
+      # Login to Azure
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      # Set AKS context
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+      
+      # Setup Helm
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.3'
+      
+      # Deploy to AKS using Helm
+      - name: Deploy to AKS
+        run: |
+          # Create namespace if it doesn't exist
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Echo image and environment details for logging
+          echo "Deploying image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Resource Group: ${{ env.RESOURCE_GROUP }}"
+          echo "Cluster: ${{ env.CLUSTER_NAME }}"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          
+          # Deploy using Helm with the appropriate values file
+          helm upgrade --install market-data-service ${{ env.HELM_CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            -f ${{ env.HELM_CHART_PATH }}/values/${{ env.ENVIRONMENT }}.yaml \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ env.IMAGE_TAG }} \
+            --set deployment.version="${{ env.IMAGE_TAG }}" \
+            --wait --timeout 5m
+      
+      # Verify deployment
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/market-data-service -n ${{ env.NAMESPACE }}
+          echo "Deployment to ${{ env.ENVIRONMENT }} completed successfully!"

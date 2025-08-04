@@ -57,7 +57,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,format=short
+            type=raw,value=v${{ github.run_id }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
             type=ref,event=branch,prefix=feature-,enable=${{ startsWith(github.ref, 'refs/heads/feature/') }}
@@ -74,3 +74,21 @@ jobs:
           build-args: |
             GITHUB_PACKAGES_USERNAME=${{ github.actor }}
             GITHUB_PACKAGES_TOKEN=${{ github.token }}
+      
+      # Save image tag to artifact
+      - name: Save image tag to artifact
+        run: |
+          echo "v${{ github.run_id }}" > image-tag.txt
+      
+      - name: Upload image tag as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: image-tag
+          path: image-tag.txt
+          retention-days: 1
+
+  # Trigger deployment workflow
+  deploy:
+    needs: build-and-push
+    uses: ./.github/workflows/unified-deployment.yml
+    secrets: inherit
