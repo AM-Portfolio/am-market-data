@@ -24,6 +24,8 @@ spec:
       labels:
         {{- include "am-market-data.selectorLabels" . | nindent 8 }}
     spec:
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
         - name: {{ .Chart.Name }}
           image: "ghcr.io/am-portfolio/am-market-data/market-data-service:{{ .Values.image.tag | default .Chart.AppVersion }}"
