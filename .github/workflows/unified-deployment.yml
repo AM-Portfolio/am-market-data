@@ -19,6 +19,11 @@ on:
   
   # Called by docker-build workflow
   workflow_call:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -57,7 +62,7 @@ jobs:
             echo "Deploying to PRE-PRODUCTION environment"
           fi
       
-      # Get image tag - either from workflow_dispatch input, or download from artifact
+      # Get image tag - either from workflow_dispatch input or workflow_call input
       - name: Get image tag
         id: get-tag
         run: |
@@ -65,27 +70,15 @@ jobs:
             # Use the manually provided tag
             echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
             echo "Using manually provided image tag: ${{ github.event.inputs.image_tag }}"
+          elif [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            # Use the tag passed from docker-build workflow
+            echo "IMAGE_TAG=${{ inputs.image_tag }}" >> $GITHUB_ENV
+            echo "Using image tag from workflow_call: ${{ inputs.image_tag }}"
           else
-            # Download artifact from build workflow
-            echo "Downloading image tag from build workflow artifact"
+            # Default tag if none provided
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+            echo "Using default image tag: latest"
           fi
-      
-      # Download artifact if no manual tag was provided
-      - name: Download artifact
-        uses: dawidd6/action-download-artifact@v3
-        if: ${{ github.event.inputs.image_tag == '' || github.event_name == 'workflow_run' }}
-        with:
-          workflow: docker-build.yml
-          name: image-tag
-          path: .
-      
-      # Set image tag from artifact if needed
-      - name: Set image tag from artifact
-        if: ${{ github.event.inputs.image_tag == '' || github.event_name == 'workflow_run' }}
-        run: |
-          IMAGE_TAG=$(cat image-tag.txt)
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "Using image tag from artifact: $IMAGE_TAG"
       
       # Login to Azure
       - name: Login to Azure

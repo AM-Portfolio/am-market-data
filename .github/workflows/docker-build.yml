@@ -91,4 +91,6 @@ jobs:
   deploy:
     needs: build-and-push
     uses: ./.github/workflows/unified-deployment.yml
+    with:
+      image_tag: v${{ github.run_id }}
     secrets: inherit
