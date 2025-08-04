@@ -92,13 +92,18 @@ jobs:
     needs: build-and-push
     if: success()
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      # Instead of repository_dispatch, let's use workflow_dispatch to trigger the deployment
       - name: Trigger deployment workflow
-        uses: peter-evans/repository-dispatch@v2
+        uses: benc-uk/workflow-dispatch@v1
         with:
+          workflow: unified-deployment.yml
           token: ${{ secrets.GH_TOKEN }}
-          event-type: trigger-deployment
-          client-payload: '{"image_tag": "v${{ github.run_id }}", "branch": "${{ github.ref_name }}"}'
+          inputs: '{"environment": "preprod", "image_tag": "v${{ github.run_id }}"}'
+          ref: ${{ github.ref }}
       
       - name: Deployment triggered
         run: echo "Deployment workflow triggered with image tag v${{ github.run_id }} for branch ${{ github.ref_name }}"
