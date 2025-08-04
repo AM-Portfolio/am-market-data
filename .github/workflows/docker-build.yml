@@ -81,7 +81,7 @@ jobs:
           echo "v${{ github.run_id }}" > image-tag.txt
       
       - name: Upload image tag as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: image-tag
           path: image-tag.txt
