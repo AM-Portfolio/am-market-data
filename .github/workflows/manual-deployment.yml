@@ -1,7 +1,6 @@
-name: Deployment
+name: Manual AKS Deployment
 
 on:
-  # Manual deployment with environment selection
   workflow_dispatch:
     inputs:
       environment:
@@ -13,14 +12,6 @@ on:
           - preprod
           - prod
       image_tag:
-        description: 'Docker image tag to deploy (leave empty for latest build)'
-        required: false
-        type: string
-  
-  # Called by docker-build workflow
-  workflow_call:
-    inputs:
-      image_tag:
         description: 'Docker image tag to deploy'
         required: true
         type: string
@@ -31,17 +22,12 @@ env:
   HELM_CHART_PATH: ./helm/market-data
 
 jobs:
-  # Deploy to the selected environment
   deploy:
-    name: Deploy to Environment
+    name: Deploy to AKS
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    
-    env:
-      # Set environment based on workflow_dispatch input or default to preprod for workflow_call
-      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'preprod' }}
     
     steps:
       # Checkout repository
@@ -53,7 +39,7 @@ jobs:
         id: set-vars
         run: |
           # Set environment-specific variables
-          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+          if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
             echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
             echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
             echo "NAMESPACE=dev" >> $GITHUB_ENV
@@ -64,24 +50,9 @@ jobs:
             echo "NAMESPACE=dev" >> $GITHUB_ENV
             echo "Deploying to PRE-PRODUCTION environment"
           fi
-      
-      # Get image tag - either from workflow_dispatch input or workflow_call input
-      - name: Get image tag
-        id: get-tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.image_tag }}" != "" ]]; then
-            # Use the manually provided tag
-            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
-            echo "Using manually provided image tag: ${{ github.event.inputs.image_tag }}"
-          elif [[ "${{ github.event_name }}" == "workflow_call" ]]; then
-            # Use the tag passed from docker-build workflow
-            echo "IMAGE_TAG=${{ inputs.image_tag }}" >> $GITHUB_ENV
-            echo "Using image tag from workflow_call: ${{ inputs.image_tag }}"
-          else
-            # Default tag if none provided
-            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
-            echo "Using default image tag: latest"
-          fi
+          
+          # Set image tag from input
+          echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
       
       # Login to Azure
       - name: Login to Azure
@@ -112,7 +83,7 @@ jobs:
           
           # Echo image and environment details for logging
           echo "Deploying image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Resource Group: ${{ env.RESOURCE_GROUP }}"
           echo "Cluster: ${{ env.CLUSTER_NAME }}"
           echo "Namespace: ${{ env.NAMESPACE }}"
@@ -120,7 +91,7 @@ jobs:
           # Deploy using Helm with the appropriate values file
           helm upgrade --install market-data-service ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
-            -f ${{ env.HELM_CHART_PATH }}/values/${{ env.ENVIRONMENT }}.yaml \
+            -f ${{ env.HELM_CHART_PATH }}/values/${{ github.event.inputs.environment }}.yaml \
             --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --set image.tag=${{ env.IMAGE_TAG }} \
             --set deployment.version="${{ env.IMAGE_TAG }}" \
@@ -130,4 +101,4 @@ jobs:
       - name: Verify deployment
         run: |
           kubectl rollout status deployment/market-data-service -n ${{ env.NAMESPACE }}
-          echo "Deployment to ${{ env.ENVIRONMENT }} completed successfully!"
+          echo "Deployment to ${{ github.event.inputs.environment }} completed successfully!"
