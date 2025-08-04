@@ -11,6 +11,7 @@ on:
         options:
           - preprod
           - prod
+          - feature/*
       image_tag:
         description: 'Docker image tag to deploy'
         required: true
@@ -44,6 +45,11 @@ jobs:
             echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
             echo "NAMESPACE=dev" >> $GITHUB_ENV
             echo "Deploying to PRODUCTION environment"
+          elif [[ "${{ github.event.inputs.environment }}" == "feature" ]]; then
+            echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to FEATURE environment"
           else
             echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
             echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
@@ -88,10 +94,19 @@ jobs:
           echo "Cluster: ${{ env.CLUSTER_NAME }}"
           echo "Namespace: ${{ env.NAMESPACE }}"
           
+          # Set values file based on environment
+          if [[ "${{ github.event.inputs.environment }}" == "feature" ]]; then
+            # For feature branches, use preprod values as base
+            VALUES_FILE="${{ env.HELM_CHART_PATH }}/values/preprod.yaml"
+          else
+            # For standard environments, use the corresponding values file
+            VALUES_FILE="${{ env.HELM_CHART_PATH }}/values/${{ github.event.inputs.environment }}.yaml"
+          fi
+          
           # Deploy using Helm with the appropriate values file
           helm upgrade --install market-data-service ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
-            -f ${{ env.HELM_CHART_PATH }}/values/${{ github.event.inputs.environment }}.yaml \
+            -f $VALUES_FILE \
             --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --set image.tag=${{ env.IMAGE_TAG }} \
             --set deployment.version="${{ env.IMAGE_TAG }}" \

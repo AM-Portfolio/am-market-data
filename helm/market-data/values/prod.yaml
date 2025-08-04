@@ -271,3 +271,13 @@ metrics:
     metrics:
       enabled: true
       path: /actuator/metrics
+
+# Vault Configuration
+vault:
+  enabled: false
+  secretPaths:
+    github: "secret/data/github/packages"
+    githubToken: "secret/data/github/token"
+    database: "secret/data/database/postgres"
+    influxdb: "secret/data/database/influxdb"
+    upstox: "secret/data/api/upstox"

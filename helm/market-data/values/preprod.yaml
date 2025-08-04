@@ -81,6 +81,16 @@ upstox:
     baseUrl: https://api.upstox.com/v2
     redirectUri: http://localhost:8080
 
+# Vault Configuration
+vault:
+  enabled: false
+  secretPaths:
+    github: "secret/data/github/packages"
+    githubToken: "secret/data/github/token"
+    database: "secret/data/database/postgres"
+    influxdb: "secret/data/database/influxdb"
+    upstox: "secret/data/api/upstox"
+
 # Monitoring Configuration
 monitoring:
   enabled: true
