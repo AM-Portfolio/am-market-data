@@ -65,6 +65,8 @@ mongodb:
 
 kafka:
   enabled: true
+  zookeeper:
+    connect: zookeeper.dev.svc.cluster.local:2181
   bootstrapServers: kafka.dev.svc.cluster.local:9092
   config:
     consumerGroupId: am-market-data-service
