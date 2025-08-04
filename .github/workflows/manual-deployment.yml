@@ -19,7 +19,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/market-data-service
+  IMAGE_NAME: ${{ github.repository | lowercase }}/market-data-service
   HELM_CHART_PATH: ./helm/market-data
 
 jobs:
