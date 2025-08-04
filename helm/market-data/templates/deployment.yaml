@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "ghcr.io/am-portfolio/am-market-data/market-data-service:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: Always
           # Load environment variables from ConfigMap
           envFrom:
