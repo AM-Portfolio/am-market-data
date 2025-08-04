@@ -88,9 +88,17 @@ jobs:
           retention-days: 1
 
   # Trigger deployment workflow
-  deploy:
+  trigger-deployment:
     needs: build-and-push
-    uses: ./.github/workflows/unified-deployment.yml
-    with:
-      image_tag: v${{ github.run_id }}
-    secrets: inherit
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deployment workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          event-type: trigger-deployment
+          client-payload: '{"image_tag": "v${{ github.run_id }}", "branch": "${{ github.ref_name }}"}'
+      
+      - name: Deployment triggered
+        run: echo "Deployment workflow triggered with image tag v${{ github.run_id }} for branch ${{ github.ref_name }}"

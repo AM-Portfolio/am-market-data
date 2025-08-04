@@ -17,13 +17,9 @@ on:
         required: false
         type: string
   
-  # Called by docker-build workflow
-  workflow_call:
-    inputs:
-      image_tag:
-        description: 'Docker image tag to deploy'
-        required: true
-        type: string
+  # Triggered by docker-build workflow via repository_dispatch
+  repository_dispatch:
+    types: [trigger-deployment]
 
 env:
   REGISTRY: ghcr.io
@@ -35,6 +31,9 @@ jobs:
   deploy:
     name: Deploy to Environment
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     
     env:
       # Set environment based on workflow_dispatch input or default to preprod for workflow_call
@@ -62,7 +61,7 @@ jobs:
             echo "Deploying to PRE-PRODUCTION environment"
           fi
       
-      # Get image tag - either from workflow_dispatch input or workflow_call input
+      # Get image tag - either from workflow_dispatch input or repository_dispatch event
       - name: Get image tag
         id: get-tag
         run: |
@@ -70,10 +69,10 @@ jobs:
             # Use the manually provided tag
             echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
             echo "Using manually provided image tag: ${{ github.event.inputs.image_tag }}"
-          elif [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             # Use the tag passed from docker-build workflow
-            echo "IMAGE_TAG=${{ inputs.image_tag }}" >> $GITHUB_ENV
-            echo "Using image tag from workflow_call: ${{ inputs.image_tag }}"
+            echo "IMAGE_TAG=${{ github.event.client_payload.image_tag }}" >> $GITHUB_ENV
+            echo "Using image tag from repository_dispatch: ${{ github.event.client_payload.image_tag }}"
           else
             # Default tag if none provided
             echo "IMAGE_TAG=latest" >> $GITHUB_ENV
