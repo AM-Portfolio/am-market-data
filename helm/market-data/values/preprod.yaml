@@ -2,12 +2,6 @@
 environment: preprod
 
 
-# Image Configuration
-image:
-  repository: am-market-data-market-data-service
-  pullPolicy: Never
-  tag: "latest"
-
 # Application Configuration
 config:
   marketData:
