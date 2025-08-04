@@ -19,7 +19,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository | lowercase }}/market-data-service
+  IMAGE_NAME: ${{ github.repository }}/market-data-service
   HELM_CHART_PATH: ./helm/market-data
 
 jobs:
@@ -59,6 +59,10 @@ jobs:
           
           # Set image tag from input
           echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+          
+          # Convert repository name to lowercase for Kubernetes compatibility
+          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_LOWERCASE=${REPO_LOWERCASE}" >> $GITHUB_ENV
       
       # Login to Azure
       - name: Login to Azure
@@ -107,7 +111,7 @@ jobs:
           helm upgrade --install market-data-service ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
             -f $VALUES_FILE \
-            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.REPO_LOWERCASE }}/market-data-service \
             --set image.tag=${{ env.IMAGE_TAG }} \
             --set deployment.version="${{ env.IMAGE_TAG }}" \
             --wait --timeout 5m
