@@ -1,0 +1,100 @@
+# Pre-production Environment Configuration
+environment: preprod
+
+
+# Image Configuration
+image:
+  repository: am-market-data-market-data-service
+  pullPolicy: Never
+  tag: "latest"
+
+# Application Configuration
+config:
+  marketData:
+    maxRetries: 3
+    retryDelayMs: 1000
+    threadPoolSize: 5
+    threadQueueCapacity: 10
+    maxAgeMinutes: 15
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 8084
+
+# Ingress Configuration
+ingress:
+  enabled: true
+
+# Resource Configuration
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# postgresql:
+#   enabled: true
+#   fullname: host.docker.internal
+#   auth:
+#     database: portfolio
+#     username: postgres
+#     password: password
+#   primary:
+#     service:
+#       port: 5456
+
+influxdb:
+  enabled: true
+  url: http://influxdb.dev.svc.cluster.local:8086
+  auth:
+    token: ssd2658admin123456789
+    org: am-portfolio
+    bucket: market-data
+
+mongodb:
+  enabled: true
+  fullname: host.docker.internal
+  auth:
+    url: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
+    database: market_data
+    username: ssd2658
+    password: ssd2658
+
+kafka:
+  enabled: true
+  bootstrapServers: kafka.dev.svc.cluster.local:9092
+  config:
+    consumerGroupId: am-market-data-service
+    autoOffsetReset: earliest
+    topics:
+      stockPrice: am-stock-price-update
+      nseIndices: nse-indices-update
+      nseEtf: nse-etf-update
+
+# Upstox Configuration
+upstox:
+  enabled: true
+  auth:
+    baseUrl: https://api.upstox.com/v2
+    redirectUri: http://localhost:8080
+
+# Vault Configuration
+vault:
+  enabled: false
+  secretPaths:
+    github: "secret/data/github/packages"
+    githubToken: "secret/data/github/token"
+    database: "secret/data/database/postgres"
+    influxdb: "secret/data/database/influxdb"
+    upstox: "secret/data/api/upstox"
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  prometheus:
+    scrape: true
+    port: "8084"
+    path: "/actuator/prometheus"

@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - market-data-network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - /var/log:/var/log
+      - ./logs:/logs
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - market-data-network
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - market-data-network
+
+networks:
+  market-data-network:
+    driver: bridge
+
+volumes:
+  grafana_data:

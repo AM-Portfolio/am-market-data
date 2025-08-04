@@ -1,0 +1,119 @@
+name: Manual AKS Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'preprod'
+        type: choice
+        options:
+          - preprod
+          - prod
+          - feature/*
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/market-data-service
+  HELM_CHART_PATH: ./helm/market-data
+
+jobs:
+  deploy:
+    name: Deploy to AKS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Set environment-specific variables
+      - name: Set environment variables
+        id: set-vars
+        run: |
+          # Set environment-specific variables
+          if [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
+            echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to PRODUCTION environment"
+          elif [[ "${{ github.event.inputs.environment }}" == "feature" ]]; then
+            echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to FEATURE environment"
+          else
+            echo "RESOURCE_GROUP=am-investing" >> $GITHUB_ENV
+            echo "CLUSTER_NAME=am-np-west" >> $GITHUB_ENV
+            echo "NAMESPACE=dev" >> $GITHUB_ENV
+            echo "Deploying to PRE-PRODUCTION environment"
+          fi
+          
+          # Set image tag from input
+          echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+      
+      # Login to Azure
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      # Set AKS context
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+      
+      # Setup Helm
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.3'
+      
+      # Deploy to AKS using Helm
+      - name: Deploy to AKS
+        run: |
+          # Create namespace if it doesn't exist
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Echo image and environment details for logging
+          echo "Deploying image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Resource Group: ${{ env.RESOURCE_GROUP }}"
+          echo "Cluster: ${{ env.CLUSTER_NAME }}"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          
+          # Set values file based on environment
+          if [[ "${{ github.event.inputs.environment }}" == "feature" ]]; then
+            # For feature branches, use preprod values as base
+            VALUES_FILE="${{ env.HELM_CHART_PATH }}/values/preprod.yaml"
+          else
+            # For standard environments, use the corresponding values file
+            VALUES_FILE="${{ env.HELM_CHART_PATH }}/values/${{ github.event.inputs.environment }}.yaml"
+          fi
+          
+          # Deploy using Helm with the appropriate values file
+          helm upgrade --install market-data-service ${{ env.HELM_CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            -f $VALUES_FILE \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ env.IMAGE_TAG }} \
+            --set deployment.version="${{ env.IMAGE_TAG }}" \
+            --wait --timeout 5m
+      
+      # Verify deployment
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/market-data-service -n ${{ env.NAMESPACE }}
+          echo "Deployment to ${{ github.event.inputs.environment }} completed successfully!"

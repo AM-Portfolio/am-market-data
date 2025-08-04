@@ -14,91 +14,108 @@
     <name>Market Data Service Implementation</name>
     <description>Main service module implementing market data business logic</description>
 
-    <dependencies>
-        <!-- Common Dependencies -->
-        <dependency>
-            <groupId>com.am.common</groupId>
-            <artifactId>am-common-data-service</artifactId>
-            <version>1.1.4-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>com.am.common</groupId>
-            <artifactId>am-common-investment-service</artifactId>
-            <version>1.5.1-SNAPSHOT</version>
-        </dependency>
+ <properties>
+        <influxdb.version>6.12.0</influxdb.version>
+        <micrometer.version>1.11.0</micrometer.version>
+        <kiteconnect.version>3.2.1</kiteconnect.version>
+    </properties>
 
-        <!-- Market Data Dependencies -->
+    <dependencies>
+     <!-- InfluxDB -->
         <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-api</artifactId>
-            <version>${project.version}</version>
+            <groupId>com.influxdb</groupId>
+            <artifactId>influxdb-client-java</artifactId>
+            <version>${influxdb.version}</version>
         </dependency>
+        <!-- Micrometer -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+        </dependency>
+        <!-- Market Data Dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-service</artifactId>
+            <version>${investment-service.version}</version>
+        </dependency>
+        <!-- <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-processor</artifactId>
+            <version>${project.version}</version>
+        </dependency> -->
+        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-cache</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        
+        <!-- Spring Boot Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
-
-        <!-- Metrics Dependencies -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-
+        
         <!-- Database -->
-        <dependency>
+        <!-- <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
-        </dependency>
+        </dependency> -->
 
+        <!-- Resilience4j for circuit breaking -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        
         <!-- Utilities -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
-            <optional>true</optional>
+            <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>com.konghq</groupId>
             <artifactId>unirest-java</artifactId>
             <version>${kong-unirest.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-model</artifactId>
+            <version>${investment-model.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-service</artifactId>
+            <version>${investment-service.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.zerodhatech.kiteconnect</groupId>
+            <artifactId>kiteconnect</artifactId>
+            <version>${kiteconnect.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.upstox.api</groupId>
+            <artifactId>upstox-java-sdk</artifactId>
+            <version>1.4.0</version>
+        </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "am-market-data.fullname" . }}
+  labels:
+    {{- include "am-market-data.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "am-market-data.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Prometheus annotations for metrics collection
+        prometheus.io/scrape: "{{ .Values.monitoring.prometheus.scrape }}"
+        prometheus.io/path: "{{ .Values.monitoring.prometheus.path }}"
+        prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
+        # Add checksum annotations for config changes
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "am-market-data.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Load environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: {{ include "am-market-data.fullname" . }}-config
+          env:
+            # Thread Pool Configuration (from memory)
+            - name: MARKET_DATA_THREAD_POOL_SIZE
+              value: "{{ .Values.config.marketData.threadPoolSize }}"
+            - name: MARKET_DATA_THREAD_QUEUE_CAPACITY
+              value: "{{ .Values.config.marketData.threadQueueCapacity }}"
+            # Retry Configuration (from memory)
+            - name: MARKET_DATA_MAX_RETRIES
+              value: "{{ .Values.config.marketData.maxRetries }}"
+            - name: MARKET_DATA_RETRY_DELAY_MS
+              value: "{{ .Values.config.marketData.retryDelayMs }}"
+            # Data Validation (from memory)
+            - name: MARKET_DATA_MAX_AGE_MINUTES
+              value: "{{ .Values.config.marketData.maxAgeMinutes }}"
+            # Metrics Configuration (from memory)
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,metrics,prometheus"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+              value: "always"
+            - name: MANAGEMENT_METRICS_TAGS_APPLICATION
+              value: "market-data-{{ .Values.environment }}"
+          ports:
+            - name: http
+              containerPort: 8084
+              protocol: TCP
+          # Health checks with retry-based thresholds
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+          # Resource limits from values file
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

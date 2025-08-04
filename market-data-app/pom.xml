@@ -17,9 +17,19 @@
         <!-- Internal module dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>
-            <artifactId>market-data-service</artifactId>
+            <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-external-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-scheduler</artifactId>
+            <version>${project.version}</version>
+        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-kafka</artifactId>
@@ -31,11 +41,40 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Resilience4j -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.4.1</version>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency> -->
+        <dependency>
+            <groupId>com.influxdb</groupId>
+            <artifactId>influxdb-client-java</artifactId>
+            <version>6.12.0</version>
+        </dependency>
+
+        <dependency>
+  <groupId>net.logstash.logback</groupId>
+  <artifactId>logstash-logback-encoder</artifactId>
+  <version>7.4</version>
+</dependency>
     </dependencies>
 
     <build>

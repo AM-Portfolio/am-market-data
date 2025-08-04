@@ -1,0 +1,45 @@
+# Pre-production profile configuration
+spring:
+  config:
+    activate:
+      on-profile: preprod
+
+# Pre-production specific logging
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scraper]': INFO
+    '[com.am.marketdata.scraper.service]': INFO
+    '[com.am.marketdata.scraper.cookie]': INFO
+
+# Pre-production specific app settings
+app:
+  cookie:
+    validator:
+      expiry-threshold-minutes: 8  # Balanced refresh for pre-production
+    cache:
+      expiration-minutes: 45       # Medium cache time for pre-production
+  retry:
+    max-attempts: 3                # Standard retries in pre-production
+    base-delay-ms: 1000            # Standard delay between retries
+  thread-pool:
+    size: 4                        # Medium thread pool for pre-prod environments
+  validation:
+    max-age-minutes: 12            # Standard validation in pre-production
+
+# Pre-production specific scheduler settings
+scheduler:
+  cookie:
+    refresh: "0 */30 * * * *"      # Cookie refresh every 30 minutes
+  indices:
+    fetch: "0 */2 * * * *"         # Standard indices fetch every 2 minutes
+  stock-indices:
+    retry:
+      interval-minutes: 10         # Medium retry interval
+      max-retries: 10              # Medium max retries
+      cron: "0 */10 * * * *"       # Every 10 minutes
+
+# Pre-production Kafka settings
+kafka:
+  bootstrap-servers: preprod-kafka:9092

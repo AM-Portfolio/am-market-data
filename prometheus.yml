@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'market-data'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['market-data:8084']
+    scrape_interval: 5s
+
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9093']
+
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8087']
+    metrics_path: '/metrics'

@@ -1,0 +1,283 @@
+# Production Environment Configuration
+environment: prod
+
+# Application Configuration
+config:
+  marketData:
+    maxRetries: ${MARKET_DATA_MAX_RETRIES}
+    retryDelayMs: ${MARKET_DATA_RETRY_DELAY_MS}
+    threadPoolSize: ${MARKET_DATA_THREAD_POOL_SIZE}
+    threadQueueCapacity: ${MARKET_DATA_THREAD_QUEUE_CAPACITY}
+    maxAgeMinutes: ${MARKET_DATA_MAX_AGE_MINUTES}
+
+# Pod Configuration
+replicaCount: 3
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8084"
+  prometheus.io/path: "/actuator/prometheus"
+  fluentbit.io/parser: "java"
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 8084
+
+# Resource Configuration
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+
+# Infrastructure Configuration
+postgresql:
+  enabled: true
+  fullname: am-prod-postgresql
+  auth:
+    database: portfolio
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+  primary:
+    service:
+      port: 5432
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+    configuration:
+      max_connections: 200
+      shared_buffers: 256MB
+      effective_cache_size: 768MB
+
+influxdb:
+  enabled: true
+  url: http://am-prod-influxdb:8086
+  auth:
+    token: ${INFLUXDB_TOKEN}
+    org: ${INFLUXDB_ORG}
+    bucket: ${INFLUXDB_BUCKET}
+
+kafka:
+  enabled: true
+  bootstrapServers: am-prod-kafka:9092
+  zookeeper:
+    connect: am-prod-zookeeper:2181
+  config:
+    consumerGroupId: am-market-data-service-prod
+    autoOffsetReset: earliest
+    topics:
+      stockPrice: am-stock-price-update-prod
+      nseIndices: nse-indices-update-prod
+      nseEtf: nse-etf-update-prod
+    replicationFactor: 3
+    numPartitions: 6
+
+# Upstox Configuration
+upstox:
+  enabled: true
+  auth:
+    baseUrl: https://api.upstox.com/v2
+    redirectUri: https://marketdata.aminvestment.com
+
+# Autoscaling Configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: marketdata.aminvestment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: marketdata-tls
+      hosts:
+        - marketdata.aminvestment.com
+
+# Network Policies
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+  ingressRules:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: nginx-ingress
+      ports:
+        - protocol: TCP
+          port: 8084
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8084
+  egressRules:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: TCP
+          port: 53
+
+# RBAC Configuration
+rbac:
+  enabled: true
+  rules:
+    - apiGroups: [""]
+      resources: ["secrets", "configmaps"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs: ["get", "list", "watch"]
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: "market-data-prod"
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: avg(rate(process_cpu_usage[5m])) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage detected
+      - alert: HighMemoryUsage
+        expr: avg(jvm_memory_used_bytes/jvm_memory_max_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage detected
+      - alert: APIErrorSpike
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High rate of API errors detected
+      - alert: SlowAPIResponse
+        expr: http_server_requests_seconds_sum{quantile="0.95"} > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Slow API response times detected
+  grafana:
+    enabled: true
+    dashboards:
+      - name: market-data-overview
+        title: Market Data Service Overview
+        panels:
+          - title: API Response Times
+            type: graph
+          - title: Error Rates
+            type: graph
+          - title: Data Processing Rates
+            type: graph
+          - title: Resource Usage
+            type: graph
+      - name: market-data-details
+        title: Market Data Service Details
+        panels:
+          - title: NSE API Metrics
+            type: graph
+          - title: Database Metrics
+            type: graph
+          - title: Cache Hit Rates
+            type: graph
+          - title: Thread Pool Stats
+            type: graph
+      - market-data-metrics
+      - jvm-metrics
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  prometheus:
+    enabled: true
+    path: /actuator/prometheus
+  endpoints:
+    health:
+      enabled: true
+      path: /actuator/health
+    metrics:
+      enabled: true
+      path: /actuator/metrics
+
+# Vault Configuration
+vault:
+  enabled: false
+  secretPaths:
+    github: "secret/data/github/packages"
+    githubToken: "secret/data/github/token"
+    database: "secret/data/database/postgres"
+    influxdb: "secret/data/database/influxdb"
+    upstox: "secret/data/api/upstox"
