@@ -64,24 +64,9 @@ jobs:
             echo "NAMESPACE=dev" >> $GITHUB_ENV
             echo "Deploying to PRE-PRODUCTION environment"
           fi
-      
-      # Get image tag - either from workflow_dispatch input or workflow_call input
-      - name: Get image tag
-        id: get-tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.image_tag }}" != "" ]]; then
-            # Use the manually provided tag
-            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
-            echo "Using manually provided image tag: ${{ github.event.inputs.image_tag }}"
-          elif [[ "${{ github.event_name }}" == "workflow_call" ]]; then
-            # Use the tag passed from docker-build workflow
-            echo "IMAGE_TAG=${{ inputs.image_tag }}" >> $GITHUB_ENV
-            echo "Using image tag from workflow_call: ${{ inputs.image_tag }}"
-          else
-            # Default tag if none provided
-            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
-            echo "Using default image tag: latest"
-          fi
+          
+          # Set image tag from input
+          echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
       
       # Login to Azure
       - name: Login to Azure
