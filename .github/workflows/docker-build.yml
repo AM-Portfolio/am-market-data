@@ -94,6 +94,8 @@ jobs:
             type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            GITHUB_PACKAGES_USERNAME=${{ github.actor }}
+            GITHUB_PACKAGES_TOKEN=${{ github.token }}
 
       # Temp fix to prevent cache from growing too large
       - name: Move cache
