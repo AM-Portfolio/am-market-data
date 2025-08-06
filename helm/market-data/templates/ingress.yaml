@@ -7,10 +7,15 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "am-market-data.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.ingress.annotations }}
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: {{ $fullName }}.{{ .Values.ingress.ipAddress }}.nip.io
+      http:
         paths:
           - path: /
             pathType: Prefix

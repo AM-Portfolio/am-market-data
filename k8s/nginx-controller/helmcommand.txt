@@ -1,0 +1,11 @@
+# Add the ingress-nginx repository
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+# Install the ingress-nginx controller
+helm install nginx-ingress ingress-nginx/ingress-nginx `
+  --namespace ingress-nginx `
+  --create-namespace `
+  --set controller.replicaCount=1 `
+  --set controller.nodeSelector."kubernetes\.io/os"=linux `
+  --set defaultBackend.nodeSelector."kubernetes\.io/os"=linux
