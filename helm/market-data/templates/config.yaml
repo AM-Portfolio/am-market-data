@@ -15,6 +15,11 @@ data:
   POSTGRES_USERNAME: "{{ .Values.postgresql.auth.username }}"
   POSTGRES_PASSWORD: "{{ .Values.postgresql.auth.password }}"
 
+  # Redis Configuration
+  REDIS_URL: "{{ .Values.redis.fullname }}"
+  REDIS_PASSWORD: "{{ .Values.redis.auth.password }}"
+  REDIS_PORT: "{{ .Values.redis.auth.port }}"
+
   # InfluxDB Configuration
   INFLUXDB_URL: "{{ .Values.influxdb.url }}"
   INFLUXDB_ORG: "{{ .Values.influxdb.auth.org }}"

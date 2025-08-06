@@ -17,6 +17,11 @@ INFLUXDB_BUCKET: market_data
 INFLUXDB_URL: http://influxdb.dev.svc.cluster.local:8086
 
 
+# Redis Configuration
+REDIS_URL: http://redis.dev.svc.cluster.local:6379
+REDIS_PASSWORD: RedisPassword123!
+REDIS_PORT: 6379
+
 # Grafana Configuration
 GRAFANA_ADMIN_USER: 1109403
 GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
@@ -63,6 +68,10 @@ spring:
 
   # MongoDB Configuration
   data:
+    redis:
+      url: ${REDIS_URL}
+      password: ${REDIS_PASSWORD}
+      port: ${REDIS_PORT}
     mongodb:
       uri: ${MONGO_URL}
       database: ${MONGO_DATABASE}

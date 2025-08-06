@@ -29,6 +29,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/market-data-service
   HELM_CHART_PATH: ./helm/market-data
+  IMAGE_TAG: ${{ github.event.inputs.image_tag }}
 
 jobs:
   # Deploy to the selected environment

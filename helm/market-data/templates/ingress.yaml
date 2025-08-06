@@ -14,6 +14,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
+    {{- if .Values.ingress.ipAddress }}
     - host: {{ $fullName }}.{{ .Values.ingress.ipAddress }}.nip.io
       http:
         paths:
@@ -24,4 +25,15 @@ spec:
                 name: {{ $fullName }}
                 port:
                   number: {{ $svcPort }}
+    {{- else }}
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+    {{- end }}
 {{- end }}

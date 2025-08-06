@@ -1,7 +1,6 @@
 # Pre-production Environment Configuration
 environment: preprod
 
-
 # Application Configuration
 config:
   marketData:
@@ -19,6 +18,7 @@ service:
 # Ingress Configuration
 ingress:
   enabled: true
+  ipAddress: 20.59.109.241
 
 # Resource Configuration
 resources:
@@ -39,6 +39,13 @@ postgresql:
   primary:
     service:
       port: 5456
+
+redis:
+  enabled: true
+  fullname: http://redis.dev.svc.cluster.local:6379
+  auth:
+    password: RedisPassword123!
+    port: 6379
 
 influxdb:
   enabled: true
