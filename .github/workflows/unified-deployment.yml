@@ -89,7 +89,31 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v3
         with:
-          version: 'v3.12.3'
+          version: '3.12.3'  # Removed 'v' prefix for stability
+      
+      # Check and remove Helm locks if any exist
+      - name: Check and remove Helm locks
+        run: |
+          # Check if there's a release with pending operations
+          if kubectl get secret -n ${{ env.NAMESPACE }} | grep -q "sh.helm.release.v1.market-data-service"; then
+            echo "Found existing Helm release, checking for locks..."
+            # Get all Helm secrets and check for pending operations
+            HELM_SECRETS=$(kubectl get secrets -n ${{ env.NAMESPACE }} -l owner=helm -o name)
+            for secret in $HELM_SECRETS; do
+              if [[ $secret == *"market-data-service"* ]]; then
+                echo "Examining $secret for locks"
+                # Check if the secret contains a lock
+                LOCK_STATUS=$(kubectl get $secret -n ${{ env.NAMESPACE }} -o jsonpath='{.metadata.labels.status}')
+                if [[ $LOCK_STATUS == "pending-install" || $LOCK_STATUS == "pending-upgrade" || $LOCK_STATUS == "pending-rollback" ]]; then
+                  echo "Found lock in $secret with status $LOCK_STATUS, removing..."
+                  kubectl delete $secret -n ${{ env.NAMESPACE }}
+                  echo "Lock removed"
+                fi
+              fi
+            done
+          else
+            echo "No existing Helm release found, proceeding with installation"
+          fi
       
       # Deploy to AKS using Helm
       - name: Deploy to AKS
