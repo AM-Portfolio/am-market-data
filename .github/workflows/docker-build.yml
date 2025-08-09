@@ -9,8 +9,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Convert repository name to lowercase for Docker compatibility
-  IMAGE_NAME: ${{ toLowerCase(format('{0}/market-data-service', github.repository)) }}
 
 jobs:
   build-and-push:
@@ -22,6 +20,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      
+      - name: Set lowercase repository name
+        id: repo-name
+        run: echo "REPO_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -73,7 +75,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/market-data-service
           tags: |
             type=raw,value=v${{ github.run_id }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -98,7 +100,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
             GITHUB_PACKAGES_USERNAME=${{ github.actor }}
             GITHUB_PACKAGES_TOKEN=${{ github.token }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.REPO_NAME }}/market-data-service,push-by-digest=true,name-canonical=true,push=true
 
       # Temp fix to prevent cache from growing too large
       - name: Move cache
