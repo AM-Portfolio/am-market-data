@@ -12,28 +12,34 @@ data:
   # Database Configuration
   POSTGRES_URL: "jdbc:postgresql://{{ .Values.postgresql.fullname }}:{{ .Values.postgresql.primary.service.port }}"
   POSTGRES_DATABASE: "{{ .Values.postgresql.auth.database }}"
-  POSTGRES_USERNAME: "{{ .Values.postgresql.auth.username }}"
-  POSTGRES_PASSWORD: "{{ .Values.postgresql.auth.password }}"
+  # Vault Secret Paths for PostgreSQL
+  POSTGRES_SECRET_PATH: "{{ .Values.vault.secretPaths.postgres }}"
+
+
+  # MongoDB Configuration
+  MONGODB_URL: "{{ .Values.vault.secretPaths.database }}/mongodb#url"
+  MONGODB_DATABASE: "{{ .Values.vault.secretPaths.database }}/mongodb#marketdtadatabase"
+  MONGODB_USERNAME: "{{ .Values.vault.secretPaths.database }}/mongodb#username"
+  MONGODB_PASSWORD: "{{ .Values.vault.secretPaths.database }}/mongodb#password"
 
   # Redis Configuration
-  REDIS_URL: "{{ .Values.redis.fullname }}"
-  REDIS_PASSWORD: "{{ .Values.redis.auth.password }}"
+  REDIS_URL: "{{ .Values.vault.secretPaths.database }}/redis#url"
   REDIS_PORT: "{{ .Values.redis.auth.port }}"
 
   # InfluxDB Configuration
-  INFLUXDB_URL: "{{ .Values.influxdb.url }}"
-  INFLUXDB_ORG: "{{ .Values.influxdb.auth.org }}"
-  INFLUXDB_BUCKET: "{{ .Values.influxdb.auth.bucket }}"
-  INFLUXDB_TOKEN: "{{ .Values.influxdb.auth.token }}"
+  INFLUXDB_TOKEN: "{{ .Values.vault.secretPaths.database }}/influxdb#token"
+  INFLUXDB_URL: "{{ .Values.vault.secretPaths.database }}/influxdb#url"
+  INFLUXDB_ORG: "{{ .Values.vault.secretPaths.database }}/influxdb#org"
+  INFLUXDB_BUCKET: "{{ .Values.vault.secretPaths.database }}/influxdb#bucket"
 
   # Kafka Configuration
-  KAFKA_BOOTSTRAP_SERVERS: "{{ .Values.kafka.bootstrapServers }}"
-  KAFKA_ZOOKEEPER_CONNECT: "{{ .Values.kafka.zookeeper.connect }}"
-  KAFKA_CONSUMER_GROUP_ID: "{{ .Values.kafka.config.consumerGroupId }}"
-  KAFKA_CONSUMER_AUTO_OFFSET_RESET: "{{ .Values.kafka.config.autoOffsetReset }}"
-  KAFKA_TOPICS_STOCK_PRICE: "{{ .Values.kafka.config.topics.stockPrice }}"
-  KAFKA_TOPICS_NSE_INDICES: "{{ .Values.kafka.config.topics.nseIndices }}"
-  KAFKA_TOPICS_NSE_ETF: "{{ .Values.kafka.config.topics.nseEtf }}"
+  KAFKA_BOOTSTRAP_SERVERS: "{{ .Values.vault.secretPaths.basepath }}/kafka#kafkabootstrapserver"
+  KAFKA_ZOOKEEPER_CONNECT: "{{ .Values.vault.secretPaths.basepath }}/kafka#zookeeperconnect"
+  KAFKA_CONSUMER_GROUP_ID: "{{ .Values.vault.secretPaths.basepath }}/kafka#consumerGroupId"
+  KAFKA_CONSUMER_AUTO_OFFSET_RESET: "{{ .Values.vault.secretPaths.basepath }}/kafka#autooffsetreset"
+  KAFKA_TOPICS_STOCK_PRICE: "{{ .Values.vault.secretPaths.basepath }}/kafka#stockpricetopic"
+  KAFKA_TOPICS_NSE_INDICES: "{{ .Values.vault.secretPaths.basepath }}/kafka#nseindicestopic"
+  KAFKA_TOPICS_NSE_ETF: "{{ .Values.vault.secretPaths.basepath }}/kafka#nseetftopic"
 
   # Market Data Configuration
   MARKET_DATA_MAX_RETRIES: "{{ .Values.config.marketData.maxRetries }}"
@@ -43,8 +49,10 @@ data:
   MARKET_DATA_MAX_AGE_MINUTES: "{{ .Values.config.marketData.maxAgeMinutes }}"
 
   # Upstox Configuration
-  UPSTOX_API_BASE_URL: "{{ .Values.upstox.auth.baseUrl }}"
-  UPSTOX_REDIRECT_URI: "{{ .Values.upstox.auth.redirectUri }}"
+  UPSTOX_API_BASE_URL: "{{ .Values.vault.secretPaths.api }}/upstox#apiBaseUrl"
+  UPSTOX_REDIRECT_URI: "{{ .Values.vault.secretPaths.api }}/upstox#redirectUri"
+  UPSTOX_ACCESS_TOKEN: "{{ .Values.vault.secretPaths.api }}/upstox#accesstoken"
+  UPSTOX_CODE: "{{ .Values.vault.secretPaths.api }}/upstox#authCode"
 
   # Metrics Configuration
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,metrics,prometheus"

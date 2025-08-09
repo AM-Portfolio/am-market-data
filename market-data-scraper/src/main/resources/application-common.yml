@@ -31,13 +31,6 @@ app:
   validation:
     max-age-minutes: 15
 
-# Kafka configuration
-kafka:
-  bootstrap-servers: localhost:9092
-  topics:
-    indices: nse-indices-update
-    stock-indices: nse-stock-indices-update
-
 
 # NSE API configuration
 nse:
