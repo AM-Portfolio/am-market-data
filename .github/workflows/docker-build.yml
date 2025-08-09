@@ -100,7 +100,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
             GITHUB_PACKAGES_USERNAME=${{ github.actor }}
             GITHUB_PACKAGES_TOKEN=${{ github.token }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.REPO_NAME }}/market-data-service,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.REPO_NAME }}/market-data-service,push=true
 
       # Temp fix to prevent cache from growing too large
       - name: Move cache
