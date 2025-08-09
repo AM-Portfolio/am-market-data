@@ -24,7 +24,7 @@ data:
 
   # Redis Configuration
   REDIS_URL: "{{ .Values.vault.secretPaths.database }}/redis#url"
-  REDIS_PORT: "{{ .Values.redis.auth.port }}"
+  REDIS_PORT: "{{ .Values.vault.secretPaths.database }}/redis#port"
 
   # InfluxDB Configuration
   INFLUXDB_TOKEN: "{{ .Values.vault.secretPaths.database }}/influxdb#token"
