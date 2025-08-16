@@ -18,6 +18,43 @@ spec:
         prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
         # Add checksum annotations for config changes
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        # Vault Agent Injector annotations
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "dev-role"
+        vault.hashicorp.com/agent-inject-secret-influxdb: "kv/data/preprod/database/influxdb"
+        vault.hashicorp.com/agent-inject-template-influxdb: |
+          {{`{{- with secret "kv/data/preprod/database/influxdb" -}}
+          export INFLUXDB_URL="{{ .Data.data.url }}"
+          export INFLUXDB_TOKEN="{{ .Data.data.token }}"
+          export INFLUXDB_ORG="{{ .Data.data.org }}"
+          export INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/data/preprod/database/mongodb"
+        vault.hashicorp.com/agent-inject-template-mongodb: |
+          {{`{{- with secret "kv/data/preprod/database/mongodb" -}}
+          export MONGODB_URL="{{ .Data.data.url }}"
+          export MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
+          export MONGODB_USERNAME="{{ .Data.data.username }}"
+          export MONGODB_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-redis: "kv/data/preprod/database/redis"
+        vault.hashicorp.com/agent-inject-template-redis: |
+          {{`{{- with secret "kv/data/preprod/database/redis" -}}
+          export REDIS_URL="{{ .Data.data.url }}"
+          export REDIS_PORT="{{ .Data.data.port }}"
+          export REDIS_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-kafka: "kv/data/preprod/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{`{{- with secret "kv/data/preprod/kafka" -}}
+          export KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.kafkabootstrapserver }}"
+          export KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperconnect }}"
+          export KAFKA_CONSUMER_GROUP_ID="{{ .Data.data.consumerGroupId }}"
+          export KAFKA_CONSUMER_AUTO_OFFSET_RESET="{{ .Data.data.autooffsetreset }}"
+          export KAFKA_TOPICS_STOCK_PRICE="{{ .Data.data.stockpricetopic }}"
+          export KAFKA_TOPICS_NSE_INDICES="{{ .Data.data.nseindicestopic }}"
+          export KAFKA_TOPICS_NSE_ETF="{{ .Data.data.nseetftopic }}"
+          {{- end -}}`}}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

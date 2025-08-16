@@ -25,7 +25,6 @@ public class BrokerageCalculationRequest {
      * Quantity of shares
      */
     private int quantity;
-    
     /**
      * Buy price
      */
