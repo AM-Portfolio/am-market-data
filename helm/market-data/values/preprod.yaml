@@ -43,11 +43,11 @@ postgresql:
 
 # Vault Configuration
 vault:
-  enabled: false
+  enabled: true
   secretPaths:
-    database: "vault:kv/data/preprod/database/"
-    api: "vault:kv/data/preprod/api/"
-    basepath: "vault:kv/data/preprod/"
+    database: "vault:kv/preprod/database"
+    api: "vault:kv/preprod/api"
+    basepath: "vault:kv/preprod"
 
 # Monitoring Configuration
 monitoring:
