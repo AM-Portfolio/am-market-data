@@ -24,6 +24,7 @@ spec:
       labels:
         {{- include "am-market-data.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: vault-auth
       imagePullSecrets:
       - name: ghcr-secret
       containers:
