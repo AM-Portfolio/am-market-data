@@ -14,14 +14,15 @@ spec:
         vault.hashicorp.com/auth-config-disable-iss-validation: "true"
         vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
         vault.hashicorp.com/role: "dev-role"
-        vault.hashicorp.com/agent-inject-secret-test: "kv/preprod/database/mongodb"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/agent-inject-secret-test: "kv/preprod/database/mongo"
         vault.hashicorp.com/agent-inject-template-test: |
-          {{`{{- with secret "kv/preprod/database/mongodb" -}}
+          {{- with secret "kv/preprod/database/mongo" -}}
           MONGODB_URL="{{ .Data.data.url }}"
           MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
           MONGODB_USERNAME="{{ .Data.data.username }}"
           MONGODB_PASSWORD="{{ .Data.data.password }}"
-          {{- end -}}`}}
+          {{- end -}}
     spec:
       serviceAccountName: vault-auth  # Same service account as your application
       containers:
@@ -43,12 +44,47 @@ spec:
           if [ -f /vault/secrets/test ]; then
             echo "Secret was injected successfully:"
             cat /vault/secrets/test
+            
+            echo "\n=== Extracted Secret Values ==="
+            # Source the file to get environment variables
+            if grep -q MONGODB_URL /vault/secrets/test; then
+              echo "Secret file contains template variables"
+              
+              # Try to extract values using grep and sed
+              echo "MongoDB URL:"
+              grep -o '".*url.*"' /vault/secrets/test || echo "URL not found"
+              
+              echo "MongoDB Database:"
+              grep -o '".*marketdtadatabase.*"' /vault/secrets/test || echo "Database not found"
+              
+              echo "MongoDB Username:"
+              grep -o '".*username.*"' /vault/secrets/test || echo "Username not found"
+              
+              echo "MongoDB Password:"
+              grep -o '".*password.*"' /vault/secrets/test || echo "Password not found"
+              
+              # Try to source the file if it contains actual values
+              if grep -q "=" /vault/secrets/test; then
+                echo "\n=== Environment Variables from Secret ==="
+                # Export variables from the file
+                export $(grep -v '^#' /vault/secrets/test | xargs) 2>/dev/null
+                echo "MONGODB_URL: ${MONGODB_URL:-not set}"
+                echo "MONGODB_DATABASE: ${MONGODB_DATABASE:-not set}"
+                echo "MONGODB_USERNAME: ${MONGODB_USERNAME:-not set}"
+                echo "MONGODB_PASSWORD: ${MONGODB_PASSWORD:-not set}"
+              fi
+            else
+              echo "Secret file does not contain expected template variables"
+            fi
           else
             echo "Secret injection failed! Directory contents:"
             ls -la /vault/secrets/ || echo "Vault secrets directory doesn't exist"
           fi
           
-          echo "Environment information:"
+          echo "\n=== Vault Secrets Directory Contents ==="
+          ls -la /vault/secrets/ || echo "Vault secrets directory doesn't exist"
+          
+          echo "\n=== Environment Information ==="
           printenv | grep -i vault || echo "No Vault environment variables found"
           
           echo "Test complete"

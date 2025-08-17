@@ -28,15 +28,15 @@ spec:
         vault.hashicorp.com/role: "dev-role"
         vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
         vault.hashicorp.com/agent-inject-template-influxdb: |
-          {{`{{- with secret "kv/ preprod/database/influxdb" -}}
+          {{`{{- with secret "kv/preprod/database/influxdb" -}}
           export INFLUXDB_URL="{{ .Data.data.url }}"
           export INFLUXDB_TOKEN="{{ .Data.data.token }}"
           export INFLUXDB_ORG="{{ .Data.data.org }}"
           export INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
           {{- end -}}`}}
-        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongodb"
+        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongo"
         vault.hashicorp.com/agent-inject-template-mongodb: |
-          {{`{{- with secret "kv/preprod/database/mongodb" -}}
+          {{`{{- with secret "kv/preprod/database/mongo" -}}
           export MONGODB_URL="{{ .Data.data.url }}"
           export MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
           export MONGODB_USERNAME="{{ .Data.data.username }}"
