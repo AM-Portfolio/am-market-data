@@ -16,34 +16,12 @@ data:
   POSTGRES_SECRET_PATH: "{{ .Values.vault.secretPaths.postgres }}"
 
 
-  # MongoDB Configuration
-  # These are placeholder values that will be overridden by Vault Agent injected environment variables
-  MONGODB_URL: "placeholder-mongodb-url"
-  MONGODB_DATABASE: "placeholder-mongodb-database"
-  MONGODB_USERNAME: "placeholder-mongodb-username"
-  MONGODB_PASSWORD: "placeholder-mongodb-password"
-
-  # Redis Configuration
-  # These are placeholder values that will be overridden by Vault Agent injected environment variables
-  REDIS_URL: "placeholder-redis-url"
-  REDIS_PORT: "placeholder-redis-port"
-
-  # InfluxDB Configuration
-  # These are placeholder values that will be overridden by Vault Agent injected environment variables
-  INFLUXDB_TOKEN: "placeholder-token"
-  INFLUXDB_URL: "placeholder-url"
-  INFLUXDB_ORG: "placeholder-org"
-  INFLUXDB_BUCKET: "placeholder-bucket"
-
-  # Kafka Configuration
-  # These are placeholder values that will be overridden by Vault Agent injected environment variables
-  KAFKA_BOOTSTRAP_SERVERS: "placeholder-kafka-bootstrap-servers"
-  KAFKA_ZOOKEEPER_CONNECT: "placeholder-kafka-zookeeper-connect"
-  KAFKA_CONSUMER_GROUP_ID: "placeholder-kafka-consumer-group-id"
-  KAFKA_CONSUMER_AUTO_OFFSET_RESET: "placeholder-kafka-auto-offset-reset"
-  KAFKA_TOPICS_STOCK_PRICE: "placeholder-kafka-stock-price-topic"
-  KAFKA_TOPICS_NSE_INDICES: "placeholder-kafka-nse-indices-topic"
-  KAFKA_TOPICS_NSE_ETF: "placeholder-kafka-nse-etf-topic"
+  # Note: The following environment variables are injected by Vault Agent and don't need to be defined here:
+  # - MongoDB: MONGODB_URL, MONGODB_DATABASE, MONGODB_USERNAME, MONGODB_PASSWORD
+  # - Redis: REDIS_URL, REDIS_PORT, REDIS_PASSWORD
+  # - InfluxDB: INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG, INFLUXDB_BUCKET
+  # - Kafka: KAFKA_* variables
+  # - Upstock: UPSTOCK_* variables
 
   # Market Data Configuration
   MARKET_DATA_MAX_RETRIES: "{{ .Values.config.marketData.maxRetries }}"
@@ -52,12 +30,7 @@ data:
   MARKET_DATA_THREAD_QUEUE_CAPACITY: "{{ .Values.config.marketData.threadQueueCapacity }}"
   MARKET_DATA_MAX_AGE_MINUTES: "{{ .Values.config.marketData.maxAgeMinutes }}"
 
-  # Upstock Configuration
-  # These are placeholder values that will be overridden by Vault Agent injected environment variables
-  UPSTOCK_API_BASE_URL: "placeholder-upstock-api-base-url"
-  UPSTOCK_REDIRECT_URI: "placeholder-upstock-redirect-uri"
-  UPSTOCK_ACCESS_TOKEN: "placeholder-upstock-access-token"
-  UPSTOCK_CODE: "placeholder-upstock-code"
+  # Note: Upstock configuration is injected by Vault Agent
 
   # Metrics Configuration
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,metrics,prometheus"
