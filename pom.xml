@@ -18,8 +18,8 @@
         <module>market-data-kafka</module>
         <module>market-data-service</module>
         <module>market-data-external-api</module> 
-        <!-- <module>market-data-scraper</module>
-        <module>market-data-processor</module>  -->
+        <module>market-data-scraper</module>
+        <module>market-data-processor</module> 
         <module>market-data-scheduler</module>
         <module>market-data-api</module>  
         <module>market-data-app</module>
