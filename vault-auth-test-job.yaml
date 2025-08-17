@@ -15,13 +15,47 @@ spec:
         vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
         vault.hashicorp.com/role: "dev-role"
         vault.hashicorp.com/agent-pre-populate-only: "true"
-        vault.hashicorp.com/agent-inject-secret-test: "kv/preprod/database/mongo"
-        vault.hashicorp.com/agent-inject-template-test: |
+        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongo"
+        vault.hashicorp.com/agent-inject-template-mongodb: |
           {{- with secret "kv/preprod/database/mongo" -}}
           MONGODB_URL="{{ .Data.data.url }}"
           MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
           MONGODB_USERNAME="{{ .Data.data.username }}"
           MONGODB_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}
+        vault.hashicorp.com/agent-inject-secret-redis: "kv/preprod/database/redis"
+        vault.hashicorp.com/agent-inject-template-redis: |
+          {{- with secret "kv/preprod/database/redis" -}}
+          {{- $url := .Data.data.url -}}
+          {{- $urlParts := split "://" $url -}}
+          {{- $hostPort := index $urlParts 1 -}}
+          {{- $hostPortParts := split ":" $hostPort -}}
+          REDIS_URL="{{ $url }}"
+          REDIS_HOST="{{ index $hostPortParts 0 }}"
+          REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
+          REDIS_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}
+        vault.hashicorp.com/agent-inject-secret-kafka: "kv/preprod/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{- with secret "kv/preprod/kafka" -}}
+          KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.bootstrapServers }}"
+          KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperConnect }}"
+          {{- end -}}
+        vault.hashicorp.com/agent-inject-secret-upstock: "kv/preprod/api/upstock"
+        vault.hashicorp.com/agent-inject-template-upstock: |
+          {{- with secret "kv/preprod/api/upstock" -}}
+          UPSTOCK_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
+          UPSTOCK_REDIRECT_URI="{{ .Data.data.redirectUri }}"
+          UPSTOCK_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          UPSTOCK_CODE="{{ .Data.data.authCode }}"
+          {{- end -}}
+        vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
+        vault.hashicorp.com/agent-inject-template-influxdb: |
+          {{- with secret "kv/preprod/database/influxdb" -}}
+          INFLUXDB_URL="{{ .Data.data.url }}"
+          INFLUXDB_TOKEN="{{ .Data.data.token }}"
+          INFLUXDB_ORG="{{ .Data.data.org }}"
+          INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
           {{- end -}}
     spec:
       serviceAccountName: vault-auth  # Same service account as your application
@@ -40,15 +74,45 @@ spec:
             echo "Service account token missing!"
           fi
           
-          echo "Checking for injected secrets..."
-          if [ -f /vault/secrets/test ]; then
-            echo "Secret was injected successfully:"
-            cat /vault/secrets/test
-            
-            echo "\n=== Extracted Secret Values ==="
-            # Source the file to get environment variables
-            if grep -q MONGODB_URL /vault/secrets/test; then
-              echo "Secret file contains template variables"
+          echo "\n=== MongoDB Secrets ==="
+          if [ -f /vault/secrets/mongodb ]; then
+            echo "MongoDB secrets were injected successfully:"
+            cat /vault/secrets/mongodb
+          else
+            echo "MongoDB secrets were not injected!"
+          fi
+          
+          echo "\n=== Redis Secrets ==="
+          if [ -f /vault/secrets/redis ]; then
+            echo "Redis secrets were injected successfully:"
+            cat /vault/secrets/redis
+          else
+            echo "Redis secrets were not injected!"
+          fi
+          
+          echo "\n=== Kafka Secrets ==="
+          if [ -f /vault/secrets/kafka ]; then
+            echo "Kafka secrets were injected successfully:"
+            cat /vault/secrets/kafka
+          else
+            echo "Kafka secrets were not injected!"
+          fi
+          
+          echo "\n=== Upstock Secrets ==="
+          if [ -f /vault/secrets/upstock ]; then
+            echo "Upstock secrets were injected successfully:"
+            cat /vault/secrets/upstock
+          else
+            echo "Upstock secrets were not injected!"
+          fi
+          
+          echo "\n=== InfluxDB Secrets ==="
+          if [ -f /vault/secrets/influxdb ]; then
+            echo "InfluxDB secrets were injected successfully:"
+            cat /vault/secrets/influxdb
+          else
+            echo "InfluxDB secrets were not injected!"
+          fi
               
               # Try to extract values using grep and sed
               echo "MongoDB URL:"
