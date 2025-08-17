@@ -46,11 +46,12 @@ spec:
         vault.hashicorp.com/agent-inject-template-redis: |
           {{`{{- with secret "kv/preprod/database/redis" -}}
           {{- $url := .Data.data.url -}}
+          {{- $hostname := .Data.data.hostname -}}
           {{- $urlParts := split "://" $url -}}
           {{- $hostPort := index $urlParts 1 -}}
           {{- $hostPortParts := split ":" $hostPort -}}
           export REDIS_URL="{{ $url }}"
-          export REDIS_HOST="{{ index $hostPortParts 0 }}"
+          export REDIS_HOSTNAME="{{ $hostname }}"
           export REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
           export REDIS_PASSWORD="{{ .Data.data.password }}"
           {{- end -}}`}}

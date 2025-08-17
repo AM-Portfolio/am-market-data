@@ -3,6 +3,8 @@ package com.am.marketdata.api.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
@@ -27,14 +29,16 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class RedisConfig {
+    
+    private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
-    @Value("${spring.data.redis.host:localhost}")
+    @Value("${REDIS_HOSTNAME}")
     private String redisHost;
 
     // @Value("${spring.data.redis.port:6379}")
     // private String redisPort;
 
-    @Value("${spring.data.redis.password:}")
+    @Value("${REDIS_PASSWORD}")
     private String redisPassword;
 
     @Value("${market.data.cache.ttl.seconds:300}")
@@ -46,11 +50,18 @@ public class RedisConfig {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+        
+        log.info("Redis connection details - Host: {}, Port: {}", redisHost, 6379);
+        log.info("Redis password is {}", redisPassword != null && !redisPassword.isEmpty() ? "provided" : "not provided");
+        
         redisConfig.setHostName(redisHost);
-        //redisConfig.setPort(Integer.parseInt(redisPort));
+        redisConfig.setPort(6379);
         
         if (redisPassword != null && !redisPassword.isEmpty()) {
+            log.info("Setting Redis password for authentication");
             redisConfig.setPassword(redisPassword);
+        } else {
+            log.warn("No Redis password provided, connecting without authentication");
         }
         
         return new LettuceConnectionFactory(redisConfig);

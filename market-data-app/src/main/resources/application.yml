@@ -18,7 +18,7 @@ INFLUXDB_URL: http://localhost:8086
 
 
 # Redis Configuration
-REDIS_URL: http://localhost:6379
+REDIS_HOSTNAME: localhost
 REDIS_PASSWORD: RedisPassword123!
 REDIS_PORT: 6379
 
@@ -66,10 +66,9 @@ spring:
   application:
     name: market-data-service
 
-  # MongoDB Configuration
   data:
     redis:
-      url: ${REDIS_URL}
+      url: ${REDIS_HOSTNAME}
       password: ${REDIS_PASSWORD}
       port: 6379
     mongodb:
