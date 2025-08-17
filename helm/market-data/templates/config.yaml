@@ -21,11 +21,6 @@ data:
   # - InfluxDB: INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG, INFLUXDB_BUCKET
   # - Kafka: KAFKA_* variables
   # - Upstock: UPSTOCK_* variables
-  
-  # Redis Configuration (Spring Boot specific)
-  spring.data.redis.host: "${REDIS_HOST}"
-  spring.data.redis.port: "${REDIS_PORT}"
-  spring.data.redis.password: "${REDIS_PASSWORD}"
 
   # Market Data Configuration
   MARKET_DATA_MAX_RETRIES: "{{ .Values.config.marketData.maxRetries }}"
