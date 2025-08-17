@@ -31,8 +31,8 @@ public class RedisConfig {
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
 
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
+    // @Value("${spring.data.redis.port:6379}")
+    // private String redisPort;
 
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
@@ -47,7 +47,7 @@ public class RedisConfig {
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
         redisConfig.setHostName(redisHost);
-        redisConfig.setPort(redisPort);
+        //redisConfig.setPort(Integer.parseInt(redisPort));
         
         if (redisPassword != null && !redisPassword.isEmpty()) {
             redisConfig.setPassword(redisPassword);
