@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-auth-test
+  namespace: dev  # Change to your application namespace
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/auth-config-audience: "vault"  # Adding audience as per warning in logs
+        vault.hashicorp.com/auth-config-issuer: "https://kubernetes.default.svc.cluster.local"
+        vault.hashicorp.com/auth-config-disable-iss-validation: "true"
+        vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
+        vault.hashicorp.com/role: "dev-role"
+        vault.hashicorp.com/agent-inject-secret-test: "kv/preprod/database/mongodb"
+        vault.hashicorp.com/agent-inject-template-test: |
+          {{`{{- with secret "kv/preprod/database/mongodb" -}}
+          MONGODB_URL="{{ .Data.data.url }}"
+          MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
+          MONGODB_USERNAME="{{ .Data.data.username }}"
+          MONGODB_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+    spec:
+      serviceAccountName: vault-auth  # Same service account as your application
+      containers:
+      - name: vault-auth-test
+        image: busybox:latest
+        command:
+        - "/bin/sh"
+        - "-c"
+        - |
+          echo "Starting Vault authentication test..."
+          echo "Checking for Vault token..."
+          if [ -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+            echo "Service account token exists"
+          else
+            echo "Service account token missing!"
+          fi
+          
+          echo "Checking for injected secrets..."
+          if [ -f /vault/secrets/test ]; then
+            echo "Secret was injected successfully:"
+            cat /vault/secrets/test
+          else
+            echo "Secret injection failed! Directory contents:"
+            ls -la /vault/secrets/ || echo "Vault secrets directory doesn't exist"
+          fi
+          
+          echo "Environment information:"
+          printenv | grep -i vault || echo "No Vault environment variables found"
+          
+          echo "Test complete"
+          sleep 30  # Keep container running briefly for debugging
+      restartPolicy: Never
+  backoffLimit: 0
