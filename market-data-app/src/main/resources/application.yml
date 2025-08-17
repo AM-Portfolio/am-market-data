@@ -14,11 +14,11 @@ MONGO_PASSWORD: ssd2658
 INFLUXDB_TOKEN: ssd2658admin123456789
 INFLUXDB_ORG: am-portfolio
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://influxdb.dev.svc.cluster.local:8086
+INFLUXDB_URL: http://localhost:8086
 
 
 # Redis Configuration
-REDIS_URL: http://redis.dev.svc.cluster.local:6379
+REDIS_URL: http://localhost:6379
 REDIS_PASSWORD: RedisPassword123!
 REDIS_PORT: 6379
 
