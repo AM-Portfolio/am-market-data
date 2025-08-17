@@ -62,6 +62,14 @@ spec:
           export UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
           export UPSTOX_CODE="{{ .Data.data.authCode }}"
           {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-zerodha: "kv/preprod/api/zerodha"
+        vault.hashicorp.com/agent-inject-template-zerodha: |
+          {{`{{- with secret "kv/preprod/api/zerodha" -}}
+          export ZERODHA_API_KEY="{{ .Data.data.key }}"
+          export ZERODHA_API_SECRET="{{ .Data.data.secret }}"
+          export ZERODHA_API_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          export ZERODHA_API_REFRESH_TOKEN="{{ .Data.data.refreshtoken }}"
+          {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-kafka: "kv/preprod/kafka"
         vault.hashicorp.com/agent-inject-template-kafka: |
           {{`{{- with secret "kv/preprod/kafka" -}}
