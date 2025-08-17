@@ -70,8 +70,8 @@ spring:
   data:
     redis:
       url: ${REDIS_URL}
-      password: ${spring_data_redis_password}
-      port: ${spring_data_redis_port}
+      password: ${REDIS_PASSWORD}
+      port: 6379
     mongodb:
       uri: ${MONGO_URL}
       database: ${MONGO_DATABASE}
