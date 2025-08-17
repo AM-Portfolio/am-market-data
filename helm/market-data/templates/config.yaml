@@ -17,29 +17,33 @@ data:
 
 
   # MongoDB Configuration
-  MONGODB_URL: "{{ .Values.vault.secretPaths.database }}/mongodb#url"
-  MONGODB_DATABASE: "{{ .Values.vault.secretPaths.database }}/mongodb#marketdtadatabase"
-  MONGODB_USERNAME: "{{ .Values.vault.secretPaths.database }}/mongodb#username"
-  MONGODB_PASSWORD: "{{ .Values.vault.secretPaths.database }}/mongodb#password"
+  # Using environment variables injected by Vault Agent
+  MONGODB_URL: "${MONGODB_URL}"
+  MONGODB_DATABASE: "${MONGODB_DATABASE}"
+  MONGODB_USERNAME: "${MONGODB_USERNAME}"
+  MONGODB_PASSWORD: "${MONGODB_PASSWORD}"
 
   # Redis Configuration
-  REDIS_URL: "{{ .Values.vault.secretPaths.database }}/redis#url"
-  REDIS_PORT: "{{ .Values.vault.secretPaths.database }}/redis#port"
+  # Using environment variables injected by Vault Agent
+  REDIS_URL: "${REDIS_URL}"
+  REDIS_PORT: "${REDIS_PORT}"
 
   # InfluxDB Configuration
-  INFLUXDB_TOKEN: "{{ .Values.vault.secretPaths.database }}/influxdb#token"
-  INFLUXDB_URL: "{{ .Values.vault.secretPaths.database }}/influxdb#url"
-  INFLUXDB_ORG: "{{ .Values.vault.secretPaths.database }}/influxdb#org"
-  INFLUXDB_BUCKET: "{{ .Values.vault.secretPaths.database }}/influxdb#bucket"
+  # Using environment variables injected by Vault Agent
+  # These will be overridden by the environment variables injected by Vault Agent
+  INFLUXDB_TOKEN: "${INFLUXDB_TOKEN}"
+  INFLUXDB_URL: "${INFLUXDB_URL}"
+  INFLUXDB_ORG: "${INFLUXDB_ORG}"
+  INFLUXDB_BUCKET: "${INFLUXDB_BUCKET}"
 
   # Kafka Configuration
-  KAFKA_BOOTSTRAP_SERVERS: "{{ .Values.vault.secretPaths.basepath }}/kafka#kafkabootstrapserver"
-  KAFKA_ZOOKEEPER_CONNECT: "{{ .Values.vault.secretPaths.basepath }}/kafka#zookeeperconnect"
-  KAFKA_CONSUMER_GROUP_ID: "{{ .Values.vault.secretPaths.basepath }}/kafka#consumerGroupId"
-  KAFKA_CONSUMER_AUTO_OFFSET_RESET: "{{ .Values.vault.secretPaths.basepath }}/kafka#autooffsetreset"
-  KAFKA_TOPICS_STOCK_PRICE: "{{ .Values.vault.secretPaths.basepath }}/kafka#stockpricetopic"
-  KAFKA_TOPICS_NSE_INDICES: "{{ .Values.vault.secretPaths.basepath }}/kafka#nseindicestopic"
-  KAFKA_TOPICS_NSE_ETF: "{{ .Values.vault.secretPaths.basepath }}/kafka#nseetftopic"
+  KAFKA_BOOTSTRAP_SERVERS: "${KAFKA_BOOTSTRAP_SERVERS}"
+  KAFKA_ZOOKEEPER_CONNECT: "${KAFKA_ZOOKEEPER_CONNECT}"
+  KAFKA_CONSUMER_GROUP_ID: "${KAFKA_CONSUMER_GROUP_ID}"
+  KAFKA_CONSUMER_AUTO_OFFSET_RESET: "${KAFKA_CONSUMER_AUTO_OFFSET_RESET}"
+  KAFKA_TOPICS_STOCK_PRICE: "${KAFKA_TOPICS_STOCK_PRICE}"
+  KAFKA_TOPICS_NSE_INDICES: "${KAFKA_TOPICS_NSE_INDICES}"
+  KAFKA_TOPICS_NSE_ETF: "${KAFKA_TOPICS_NSE_ETF}"
 
   # Market Data Configuration
   MARKET_DATA_MAX_RETRIES: "{{ .Values.config.marketData.maxRetries }}"
@@ -49,10 +53,10 @@ data:
   MARKET_DATA_MAX_AGE_MINUTES: "{{ .Values.config.marketData.maxAgeMinutes }}"
 
   # Upstox Configuration
-  UPSTOX_API_BASE_URL: "{{ .Values.vault.secretPaths.api }}/upstox#apiBaseUrl"
-  UPSTOX_REDIRECT_URI: "{{ .Values.vault.secretPaths.api }}/upstox#redirectUri"
-  UPSTOX_ACCESS_TOKEN: "{{ .Values.vault.secretPaths.api }}/upstox#accesstoken"
-  UPSTOX_CODE: "{{ .Values.vault.secretPaths.api }}/upstox#authCode"
+  UPSTOX_API_BASE_URL: "${UPSTOX_API_BASE_URL}"
+  UPSTOX_REDIRECT_URI: "${UPSTOX_REDIRECT_URI}"
+  UPSTOX_ACCESS_TOKEN: "${UPSTOX_ACCESS_TOKEN}"
+  UPSTOX_CODE: "${UPSTOX_CODE}"
 
   # Metrics Configuration
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,metrics,prometheus"
