@@ -32,7 +32,7 @@ public class RedisConfig {
     
     private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
-    @Value("${REDIS_HOSTNAME}")
+    @Value("${REDIS_HOSTNAME:redis.dev.svc.cluster.local}")
     private String redisHost;
 
     // @Value("${spring.data.redis.port:6379}")
