@@ -5,7 +5,7 @@
 # POSTGRES_DATABASE: portfolio
 
 #mongo
-MONGO_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+MONGO_URL: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
 MONGO_DATABASE: market_data
 MONGO_USERNAME: ssd2658
 MONGO_PASSWORD: ssd2658 
@@ -14,7 +14,7 @@ MONGO_PASSWORD: ssd2658
 INFLUXDB_TOKEN: ssd2658admin123456789
 INFLUXDB_ORG: am-portfolio
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://localhost:8086
+INFLUXDB_URL: http://influxdb.dev.svc.cluster.local:8086
 
 
 # Redis Configuration
@@ -27,8 +27,8 @@ GRAFANA_ADMIN_USER: 1109403
 GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
 # Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+KAFKA_BOOTSTRAP_SERVERS: kafka.dev.svc.cluster.local:9092
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka.dev.svc.cluster.local:9092
 KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
 KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 KAFKA_CONSUMER_GROUP_ID: am-market-data-service
