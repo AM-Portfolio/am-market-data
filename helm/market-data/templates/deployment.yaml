@@ -45,12 +45,13 @@ spec:
         vault.hashicorp.com/agent-inject-secret-redis: "kv/preprod/database/redis"
         vault.hashicorp.com/agent-inject-template-redis: |
           {{`{{- with secret "kv/preprod/database/redis" -}}
-          export REDIS_URL="{{ .Data.data.url }}"
-          {{- if contains ":" .Data.data.port -}}
-          export REDIS_PORT="{{ index (split ":" .Data.data.port) 1 }}"
-          {{- else -}}
-          export REDIS_PORT="{{ .Data.data.port }}"
-          {{- end -}}
+          {{- $url := .Data.data.url -}}
+          {{- $urlParts := split "://" $url -}}
+          {{- $hostPort := index $urlParts 1 -}}
+          {{- $hostPortParts := split ":" $hostPort -}}
+          export REDIS_URL="{{ $url }}"
+          export REDIS_HOST="{{ index $hostPortParts 0 }}"
+          export REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
           export REDIS_PASSWORD="{{ .Data.data.password }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-upstox: "kv/preprod/api/upstock"
