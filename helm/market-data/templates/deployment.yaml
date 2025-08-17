@@ -49,9 +49,9 @@ spec:
           export REDIS_PORT="{{ .Data.data.port }}"
           export REDIS_PASSWORD="{{ .Data.data.password }}"
           {{- end -}}`}}
-        vault.hashicorp.com/agent-inject-secret-upstox: "kv/preprod/api/upstox"
-        vault.hashicorp.com/agent-inject-template-upstox: |
-          {{`{{- with secret "kv/preprod/api/upstox" -}}
+        vault.hashicorp.com/agent-inject-secret-upstok: "kv/preprod/api/upstok"
+        vault.hashicorp.com/agent-inject-template-upstok: |
+          {{`{{- with secret "kv/preprod/api/upstok" -}}
           export UPSTOX_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
           export UPSTOX_REDIRECT_URI="{{ .Data.data.redirectUri }}"
           export UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
