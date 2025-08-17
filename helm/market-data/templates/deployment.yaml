@@ -20,12 +20,12 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
         # Vault Agent Injector annotations
         vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/auth-config-audience: "vault"
+        vault.hashicorp.com/auth-config-audience: "vault"  # Adding audience as per warning in logs
         vault.hashicorp.com/auth-config-issuer: "https://kubernetes.default.svc.cluster.local"
         vault.hashicorp.com/auth-config-disable-iss-validation: "true"
         vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
-        vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"  
         vault.hashicorp.com/role: "dev-role"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
         vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
         vault.hashicorp.com/agent-inject-template-influxdb: |
           {{`{{- with secret "kv/preprod/database/influxdb" -}}
