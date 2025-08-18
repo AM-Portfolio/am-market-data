@@ -2,6 +2,8 @@ package com.am.marketdata;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -61,7 +63,28 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 @EnableRetry
 @EnableScheduling
 public class MarketDataApplication {
+    private static final Logger logger = LoggerFactory.getLogger(MarketDataApplication.class);
+    
     public static void main(String[] args) {
+        // Log environment variables to debug what values are being used
+        logger.info("=== ENVIRONMENT VARIABLES DEBUG ====");
+        logger.info("MONGO_URL: {}", System.getenv("MONGO_URL"));
+        logger.info("MONGODB_URL: {}", System.getenv("MONGODB_URL"));
+        logger.info("MONGO_DATABASE: {}", System.getenv("MONGO_DATABASE"));
+        logger.info("MONGODB_DATABASE: {}", System.getenv("MONGODB_DATABASE"));
+        logger.info("REDIS_HOSTNAME: {}", System.getenv("REDIS_HOSTNAME"));
+        logger.info("REDIS_PASSWORD: {}", System.getenv("REDIS_PASSWORD"));
+        logger.info("INFLUXDB_URL: {}", System.getenv("INFLUXDB_URL"));
+        logger.info("INFLUXDB_TOKEN: {}", System.getenv("INFLUXDB_TOKEN"));
+        logger.info("INFLUXDB_ORG: {}", System.getenv("INFLUXDB_ORG"));
+        logger.info("INFLUXDB_BUCKET: {}", System.getenv("INFLUXDB_BUCKET"));
+        
+        // Log Spring properties to see what's being used
+        logger.info("=== SPRING PROPERTIES DEBUG ====");
+        logger.info("spring.data.mongodb.uri: {}", System.getProperty("spring.data.mongodb.uri"));
+        logger.info("spring.data.redis.url: {}", System.getProperty("spring.data.redis.url"));
+        logger.info("spring.influx.url: {}", System.getProperty("spring.influx.url"));
+        
         SpringApplication.run(MarketDataApplication.class, args);
     }
 }
