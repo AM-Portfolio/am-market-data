@@ -1,13 +1,6 @@
 # Pre-production Environment Configuration
 environment: preprod
 
-
-# Image Configuration
-image:
-  repository: am-market-data-market-data-service
-  pullPolicy: Never
-  tag: "latest"
-
 # Application Configuration
 config:
   marketData:
@@ -25,6 +18,7 @@ service:
 # Ingress Configuration
 ingress:
   enabled: true
+  ipAddress: 20.59.109.241
 
 # Resource Configuration
 resources:
@@ -35,61 +29,25 @@ resources:
     cpu: 250m
     memory: 256Mi
 
-# postgresql:
-#   enabled: true
-#   fullname: host.docker.internal
-#   auth:
-#     database: portfolio
-#     username: postgres
-#     password: password
-#   primary:
-#     service:
-#       port: 5456
-
-influxdb:
-  enabled: true
-  url: http://influxdb.dev.svc.cluster.local:8086
-  auth:
-    token: ssd2658admin123456789
-    org: am-portfolio
-    bucket: market-data
-
-mongodb:
+postgresql:
   enabled: true
   fullname: host.docker.internal
   auth:
-    url: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
-    database: market_data
-    username: ssd2658
-    password: ssd2658
+    database: portfolio
+    username: postgres
+    password: password
+  primary:
+    service:
+      port: 5456
 
-kafka:
-  enabled: true
-  bootstrapServers: kafka.dev.svc.cluster.local:9092
-  config:
-    consumerGroupId: am-market-data-service
-    autoOffsetReset: earliest
-    topics:
-      stockPrice: am-stock-price-update
-      nseIndices: nse-indices-update
-      nseEtf: nse-etf-update
-
-# Upstox Configuration
-upstox:
-  enabled: true
-  auth:
-    baseUrl: https://api.upstox.com/v2
-    redirectUri: http://localhost:8080
 
 # Vault Configuration
 vault:
-  enabled: false
+  enabled: true
   secretPaths:
-    github: "secret/data/github/packages"
-    githubToken: "secret/data/github/token"
-    database: "secret/data/database/postgres"
-    influxdb: "secret/data/database/influxdb"
-    upstox: "secret/data/api/upstox"
+    database: "vault:kv/data/preprod/database"
+    api: "vault:kv/data/preprod/api"
+    basepath: "vault:kv/data/preprod"
 
 # Monitoring Configuration
 monitoring:

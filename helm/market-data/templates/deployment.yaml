@@ -18,16 +18,83 @@ spec:
         prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
         # Add checksum annotations for config changes
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        # Vault Agent Injector annotations
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/auth-config-audience: "vault"  # Adding audience as per warning in logs
+        vault.hashicorp.com/auth-config-issuer: "https://kubernetes.default.svc.cluster.local"
+        vault.hashicorp.com/auth-config-disable-iss-validation: "true"
+        vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
+        vault.hashicorp.com/role: "dev-role"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
+        vault.hashicorp.com/agent-inject-template-influxdb: |
+          {{`{{- with secret "kv/preprod/database/influxdb" -}}
+          export INFLUXDB_URL="{{ .Data.data.url }}"
+          export INFLUXDB_TOKEN="{{ .Data.data.token }}"
+          export INFLUXDB_ORG="{{ .Data.data.org }}"
+          export INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongo"
+        vault.hashicorp.com/agent-inject-template-mongodb: |
+          {{`{{- with secret "kv/preprod/database/mongo" -}}
+          export MONGODB_URL="{{ .Data.data.url }}"
+          export MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
+          export MONGODB_USERNAME="{{ .Data.data.username }}"
+          export MONGODB_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-redis: "kv/preprod/database/redis"
+        vault.hashicorp.com/agent-inject-template-redis: |
+          {{`{{- with secret "kv/preprod/database/redis" -}}
+          {{- $url := .Data.data.url -}}
+          {{- $hostname := .Data.data.hostname -}}
+          {{- $urlParts := split "://" $url -}}
+          {{- $hostPort := index $urlParts 1 -}}
+          {{- $hostPortParts := split ":" $hostPort -}}
+          export REDIS_URL="{{ $url }}"
+          export REDIS_HOSTNAME="{{ $hostname }}"
+          export REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
+          export REDIS_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-upstox: "kv/preprod/api/upstock"
+        vault.hashicorp.com/agent-inject-template-upstox: |
+          {{`{{- with secret "kv/preprod/api/upstock" -}}
+          export UPSTOX_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
+          export UPSTOX_REDIRECT_URI="{{ .Data.data.redirectUri }}"
+          export UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          export UPSTOX_CODE="{{ .Data.data.authCode }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-zerodha: "kv/preprod/api/zerodha"
+        vault.hashicorp.com/agent-inject-template-zerodha: |
+          {{`{{- with secret "kv/preprod/api/zerodha" -}}
+          export ZERODHA_API_KEY="{{ .Data.data.key }}"
+          export ZERODHA_API_SECRET="{{ .Data.data.secret }}"
+          export ZERODHA_API_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          export ZERODHA_API_REFRESH_TOKEN="{{ .Data.data.refreshtoken }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-kafka: "kv/preprod/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{`{{- with secret "kv/preprod/kafka" -}}
+          export KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.kafkabootstrapserver }}"
+          export KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperconnect }}"
+          export KAFKA_CONSUMER_GROUP_ID="{{ .Data.data.consumerGroupId }}"
+          export KAFKA_CONSUMER_AUTO_OFFSET_RESET="{{ .Data.data.autooffsetreset }}"
+          export KAFKA_TOPICS_STOCK_PRICE="{{ .Data.data.stockpricetopic }}"
+          export KAFKA_TOPICS_NSE_INDICES="{{ .Data.data.nseindicestopic }}"
+          export KAFKA_TOPICS_NSE_ETF="{{ .Data.data.nseetftopic }}"
+          {{- end -}}`}}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
         {{- include "am-market-data.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: vault-auth
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "ghcr.io/am-portfolio/am-market-data/market-data-service:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: Always
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:

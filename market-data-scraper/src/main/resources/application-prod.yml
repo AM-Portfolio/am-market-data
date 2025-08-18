@@ -41,6 +41,3 @@ scheduler:
       max-retries: 20               # Full max retries
       cron: "0 */15 * * * *"        # Every 15 minutes
 
-# Production Kafka settings
-kafka:
-  bootstrap-servers: prod-kafka:9092

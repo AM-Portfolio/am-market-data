@@ -41,5 +41,3 @@ scheduler:
       cron: "0 */10 * * * *"       # Every 10 minutes
 
 # Pre-production Kafka settings
-kafka:
-  bootstrap-servers: preprod-kafka:9092
