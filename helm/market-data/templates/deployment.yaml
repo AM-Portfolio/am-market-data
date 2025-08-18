@@ -180,8 +180,8 @@ spec:
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
               # Start the application
-              echo "Starting application..."
-              java -jar app.jar
+              echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE}"
+              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE}
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
