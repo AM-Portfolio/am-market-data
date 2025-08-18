@@ -61,7 +61,7 @@ UPSTOX_CODE: rNLu2Q
 # Spring Configuration
 spring:
   profiles:
-    active: dev  # Default to development profile
+    active: ${SPRING_PROFILES_ACTIVE:preprod}  # Use environment variable or default to preprod
 
   application:
     name: market-data-service
@@ -70,12 +70,12 @@ spring:
     redis:
       url: ${REDIS_HOSTNAME}
       password: ${REDIS_PASSWORD}
-      port: 6379
+      port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGO_URL}
-      database: ${MONGO_DATABASE}
-      username: ${MONGO_USERNAME}
-      password: ${MONGO_PASSWORD}
+      uri: ${MONGODB_URL:${MONGO_URL}}
+      database: ${MONGODB_DATABASE:${MONGO_DATABASE}}
+      username: ${MONGODB_USERNAME:${MONGO_USERNAME}}
+      password: ${MONGODB_PASSWORD:${MONGO_PASSWORD}}
       authentication-database: admin
   
   # InfluxDB Configuration

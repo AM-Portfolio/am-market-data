@@ -65,22 +65,48 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 public class MarketDataApplication {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataApplication.class);
     
+    /**
+     * Helper method to get environment variable with fallback
+     * @param primaryKey Primary environment variable name
+     * @param fallbackKey Fallback environment variable name
+     * @return Value of the environment variable or null if not found
+     */
+    private static String getEnvWithFallback(String primaryKey, String fallbackKey) {
+        String value = System.getenv(primaryKey);
+        if (value == null || value.isEmpty()) {
+            value = System.getenv(fallbackKey);
+        }
+        return value;
+    }
+    
     public static void main(String[] args) {
         // Log environment variables to debug what values are being used
         logger.info("=== ENVIRONMENT VARIABLES DEBUG ====");
-        logger.info("MONGO_URL: {}", System.getenv("MONGO_URL"));
-        logger.info("MONGODB_URL: {}", System.getenv("MONGODB_URL"));
-        logger.info("MONGO_DATABASE: {}", System.getenv("MONGO_DATABASE"));
-        logger.info("MONGODB_DATABASE: {}", System.getenv("MONGODB_DATABASE"));
-        logger.info("REDIS_HOSTNAME: {}", System.getenv("REDIS_HOSTNAME"));
-        logger.info("REDIS_PASSWORD: {}", System.getenv("REDIS_PASSWORD"));
-        logger.info("INFLUXDB_URL: {}", System.getenv("INFLUXDB_URL"));
-        logger.info("INFLUXDB_TOKEN: {}", System.getenv("INFLUXDB_TOKEN"));
-        logger.info("INFLUXDB_ORG: {}", System.getenv("INFLUXDB_ORG"));
-        logger.info("INFLUXDB_BUCKET: {}", System.getenv("INFLUXDB_BUCKET"));
         
-        // Log Spring properties to see what's being used
+        // MongoDB variables
+        String mongoUrl = getEnvWithFallback("MONGODB_URL", "MONGO_URL");
+        String mongoDb = getEnvWithFallback("MONGODB_DATABASE", "MONGO_DATABASE");
+        String mongoUsername = getEnvWithFallback("MONGODB_USERNAME", "MONGO_USERNAME");
+        String mongoPassword = getEnvWithFallback("MONGODB_PASSWORD", "MONGO_PASSWORD");
+        
+        logger.info("MongoDB URL: {}", mongoUrl != null ? "[SET]" : "[NOT SET]");
+        logger.info("MongoDB Database: {}", mongoDb);
+        logger.info("MongoDB Username: {}", mongoUsername != null ? "[SET]" : "[NOT SET]");
+        logger.info("MongoDB Password: {}", mongoPassword != null ? "[SET]" : "[NOT SET]");
+        
+        // Redis variables
+        logger.info("Redis Hostname: {}", System.getenv("REDIS_HOSTNAME"));
+        logger.info("Redis Password: {}", System.getenv("REDIS_PASSWORD") != null ? "[SET]" : "[NOT SET]");
+        
+        // InfluxDB variables
+        logger.info("InfluxDB URL: {}", System.getenv("INFLUXDB_URL"));
+        logger.info("InfluxDB Token: {}", System.getenv("INFLUXDB_TOKEN") != null ? "[SET]" : "[NOT SET]");
+        logger.info("InfluxDB Org: {}", System.getenv("INFLUXDB_ORG"));
+        logger.info("InfluxDB Bucket: {}", System.getenv("INFLUXDB_BUCKET"));
+        
+        // Log active profiles
         logger.info("=== SPRING PROPERTIES DEBUG ====");
+        logger.info("Active profiles: {}", System.getProperty("spring.profiles.active"));
         logger.info("spring.data.mongodb.uri: {}", System.getProperty("spring.data.mongodb.uri"));
         logger.info("spring.data.redis.url: {}", System.getProperty("spring.data.redis.url"));
         logger.info("spring.influx.url: {}", System.getProperty("spring.influx.url"));
