@@ -24,6 +24,7 @@ env:
 
 jobs:
   deploy:
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'preprod' }}
     name: Deploy to AKS
     runs-on: ubuntu-latest
     permissions:
@@ -145,9 +146,3 @@ jobs:
             --set deployment.version="${{ env.IMAGE_TAG }}" \
             --wait --timeout 5m \
             --atomic
-      
-      # Verify deployment
-      - name: Verify deployment
-        run: |
-          kubectl rollout status deployment/market-data-service -n ${{ env.NAMESPACE }}
-          echo "Deployment to ${{ github.event.inputs.environment }} completed successfully!"
