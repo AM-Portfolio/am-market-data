@@ -131,7 +131,7 @@ management:
       show-details: always
       group:
         readiness:
-          include: db,redis,kafka,diskSpace
+          include: mongo,redis,kafka,diskSpace
         liveness:
           include: ping,diskSpace
       probes:
