@@ -11,10 +11,8 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import com.am.marketdata.api.service.MarketDataCacheService;
-import com.am.marketdata.common.model.TimeFrame;
-
-// Removed unused import
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,11 +22,11 @@ import com.am.marketdata.service.MarketDataService;
 /**
  * REST API controller for market data operations
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/market-data")
 public class MarketDataController {
 
+    private static final Logger log = LoggerFactory.getLogger(MarketDataController.class);
     private final MarketDataService marketDataService;
     private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataCacheService marketDataCacheService;

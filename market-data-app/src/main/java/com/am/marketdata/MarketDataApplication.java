@@ -16,7 +16,7 @@ import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 //import com.am.marketdata.config.ISINConfig;
-import com.am.marketdata.scraper.config.NSEIndicesConfig;
+//import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.common.investment.persistence.config.InfluxDBConfig;
 import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
@@ -28,7 +28,7 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 })
 // @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
-@EnableConfigurationProperties({NSEIndicesConfig.class})
+//@EnableConfigurationProperties({NSEIndicesConfig.class})
 @Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),

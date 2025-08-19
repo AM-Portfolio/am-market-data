@@ -6,7 +6,8 @@ import com.marketdata.service.margin.MarginCalculatorService;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,14 +18,13 @@ import java.util.concurrent.CompletableFuture;
  * API service for margin calculation operations
  * Acts as a bridge between the controller and core service layer
  */
-@Slf4j
 @Service
 public class MarginCalculatorApiService {
 
+    private static final Logger log = LoggerFactory.getLogger(MarginCalculatorApiService.class);
     private final MarginCalculatorService marginCalculatorService;
     private final MeterRegistry meterRegistry;
 
-    @Autowired
     public MarginCalculatorApiService(
             MarginCalculatorService marginCalculatorService,
             MeterRegistry meterRegistry) {

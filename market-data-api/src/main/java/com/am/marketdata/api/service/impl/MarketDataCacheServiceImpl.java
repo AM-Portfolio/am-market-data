@@ -11,7 +11,8 @@ import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataCacheService;
 import com.am.marketdata.service.MarketDataService;
 import com.zerodhatech.models.OHLCQuote;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -29,9 +30,10 @@ import java.util.stream.Collectors;
 /**
  * Implementation of MarketDataCacheService using Redis
  */
-@Slf4j
 @Service
 public class MarketDataCacheServiceImpl implements MarketDataCacheService {
+
+    private static final Logger log = LoggerFactory.getLogger(MarketDataCacheServiceImpl.class);
 
     private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataService marketDataService;
