@@ -1,6 +1,10 @@
 # Pre-production Environment Configuration
 # This file contains specific settings for the pre-production environment
 
+REDIS_HOSTNAME: ${REDIS_HOSTNAME}
+REDIS_PASSWORD: ${REDIS_PASSWORD}
+REDIS_PORT: ${REDIS_PORT}
+
 # Spring Configuration
 spring:
   config:
@@ -61,17 +65,17 @@ spring:
       request.timeout.ms: 30000
       max.block.ms: 60000
 
-# InfluxDB Configuration for Pre-production
-influx:
-  url: ${INFLUXDB_URL}
-  token: ${INFLUXDB_TOKEN}
-  org: ${INFLUXDB_ORG}
-  bucket: ${INFLUXDB_BUCKET}
-  # Pre-production specific InfluxDB settings
-  connection-timeout: 10000
-  write-timeout: 10000
-  read-timeout: 10000
-  gzip-enabled: true
+# # InfluxDB Configuration for Pre-production
+# influx:
+#   url: ${INFLUXDB_URL}
+#   token: ${INFLUXDB_TOKEN}
+#   org: ${INFLUXDB_ORG}
+#   bucket: ${INFLUXDB_BUCKET}
+#   # Pre-production specific InfluxDB settings
+#   connection-timeout: 10000
+#   write-timeout: 10000
+#   read-timeout: 10000
+#   gzip-enabled: true
 
 # Market Data Processing Configuration for Pre-production
 market-data:
@@ -120,36 +124,36 @@ zerodha:
     retry-delay-ms: 1000
 
 # Actuator Configuration for Pre-production
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: always
-      group:
-        readiness:
-          include: mongo,redis,kafka,diskSpace
-        liveness:
-          include: ping,diskSpace
-      probes:
-        enabled: true
-  metrics:
-    tags:
-      application: market-data-preprod
-      environment: preprod
-    export:
-      prometheus:
-        enabled: true
-  info:
-    env:
-      enabled: true
-    java:
-      enabled: true
-    build:
-      enabled: true
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: health,info,metrics,prometheus
+#       base-path: /actuator
+#   endpoint:
+#     health:
+#       show-details: always
+#       group:
+#         readiness:
+#           include: mongo,redis,kafka,diskSpace
+#         liveness:
+#           include: ping,diskSpace
+#       probes:
+#         enabled: true
+#   metrics:
+#     tags:
+#       application: market-data-preprod
+#       environment: preprod
+#     export:
+#       prometheus:
+#         enabled: true
+#   info:
+#     env:
+#       enabled: true
+#     java:
+#       enabled: true
+#     build:
+#       enabled: true
 
 # Logging Configuration for Pre-production
 logging:
