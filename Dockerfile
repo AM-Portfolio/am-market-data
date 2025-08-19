@@ -12,23 +12,23 @@ COPY pom.xml .
 COPY market-data-app/pom.xml market-data-app/
 COPY market-data-service/pom.xml market-data-service/
 COPY market-data-kafka/pom.xml market-data-kafka/
-COPY market-data-scraper/pom.xml market-data-scraper/
+# COPY market-data-scraper/pom.xml market-data-scraper/
+# COPY market-data-processor/pom.xml market-data-processor/
+# COPY market-data-scheduler/pom.xml market-data-scheduler/
 COPY market-data-common/pom.xml market-data-common/
 COPY market-data-api/pom.xml market-data-api/
 COPY market-data-external-api/pom.xml market-data-external-api/
-COPY market-data-processor/pom.xml market-data-processor/
-COPY market-data-scheduler/pom.xml market-data-scheduler/
 
 # Copy source code
 COPY market-data-app/src market-data-app/src/
 COPY market-data-service/src market-data-service/src/
 COPY market-data-kafka/src market-data-kafka/src/
-COPY market-data-scraper/src market-data-scraper/src/
+# COPY market-data-scraper/src market-data-scraper/src/
+# COPY market-data-processor/src market-data-processor/src/
 COPY market-data-common/src market-data-common/src/
 COPY market-data-api/src market-data-api/src/
 COPY market-data-external-api/src market-data-external-api/src/
-COPY market-data-processor/src market-data-processor/src/
-COPY market-data-scheduler/src market-data-scheduler/src/
+# COPY market-data-scheduler/src market-data-scheduler/src/
 
 # Build the application with GitHub credentials
 ARG GITHUB_PACKAGES_USERNAME
