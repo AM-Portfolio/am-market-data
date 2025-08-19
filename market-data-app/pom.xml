@@ -20,11 +20,11 @@
             <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scheduler</artifactId>

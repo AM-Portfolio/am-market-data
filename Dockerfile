@@ -17,7 +17,7 @@ COPY market-data-kafka/pom.xml market-data-kafka/
 # COPY market-data-scheduler/pom.xml market-data-scheduler/
 COPY market-data-common/pom.xml market-data-common/
 COPY market-data-api/pom.xml market-data-api/
-COPY market-data-external-api/pom.xml market-data-external-api/
+# COPY market-data-external-api/pom.xml market-data-external-api/
 
 # Copy source code
 COPY market-data-app/src market-data-app/src/
@@ -27,7 +27,7 @@ COPY market-data-kafka/src market-data-kafka/src/
 # COPY market-data-processor/src market-data-processor/src/
 COPY market-data-common/src market-data-common/src/
 COPY market-data-api/src market-data-api/src/
-COPY market-data-external-api/src market-data-external-api/src/
+# COPY market-data-external-api/src market-data-external-api/src/
 # COPY market-data-scheduler/src market-data-scheduler/src/
 
 # Build the application with GitHub credentials
