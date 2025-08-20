@@ -16,7 +16,7 @@ spring:
       
     # Redis Configuration for Pre-production
     redis:
-      url: ${REDIS_HOSTNAME}
+      host: ${REDIS_HOSTNAME}
       password: ${REDIS_PASSWORD}
       port: ${REDIS_PORT}
       # Pre-production specific Redis settings
