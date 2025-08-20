@@ -18,7 +18,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 //import com.am.marketdata.config.ISINConfig;
 //import com.am.marketdata.scraper.config.NSEIndicesConfig;
 import com.am.common.investment.persistence.config.InfluxDBConfig;
-import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
+//import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 
