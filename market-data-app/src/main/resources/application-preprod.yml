@@ -1,17 +1,5 @@
-# Pre-production Environment Configuration
-# This file contains specific settings for the pre-production environment
-
-REDIS_HOSTNAME: ${REDIS_HOSTNAME}
-REDIS_PASSWORD: ${REDIS_PASSWORD}
-REDIS_PORT: ${REDIS_PORT}
-
 # Spring Configuration
-spring:
-  config:
-    activate:
-      on-profile: preprod
-  
-  # MongoDB Configuration for Pre-production
+spring:  
   data:
     mongodb:
       uri: ${MONGODB_URL}

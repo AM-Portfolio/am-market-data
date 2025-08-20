@@ -5,10 +5,10 @@
 # POSTGRES_DATABASE: portfolio
 
 #mongo
-MONGO_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
-MONGO_DATABASE: market_data
-MONGO_USERNAME: ssd2658
-MONGO_PASSWORD: ssd2658 
+MONGODB_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+MONGODB_DATABASE: market_data
+MONGODB_USERNAME: ssd2658
+MONGODB_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
 INFLUXDB_TOKEN: ssd2658admin123456789
@@ -60,22 +60,18 @@ UPSTOX_CODE: rNLu2Q
 
 # Spring Configuration
 spring:
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:preprod}  # Use environment variable or default to preprod
-
   application:
     name: market-data-service
-
   data:
     redis:
       url: ${REDIS_HOSTNAME}
       password: ${REDIS_PASSWORD}
       port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGODB_URL:${MONGO_URL}}
-      database: ${MONGODB_DATABASE:${MONGO_DATABASE}}
-      username: ${MONGODB_USERNAME:${MONGO_USERNAME}}
-      password: ${MONGODB_PASSWORD:${MONGO_PASSWORD}}
+      uri: ${MONGODB_URL}
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
       authentication-database: admin
   
   # InfluxDB Configuration

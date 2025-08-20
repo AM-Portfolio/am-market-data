@@ -32,13 +32,10 @@ public class RedisConfig {
     
     private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
-    @Value("${REDIS_HOSTNAME}")
+    @Value("${spring.data.redis.host}")
     private String redisHost;
 
-    // @Value("${spring.data.redis.port:6379}")
-    // private String redisPort;
-
-    @Value("${REDIS_PASSWORD}")
+    @Value("${spring.data.redis.password}")
     private String redisPassword;
 
     @Value("${market.data.cache.ttl.seconds:300}")
@@ -55,7 +52,7 @@ public class RedisConfig {
         log.info("Redis password is {}", redisPassword != null && !redisPassword.isEmpty() ? "provided" : "not provided");
         
         redisConfig.setHostName(redisHost);
-        redisConfig.setPort(6379);
+        //redisConfig.setPort(6379);
         
         if (redisPassword != null && !redisPassword.isEmpty()) {
             log.info("Setting Redis password for authentication");
