@@ -203,8 +203,11 @@ spec:
                 # Debug output with safe masking of credentials
                 echo "MongoDB URI format: ${MONGO_URI%%@*}@****"
                 
-                # Pass the MongoDB URI directly as a system property without quotes
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.uri=$MONGO_URI"
+                # Remove any existing quotes that might be in the environment variable
+                MONGO_URI_CLEAN=$(echo "$MONGO_URI" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+                
+                # Pass the MongoDB URI without quotes
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.uri=$MONGO_URI_CLEAN"
                 
                 # Debug the final MongoDB URI system property
                 echo "MongoDB system property added for spring.data.mongodb.uri"
