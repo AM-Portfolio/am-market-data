@@ -111,8 +111,7 @@ spec:
               # Process MongoDB variables
               if [ -f /vault/secrets/mongodb ]; then
                 echo "Loading MongoDB variables from Vault..."
-                cat /vault/secrets/mongodb >> $ENV_FILE
-                # Set fallback values if needed
+                cat /vault/secrets/mongodb | sed 's/$/\n/' >> $ENV_FILE
                 grep -q "MONGODB_URL" $ENV_FILE || echo "MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
                 grep -q "MONGODB_DATABASE" $ENV_FILE || echo "MONGODB_DATABASE=market_data" >> $ENV_FILE
               else
@@ -124,7 +123,7 @@ spec:
               # Process Redis variables
               if [ -f /vault/secrets/redis ]; then
                 echo "Loading Redis variables from Vault..."
-                cat /vault/secrets/redis >> $ENV_FILE
+                cat /vault/secrets/redis | sed 's/$/\n/' >> $ENV_FILE
                 grep -q "REDIS_HOSTNAME" $ENV_FILE || echo "REDIS_HOSTNAME=localhost" >> $ENV_FILE
                 grep -q "REDIS_PORT" $ENV_FILE || echo "REDIS_PORT=6379" >> $ENV_FILE
               else
@@ -136,7 +135,7 @@ spec:
               # Process InfluxDB variables
               if [ -f /vault/secrets/influxdb ]; then
                 echo "Loading InfluxDB variables from Vault..."
-                cat /vault/secrets/influxdb >> $ENV_FILE
+                cat /vault/secrets/influxdb | sed 's/$/\n/' >> $ENV_FILE
               else
                 echo "InfluxDB secret file not found"
               fi
@@ -144,7 +143,7 @@ spec:
               # Process Upstox variables
               if [ -f /vault/secrets/upstox ]; then
                 echo "Loading Upstox variables from Vault..."
-                cat /vault/secrets/upstox >> $ENV_FILE
+                cat /vault/secrets/upstox | sed 's/$/\n/' >> $ENV_FILE
               else
                 echo "Upstox secret file not found"
               fi
@@ -152,7 +151,7 @@ spec:
               # Process Zerodha variables
               if [ -f /vault/secrets/zerodha ]; then
                 echo "Loading Zerodha variables from Vault..."
-                cat /vault/secrets/zerodha >> $ENV_FILE
+                cat /vault/secrets/zerodha | sed 's/$/\n/' >> $ENV_FILE
               else
                 echo "Zerodha secret file not found"
               fi
@@ -160,7 +159,7 @@ spec:
               # Process Kafka variables
               if [ -f /vault/secrets/kafka ]; then
                 echo "Loading Kafka variables from Vault..."
-                cat /vault/secrets/kafka >> $ENV_FILE
+                cat /vault/secrets/kafka | sed 's/$/\n/' >> $ENV_FILE
               else
                 echo "Kafka secret file not found"
               fi
@@ -172,17 +171,50 @@ spec:
               PROPS_FILE=$(mktemp)
               
               # Map environment variables to Spring properties
-              grep "REDIS_HOSTNAME" $ENV_FILE | sed 's/REDIS_HOSTNAME=/spring.data.redis.host=/' >> $PROPS_FILE
-              grep "REDIS_PASSWORD" $ENV_FILE | sed 's/REDIS_PASSWORD=/spring.data.redis.password=/' >> $PROPS_FILE
-              grep "REDIS_PORT" $ENV_FILE | sed 's/REDIS_PORT=/spring.data.redis.port=/' >> $PROPS_FILE
+              if grep -q "REDIS_HOSTNAME" $ENV_FILE; then
+                REDIS_HOST=$(grep "REDIS_HOSTNAME" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.data.redis.host=$REDIS_HOST" >> $PROPS_FILE
+              fi
               
-              grep "MONGODB_URL" $ENV_FILE | sed 's/MONGODB_URL=/spring.data.mongodb.uri=/' >> $PROPS_FILE
-              grep "MONGODB_DATABASE" $ENV_FILE | sed 's/MONGODB_DATABASE=/spring.data.mongodb.database=/' >> $PROPS_FILE
+              if grep -q "REDIS_PASSWORD" $ENV_FILE; then
+                REDIS_PASS=$(grep "REDIS_PASSWORD" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.data.redis.password=$REDIS_PASS" >> $PROPS_FILE
+              fi
               
-              grep "INFLUXDB_URL" $ENV_FILE | sed 's/INFLUXDB_URL=/spring.influx.url=/' >> $PROPS_FILE
-              grep "INFLUXDB_TOKEN" $ENV_FILE | sed 's/INFLUXDB_TOKEN=/spring.influx.token=/' >> $PROPS_FILE
-              grep "INFLUXDB_ORG" $ENV_FILE | sed 's/INFLUXDB_ORG=/spring.influx.org=/' >> $PROPS_FILE
-              grep "INFLUXDB_BUCKET" $ENV_FILE | sed 's/INFLUXDB_BUCKET=/spring.influx.bucket=/' >> $PROPS_FILE
+              if grep -q "REDIS_PORT" $ENV_FILE; then
+                REDIS_PORT=$(grep "REDIS_PORT" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.data.redis.port=$REDIS_PORT" >> $PROPS_FILE
+              fi
+              
+              if grep -q "MONGODB_URL" $ENV_FILE; then
+                MONGO_URI=$(grep "MONGODB_URL" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.data.mongodb.uri=$MONGO_URI" >> $PROPS_FILE
+              fi
+              
+              if grep -q "MONGODB_DATABASE" $ENV_FILE; then
+                MONGO_DB=$(grep "MONGODB_DATABASE" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.data.mongodb.database=$MONGO_DB" >> $PROPS_FILE
+              fi
+              
+              if grep -q "INFLUXDB_URL" $ENV_FILE; then
+                INFLUX_URL=$(grep "INFLUXDB_URL" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.influx.url=$INFLUX_URL" >> $PROPS_FILE
+              fi
+              
+              if grep -q "INFLUXDB_TOKEN" $ENV_FILE; then
+                INFLUX_TOKEN=$(grep "INFLUXDB_TOKEN" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.influx.token=$INFLUX_TOKEN" >> $PROPS_FILE
+              fi
+              
+              if grep -q "INFLUXDB_ORG" $ENV_FILE; then
+                INFLUX_ORG=$(grep "INFLUXDB_ORG" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.influx.org=$INFLUX_ORG" >> $PROPS_FILE
+              fi
+              
+              if grep -q "INFLUXDB_BUCKET" $ENV_FILE; then
+                INFLUX_BUCKET=$(grep "INFLUXDB_BUCKET" $ENV_FILE | cut -d'=' -f2)
+                echo "spring.influx.bucket=$INFLUX_BUCKET" >> $PROPS_FILE
+              fi
               
               # Load all environment variables
               echo "Loading environment variables from $ENV_FILE"
@@ -199,9 +231,12 @@ spec:
               echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
+              echo "Properties file contents:"
+              cat $PROPS_FILE
+              
               # Start the application with properties file
               echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE} and properties file"
-              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE} --spring.config.additional-location=file:$PROPS_FILE
+              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE} --spring.config.location=file:$PROPS_FILE
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
