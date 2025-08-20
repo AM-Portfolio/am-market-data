@@ -29,18 +29,18 @@ spec:
         vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
         vault.hashicorp.com/agent-inject-template-influxdb: |
           {{`{{- with secret "kv/preprod/database/influxdb" -}}
-          export INFLUXDB_URL="{{ .Data.data.url }}"
-          export INFLUXDB_TOKEN="{{ .Data.data.token }}"
-          export INFLUXDB_ORG="{{ .Data.data.org }}"
-          export INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
+          INFLUXDB_URL="{{ .Data.data.url }}"
+          INFLUXDB_TOKEN="{{ .Data.data.token }}"
+          INFLUXDB_ORG="{{ .Data.data.org }}"
+          INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongo"
         vault.hashicorp.com/agent-inject-template-mongodb: |
           {{`{{- with secret "kv/preprod/database/mongo" -}}
-          export MONGODB_URL="{{ .Data.data.url }}"
-          export MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
-          export MONGODB_USERNAME="{{ .Data.data.username }}"
-          export MONGODB_PASSWORD="{{ .Data.data.password }}"
+          MONGODB_URL="{{ .Data.data.url }}"
+          MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
+          MONGODB_USERNAME="{{ .Data.data.username }}"
+          MONGODB_PASSWORD="{{ .Data.data.password }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-redis: "kv/preprod/database/redis"
         vault.hashicorp.com/agent-inject-template-redis: |
@@ -50,37 +50,37 @@ spec:
           {{- $urlParts := split "://" $url -}}
           {{- $hostPort := index $urlParts 1 -}}
           {{- $hostPortParts := split ":" $hostPort -}}
-          export REDIS_URL="{{ $url }}"
-          export REDIS_HOSTNAME="{{ $hostname }}"
-          export REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
-          export REDIS_PASSWORD="{{ .Data.data.password }}"
+          REDIS_URL="{{ $url }}"
+          REDIS_HOSTNAME="{{ $hostname }}"
+          REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
+          REDIS_PASSWORD="{{ .Data.data.password }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-upstox: "kv/preprod/api/upstock"
         vault.hashicorp.com/agent-inject-template-upstox: |
           {{`{{- with secret "kv/preprod/api/upstock" -}}
-          export UPSTOX_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
-          export UPSTOX_REDIRECT_URI="{{ .Data.data.redirectUri }}"
-          export UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
-          export UPSTOX_CODE="{{ .Data.data.authCode }}"
+          UPSTOX_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
+          UPSTOX_REDIRECT_URI="{{ .Data.data.redirectUri }}"
+          UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          UPSTOX_CODE="{{ .Data.data.authCode }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-zerodha: "kv/preprod/api/zerodha"
         vault.hashicorp.com/agent-inject-template-zerodha: |
           {{`{{- with secret "kv/preprod/api/zerodha" -}}
-          export ZERODHA_API_KEY="{{ .Data.data.key }}"
-          export ZERODHA_API_SECRET="{{ .Data.data.secret }}"
-          export ZERODHA_API_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
-          export ZERODHA_API_REFRESH_TOKEN="{{ .Data.data.refreshtoken }}"
+          ZERODHA_API_KEY="{{ .Data.data.key }}"
+          ZERODHA_API_SECRET="{{ .Data.data.secret }}"
+          ZERODHA_API_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          ZERODHA_API_REFRESH_TOKEN="{{ .Data.data.refreshtoken }}"
           {{- end -}}`}}
         vault.hashicorp.com/agent-inject-secret-kafka: "kv/preprod/kafka"
         vault.hashicorp.com/agent-inject-template-kafka: |
           {{`{{- with secret "kv/preprod/kafka" -}}
-          export KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.kafkabootstrapserver }}"
-          export KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperconnect }}"
-          export KAFKA_CONSUMER_GROUP_ID="{{ .Data.data.consumerGroupId }}"
-          export KAFKA_CONSUMER_AUTO_OFFSET_RESET="{{ .Data.data.autooffsetreset }}"
-          export KAFKA_TOPICS_STOCK_PRICE="{{ .Data.data.stockpricetopic }}"
-          export KAFKA_TOPICS_NSE_INDICES="{{ .Data.data.nseindicestopic }}"
-          export KAFKA_TOPICS_NSE_ETF="{{ .Data.data.nseetftopic }}"
+          KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.kafkabootstrapserver }}"
+          KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperconnect }}"
+          KAFKA_CONSUMER_GROUP_ID="{{ .Data.data.consumerGroupId }}"
+          KAFKA_CONSUMER_AUTO_OFFSET_RESET="{{ .Data.data.autooffsetreset }}"
+          KAFKA_TOPICS_STOCK_PRICE="{{ .Data.data.stockpricetopic }}"
+          KAFKA_TOPICS_NSE_INDICES="{{ .Data.data.nseindicestopic }}"
+          KAFKA_TOPICS_NSE_ETF="{{ .Data.data.nseetftopic }}"
           {{- end -}}`}}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -106,31 +106,31 @@ spec:
               ENV_FILE=$(mktemp)
               
               # Add default environment variables
-              echo "export SPRING_PROFILES_ACTIVE=preprod" >> $ENV_FILE
+              echo "SPRING_PROFILES_ACTIVE=preprod" >> $ENV_FILE
               
               # Process MongoDB variables
               if [ -f /vault/secrets/mongodb ]; then
                 echo "Loading MongoDB variables from Vault..."
                 cat /vault/secrets/mongodb >> $ENV_FILE
                 # Set fallback values if needed
-                grep -q "MONGODB_URL" $ENV_FILE || echo "export MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
-                grep -q "MONGODB_DATABASE" $ENV_FILE || echo "export MONGODB_DATABASE=market_data" >> $ENV_FILE
+                grep -q "MONGODB_URL" $ENV_FILE || echo "MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
+                grep -q "MONGODB_DATABASE" $ENV_FILE || echo "MONGODB_DATABASE=market_data" >> $ENV_FILE
               else
                 echo "MongoDB secret file not found, using defaults"
-                echo "export MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
-                echo "export MONGODB_DATABASE=market_data" >> $ENV_FILE
+                echo "MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
+                echo "MONGODB_DATABASE=market_data" >> $ENV_FILE
               fi
               
               # Process Redis variables
               if [ -f /vault/secrets/redis ]; then
                 echo "Loading Redis variables from Vault..."
                 cat /vault/secrets/redis >> $ENV_FILE
-                grep -q "REDIS_HOSTNAME" $ENV_FILE || echo "export REDIS_HOSTNAME=localhost" >> $ENV_FILE
-                grep -q "REDIS_PORT" $ENV_FILE || echo "export REDIS_PORT=6379" >> $ENV_FILE
+                grep -q "REDIS_HOSTNAME" $ENV_FILE || echo "REDIS_HOSTNAME=localhost" >> $ENV_FILE
+                grep -q "REDIS_PORT" $ENV_FILE || echo "REDIS_PORT=6379" >> $ENV_FILE
               else
                 echo "Redis secret file not found, using defaults"
-                echo "export REDIS_HOSTNAME=localhost" >> $ENV_FILE
-                echo "export REDIS_PORT=6379" >> $ENV_FILE
+                echo "REDIS_HOSTNAME=localhost" >> $ENV_FILE
+                echo "REDIS_PORT=6379" >> $ENV_FILE
               fi
               
               # Process InfluxDB variables
@@ -165,6 +165,25 @@ spec:
                 echo "Kafka secret file not found"
               fi
               
+              # Convert environment variables to Spring properties
+              echo "Converting environment variables to Spring properties..."
+              
+              # Create Java properties file for Spring
+              PROPS_FILE=$(mktemp)
+              
+              # Map environment variables to Spring properties
+              grep "REDIS_HOSTNAME" $ENV_FILE | sed 's/REDIS_HOSTNAME=/spring.data.redis.host=/' >> $PROPS_FILE
+              grep "REDIS_PASSWORD" $ENV_FILE | sed 's/REDIS_PASSWORD=/spring.data.redis.password=/' >> $PROPS_FILE
+              grep "REDIS_PORT" $ENV_FILE | sed 's/REDIS_PORT=/spring.data.redis.port=/' >> $PROPS_FILE
+              
+              grep "MONGODB_URL" $ENV_FILE | sed 's/MONGODB_URL=/spring.data.mongodb.uri=/' >> $PROPS_FILE
+              grep "MONGODB_DATABASE" $ENV_FILE | sed 's/MONGODB_DATABASE=/spring.data.mongodb.database=/' >> $PROPS_FILE
+              
+              grep "INFLUXDB_URL" $ENV_FILE | sed 's/INFLUXDB_URL=/spring.influx.url=/' >> $PROPS_FILE
+              grep "INFLUXDB_TOKEN" $ENV_FILE | sed 's/INFLUXDB_TOKEN=/spring.influx.token=/' >> $PROPS_FILE
+              grep "INFLUXDB_ORG" $ENV_FILE | sed 's/INFLUXDB_ORG=/spring.influx.org=/' >> $PROPS_FILE
+              grep "INFLUXDB_BUCKET" $ENV_FILE | sed 's/INFLUXDB_BUCKET=/spring.influx.bucket=/' >> $PROPS_FILE
+              
               # Load all environment variables
               echo "Loading environment variables from $ENV_FILE"
               set -a
@@ -176,12 +195,13 @@ spec:
               echo "MONGODB_URL is set to: ${MONGODB_URL:-not set}"
               echo "MONGODB_DATABASE is set to: ${MONGODB_DATABASE:-not set}"
               echo "REDIS_HOSTNAME is set to: ${REDIS_HOSTNAME:-not set}"
+              echo "REDIS_PASSWORD is set to: ${REDIS_PASSWORD:-not set}"
               echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
-              # Start the application
-              echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE}"
-              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE}
+              # Start the application with properties file
+              echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE} and properties file"
+              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE} --spring.config.additional-location=file:$PROPS_FILE
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
