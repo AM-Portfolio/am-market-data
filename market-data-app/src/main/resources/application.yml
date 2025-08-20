@@ -89,6 +89,7 @@ spring:
         group:
           readiness:
             include: redis, diskSpace
+            exclude: kafka
           liveness:
             include: ping
     health:
@@ -96,6 +97,8 @@ spring:
         enabled: true
       readinessState:
         enabled: true
+      kafka:
+        enabled: false
 
   config:
     import:

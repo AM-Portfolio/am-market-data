@@ -179,6 +179,26 @@ spec:
               echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
+              # Check if Kafka is available
+              if [ ! -z "${KAFKA_BOOTSTRAP_SERVERS}" ]; then
+                echo "Checking Kafka availability at ${KAFKA_BOOTSTRAP_SERVERS}..."
+                # Extract host and port from bootstrap servers
+                KAFKA_HOST=$(echo ${KAFKA_BOOTSTRAP_SERVERS} | cut -d':' -f1)
+                KAFKA_PORT=$(echo ${KAFKA_BOOTSTRAP_SERVERS} | cut -d':' -f2)
+                
+                # Try to connect to Kafka
+                if nc -z -w5 ${KAFKA_HOST} ${KAFKA_PORT}; then
+                  echo "Kafka is available at ${KAFKA_BOOTSTRAP_SERVERS}"
+                else
+                  echo "WARNING: Kafka is not available at ${KAFKA_BOOTSTRAP_SERVERS}"
+                  echo "Setting SPRING_KAFKA_BOOTSTRAP_SERVERS_MISSING=true to disable Kafka auto-configuration"
+                  export SPRING_KAFKA_BOOTSTRAP_SERVERS_MISSING=true
+                fi
+              else
+                echo "KAFKA_BOOTSTRAP_SERVERS is not set, skipping Kafka availability check"
+                export SPRING_KAFKA_BOOTSTRAP_SERVERS_MISSING=true
+              fi
+              
               # Start the application with environment variables
               echo "Starting application with environment variables"
               java -jar app.jar
@@ -225,18 +245,20 @@ spec:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
+            successThreshold: 1
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: {{ .Values.config.marketData.maxRetries }}
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
+            successThreshold: 1
           # Resource limits from values file
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
