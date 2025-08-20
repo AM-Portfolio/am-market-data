@@ -167,53 +167,53 @@ spec:
               # Convert environment variables to Spring properties
               echo "Converting environment variables to Spring properties..."
               
-              # Create Java properties file for Spring
-              PROPS_FILE=$(mktemp)
+              # Build Java system properties string
+              JAVA_OPTS=""
               
               # Map environment variables to Spring properties
               if grep -q "REDIS_HOSTNAME" $ENV_FILE; then
                 REDIS_HOST=$(grep "REDIS_HOSTNAME" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.data.redis.host=$REDIS_HOST" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.host=$REDIS_HOST"
               fi
               
               if grep -q "REDIS_PASSWORD" $ENV_FILE; then
                 REDIS_PASS=$(grep "REDIS_PASSWORD" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.data.redis.password=$REDIS_PASS" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.password=$REDIS_PASS"
               fi
               
               if grep -q "REDIS_PORT" $ENV_FILE; then
                 REDIS_PORT=$(grep "REDIS_PORT" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.data.redis.port=$REDIS_PORT" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.port=$REDIS_PORT"
               fi
               
               if grep -q "MONGODB_URL" $ENV_FILE; then
                 MONGO_URI=$(grep "MONGODB_URL" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.data.mongodb.uri=$MONGO_URI" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.uri=$MONGO_URI"
               fi
               
               if grep -q "MONGODB_DATABASE" $ENV_FILE; then
                 MONGO_DB=$(grep "MONGODB_DATABASE" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.data.mongodb.database=$MONGO_DB" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.database=$MONGO_DB"
               fi
               
               if grep -q "INFLUXDB_URL" $ENV_FILE; then
                 INFLUX_URL=$(grep "INFLUXDB_URL" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.influx.url=$INFLUX_URL" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.url=$INFLUX_URL"
               fi
               
               if grep -q "INFLUXDB_TOKEN" $ENV_FILE; then
                 INFLUX_TOKEN=$(grep "INFLUXDB_TOKEN" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.influx.token=$INFLUX_TOKEN" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.token=$INFLUX_TOKEN"
               fi
               
               if grep -q "INFLUXDB_ORG" $ENV_FILE; then
                 INFLUX_ORG=$(grep "INFLUXDB_ORG" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.influx.org=$INFLUX_ORG" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.org=$INFLUX_ORG"
               fi
               
               if grep -q "INFLUXDB_BUCKET" $ENV_FILE; then
                 INFLUX_BUCKET=$(grep "INFLUXDB_BUCKET" $ENV_FILE | cut -d'=' -f2)
-                echo "spring.influx.bucket=$INFLUX_BUCKET" >> $PROPS_FILE
+                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.bucket=$INFLUX_BUCKET"
               fi
               
               # Load all environment variables
@@ -231,12 +231,12 @@ spec:
               echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
-              echo "Properties file contents:"
-              cat $PROPS_FILE
+              echo "Java system properties:"
+              echo "$JAVA_OPTS"
               
-              # Start the application with properties file
-              echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE} and properties file"
-              java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE} --spring.config.location=file:$PROPS_FILE
+              # Start the application with system properties
+              echo "Starting application with profile: ${SPRING_PROFILES_ACTIVE} and system properties"
+              java $JAVA_OPTS -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE}
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
