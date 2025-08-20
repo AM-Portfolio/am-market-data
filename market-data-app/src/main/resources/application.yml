@@ -99,8 +99,8 @@ spring:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
-      - classpath:application-external-api.yml
-      - classpath:application-endpoints.yml
+      #- classpath:application-external-api.yml
+      #- classpath:application-endpoints.yml
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
