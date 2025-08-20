@@ -18,16 +18,170 @@ spec:
         prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
         # Add checksum annotations for config changes
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        # Vault Agent Injector annotations
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/auth-config-audience: "vault"  # Adding audience as per warning in logs
+        vault.hashicorp.com/auth-config-issuer: "https://kubernetes.default.svc.cluster.local"
+        vault.hashicorp.com/auth-config-disable-iss-validation: "true"
+        vault.hashicorp.com/auth-config-disable-local-ca-jwt: "true"
+        vault.hashicorp.com/role: "dev-role"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/agent-inject-secret-influxdb: "kv/preprod/database/influxdb"
+        vault.hashicorp.com/agent-inject-template-influxdb: |
+          {{`{{- with secret "kv/preprod/database/influxdb" -}}
+          INFLUXDB_URL="{{ .Data.data.url }}"
+          INFLUXDB_TOKEN="{{ .Data.data.token }}"
+          INFLUXDB_ORG="{{ .Data.data.org }}"
+          INFLUXDB_BUCKET="{{ .Data.data.bucket }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-mongodb: "kv/preprod/database/mongo"
+        vault.hashicorp.com/agent-inject-template-mongodb: |
+          {{`{{- with secret "kv/preprod/database/mongo" -}}
+          MONGODB_URL="{{ .Data.data.url }}"
+          MONGODB_DATABASE="{{ .Data.data.marketdtadatabase }}"
+          MONGODB_USERNAME="{{ .Data.data.username }}"
+          MONGODB_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-redis: "kv/preprod/database/redis"
+        vault.hashicorp.com/agent-inject-template-redis: |
+          {{`{{- with secret "kv/preprod/database/redis" -}}
+          {{- $url := .Data.data.url -}}
+          {{- $hostname := .Data.data.hostname -}}
+          {{- $urlParts := split "://" $url -}}
+          {{- $hostPort := index $urlParts 1 -}}
+          {{- $hostPortParts := split ":" $hostPort -}}
+          REDIS_URL="{{ $url }}"
+          REDIS_HOSTNAME="{{ $hostname }}"
+          REDIS_PORT="{{ if eq (len $hostPortParts) 2 }}{{ index $hostPortParts 1 }}{{ else }}6379{{ end }}"
+          REDIS_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-upstox: "kv/preprod/api/upstock"
+        vault.hashicorp.com/agent-inject-template-upstox: |
+          {{`{{- with secret "kv/preprod/api/upstock" -}}
+          UPSTOX_API_BASE_URL="{{ .Data.data.apiBaseUrl }}"
+          UPSTOX_REDIRECT_URI="{{ .Data.data.redirectUri }}"
+          UPSTOX_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          UPSTOX_CODE="{{ .Data.data.authCode }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-zerodha: "kv/preprod/api/zerodha"
+        vault.hashicorp.com/agent-inject-template-zerodha: |
+          {{`{{- with secret "kv/preprod/api/zerodha" -}}
+          ZERODHA_API_KEY="{{ .Data.data.key }}"
+          ZERODHA_API_SECRET="{{ .Data.data.secret }}"
+          ZERODHA_API_ACCESS_TOKEN="{{ .Data.data.accesstoken }}"
+          ZERODHA_API_REFRESH_TOKEN="{{ .Data.data.refreshtoken }}"
+          {{- end -}}`}}
+        vault.hashicorp.com/agent-inject-secret-kafka: "kv/preprod/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{`{{- with secret "kv/preprod/kafka" -}}
+          KAFKA_BOOTSTRAP_SERVERS="{{ .Data.data.kafkabootstrapserver }}"
+          KAFKA_ZOOKEEPER_CONNECT="{{ .Data.data.zookeeperconnect }}"
+          KAFKA_CONSUMER_GROUP_ID="{{ .Data.data.consumerGroupId }}"
+          KAFKA_CONSUMER_AUTO_OFFSET_RESET="{{ .Data.data.autooffsetreset }}"
+          KAFKA_TOPICS_STOCK_PRICE="{{ .Data.data.stockpricetopic }}"
+          KAFKA_TOPICS_NSE_INDICES="{{ .Data.data.nseindicestopic }}"
+          KAFKA_TOPICS_NSE_ETF="{{ .Data.data.nseetftopic }}"
+          {{- end -}}`}}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
         {{- include "am-market-data.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: vault-auth
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "ghcr.io/am-portfolio/am-market-data/market-data-service:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: Always
+          # Command to load Vault secrets before starting the application
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # Load all Vault secret files
+              echo "Starting environment variable loading from Vault secrets..."
+              
+              # Create a temporary env file to store all variables
+              ENV_FILE=$(mktemp)
+              
+              # Add default environment variables
+              echo "SPRING_PROFILES_ACTIVE=preprod" >> $ENV_FILE
+              
+              # Process MongoDB variables
+              if [ -f /vault/secrets/mongodb ]; then
+                echo "Loading MongoDB variables from Vault..."
+                cat /vault/secrets/mongodb | sed 's/$/\n/' >> $ENV_FILE
+                grep -q "MONGODB_URL" $ENV_FILE || echo "MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
+                grep -q "MONGODB_DATABASE" $ENV_FILE || echo "MONGODB_DATABASE=market_data" >> $ENV_FILE
+              else
+                echo "MongoDB secret file not found, using defaults"
+                echo "MONGODB_URL=mongodb://localhost:27017/market_data" >> $ENV_FILE
+                echo "MONGODB_DATABASE=market_data" >> $ENV_FILE
+              fi
+              
+              # Process Redis variables
+              if [ -f /vault/secrets/redis ]; then
+                echo "Loading Redis variables from Vault..."
+                cat /vault/secrets/redis | sed 's/$/\n/' >> $ENV_FILE
+                grep -q "REDIS_HOSTNAME" $ENV_FILE || echo "REDIS_HOSTNAME=localhost" >> $ENV_FILE
+                grep -q "REDIS_PORT" $ENV_FILE || echo "REDIS_PORT=6379" >> $ENV_FILE
+              else
+                echo "Redis secret file not found, using defaults"
+                echo "REDIS_HOSTNAME=localhost" >> $ENV_FILE
+                echo "REDIS_PORT=6379" >> $ENV_FILE
+              fi
+              
+              # Process InfluxDB variables
+              if [ -f /vault/secrets/influxdb ]; then
+                echo "Loading InfluxDB variables from Vault..."
+                cat /vault/secrets/influxdb | sed 's/$/\n/' >> $ENV_FILE
+              else
+                echo "InfluxDB secret file not found"
+              fi
+              
+              # Process Upstox variables
+              if [ -f /vault/secrets/upstox ]; then
+                echo "Loading Upstox variables from Vault..."
+                cat /vault/secrets/upstox | sed 's/$/\n/' >> $ENV_FILE
+              else
+                echo "Upstox secret file not found"
+              fi
+              
+              # Process Zerodha variables
+              if [ -f /vault/secrets/zerodha ]; then
+                echo "Loading Zerodha variables from Vault..."
+                cat /vault/secrets/zerodha | sed 's/$/\n/' >> $ENV_FILE
+              else
+                echo "Zerodha secret file not found"
+              fi
+              
+              # Process Kafka variables
+              if [ -f /vault/secrets/kafka ]; then
+                echo "Loading Kafka variables from Vault..."
+                cat /vault/secrets/kafka | sed 's/$/\n/' >> $ENV_FILE
+              else
+                echo "Kafka secret file not found"
+              fi
+              
+              # Load all environment variables
+              echo "Loading environment variables from $ENV_FILE"
+              set -a
+              . $ENV_FILE
+              set +a
+              
+              # Debug output
+              echo "Environment variables loaded:"
+              echo "MONGODB_URL is set to: ${MONGODB_URL:-not set}"
+              echo "MONGODB_DATABASE is set to: ${MONGODB_DATABASE:-not set}"
+              echo "REDIS_HOSTNAME is set to: ${REDIS_HOSTNAME:-not set}"
+              echo "REDIS_PASSWORD is set to: ${REDIS_PASSWORD:-not set}"
+              echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
+              echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
+              
+              # Start the application with environment variables
+              echo "Starting application with environment variables"
+              java -jar app.jar
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
@@ -46,6 +200,9 @@ spec:
             # Data Validation (from memory)
             - name: MARKET_DATA_MAX_AGE_MINUTES
               value: "{{ .Values.config.marketData.maxAgeMinutes }}"
+            # Spring Profile Configuration
+            - name: SPRING_PROFILES_ACTIVE
+              value: "{{ .Values.environment }}"
             # Metrics Configuration (from memory)
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
               value: "health,metrics,prometheus"

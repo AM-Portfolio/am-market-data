@@ -9,7 +9,7 @@ Expand the name of the chart.
 Create a default fully qualified app name.
 */}}
 {{- define "am-market-data.fullname" -}}
-{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- default .Chart.Name .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -27,7 +27,7 @@ Selector labels
 */}}
 {{- define "am-market-data.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "am-market-data.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app: am-market-data
 {{- end }}
 
 {{/*

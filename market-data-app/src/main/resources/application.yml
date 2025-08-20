@@ -1,20 +1,26 @@
 # PostgreSQL Configuration
-POSTGRES_PASSWORD: password
-POSTGRES_USERNAME: postgres
-POSTGRES_URL: jdbc:postgresql://localhost:5456
-POSTGRES_DATABASE: portfolio
+# POSTGRES_PASSWORD: password
+# POSTGRES_USERNAME: postgres
+# POSTGRES_URL: jdbc:postgresql://localhost:5456
+# POSTGRES_DATABASE: portfolio
 
 #mongo
-MONGO_URL: mongodb://admin:password@localhost:27017/portfolio?authSource=admin
-MONGO_DATABASE: market_data
-MONGO_USERNAME: admin
-MONGO_PASSWORD: password
+MONGODB_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+MONGODB_DATABASE: market_data
+MONGODB_USERNAME: ssd2658
+MONGODB_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
-INFLUXDB_TOKEN: my-super-secret-auth-token
-INFLUXDB_ORG: am_investment
+INFLUXDB_TOKEN: ssd2658admin123456789
+INFLUXDB_ORG: am-portfolio
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://localhost:8087
+INFLUXDB_URL: http://localhost:8086
+
+
+# Redis Configuration
+REDIS_HOSTNAME: localhost
+REDIS_PASSWORD: RedisPassword123!
+REDIS_PORT: 6379
 
 # Grafana Configuration
 GRAFANA_ADMIN_USER: 1109403
@@ -22,7 +28,6 @@ GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
 # Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-KAFKA_ZOOKEEPER_CONNECT: localhost:2181
 KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
 KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
 KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -55,18 +60,18 @@ UPSTOX_CODE: rNLu2Q
 
 # Spring Configuration
 spring:
-  profiles:
-    active: dev  # Default to development profile
   application:
     name: market-data-service
-
-  # MongoDB Configuration
   data:
+    redis:
+      host: ${REDIS_HOSTNAME}
+      password: ${REDIS_PASSWORD}
+      port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGO_URL}
-      database: ${MONGO_DATABASE}
-      username: ${MONGO_USERNAME}
-      password: ${MONGO_PASSWORD}
+      uri: ${MONGODB_URL}
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
       authentication-database: admin
   
   # InfluxDB Configuration
@@ -75,14 +80,17 @@ spring:
     token: ${INFLUXDB_TOKEN}
     org: ${INFLUXDB_ORG}
     bucket: ${INFLUXDB_BUCKET}
-    
-  # Database Configuration
-  datasource:
-    url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    
+
+# Management and Metrics Configuration
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: "*"
+    endpoint:
+      health:
+        show-details: always
+
   # Kafka Configuration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
@@ -94,28 +102,30 @@ spring:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
-      - classpath:application-external-api.yml
-      - classpath:application-endpoints.yml
+      #- classpath:application-external-api.yml
+      #- classpath:application-endpoints.yml
       - classpath:application-kafka.yml
+      - classpath:application-zerodha.yml
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-    show-sql: true
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: update
+  #   properties:
+  #     hibernate:
+  #       dialect: org.hibernate.dialect.PostgreSQLDialect
+  #       format_sql: true
+  #   show-sql: true
 
-  management:
-    endpoints:
-      web:
-        exposure:
-          include: "*"
-    endpoint:
-      health:
-        show-details: always
-
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scheduler]': DEBUG
+    '[com.am.marketdata.service]': INFO
+    '[com.am.marketdata.external.api]': DEBUG
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
 upstox:
   interval: I1
@@ -140,14 +150,3 @@ scraper:
 # Server Configuration
 server:
   port: 8084
-
-# Logging Configuration
-logging:
-  level:
-    root: INFO
-    '[com.am.marketdata]': INFO
-    '[com.am.marketdata.scheduler]': DEBUG
-    '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.external.api]': DEBUG
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'

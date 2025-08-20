@@ -17,6 +17,7 @@
  <properties>
         <influxdb.version>6.12.0</influxdb.version>
         <micrometer.version>1.11.0</micrometer.version>
+        <kiteconnect.version>3.2.1</kiteconnect.version>
     </properties>
 
     <dependencies>
@@ -66,11 +67,11 @@
         </dependency>
         
         <!-- Database -->
-        <dependency>
+        <!-- <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
-        </dependency>
+        </dependency> -->
 
         <!-- Resilience4j for circuit breaking -->
         <dependency>
@@ -92,5 +93,29 @@
             <artifactId>unirest-java</artifactId>
             <version>${kong-unirest.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-model</artifactId>
+            <version>${investment-model.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.am.common</groupId>
+            <artifactId>am-common-investment-service</artifactId>
+            <version>${investment-service.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.zerodhatech.kiteconnect</groupId>
+            <artifactId>kiteconnect</artifactId>
+            <version>${kiteconnect.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.upstox.api</groupId>
+            <artifactId>upstox-java-sdk</artifactId>
+            <version>1.4.0</version>
+        </dependency>
     </dependencies>
+
 </project>

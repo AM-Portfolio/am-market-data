@@ -14,17 +14,22 @@
     <description>Main application module that starts all components</description>
 
     <dependencies>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- Internal module dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scheduler</artifactId>
@@ -35,11 +40,11 @@
             <artifactId>market-data-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scraper</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
 
         <!-- Resilience4j -->
         <dependency>
@@ -59,16 +64,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.influxdb</groupId>
             <artifactId>influxdb-client-java</artifactId>
             <version>6.12.0</version>
         </dependency>
+
+        <dependency>
+  <groupId>net.logstash.logback</groupId>
+  <artifactId>logstash-logback-encoder</artifactId>
+  <version>7.4</version>
+</dependency>
     </dependencies>
 
     <build>
