@@ -21,6 +21,7 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
+import com.am.marketdata.config.MetricsConfig;
 
 @SpringBootApplication(exclude = {
     DataSourceAutoConfiguration.class,
@@ -30,7 +31,7 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
 //@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
-@Import({InfluxDBConfig.class})
+@Import({InfluxDBConfig.class, MetricsConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.external.api"),
