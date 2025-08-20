@@ -164,83 +164,6 @@ spec:
                 echo "Kafka secret file not found"
               fi
               
-              # Convert environment variables to Spring properties
-              echo "Converting environment variables to Spring properties..."
-              
-              # Build Java system properties string
-              JAVA_OPTS=""
-              
-              # Map environment variables to Spring properties
-              if grep -q "REDIS_HOSTNAME" $ENV_FILE; then
-                REDIS_HOST=$(grep "REDIS_HOSTNAME" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.host=$REDIS_HOST"
-              fi
-              
-              if grep -q "REDIS_PASSWORD" $ENV_FILE; then
-                REDIS_PASS=$(grep "REDIS_PASSWORD" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.password=$REDIS_PASS"
-              fi
-              
-              if grep -q "REDIS_PORT" $ENV_FILE; then
-                REDIS_PORT=$(grep "REDIS_PORT" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.redis.port=$REDIS_PORT"
-              fi
-              
-              if grep -q "MONGODB_URL" $ENV_FILE; then
-                # Extract MongoDB URL using the pattern that worked in previous fixes
-                # Read the raw value first
-                MONGO_URI_LINE=$(grep "MONGODB_URL" $ENV_FILE)
-                
-                # Extract everything after the equals sign
-                MONGO_URI=${MONGO_URI_LINE#*=}
-                
-                # Validate MongoDB URI format and add prefix if missing
-                if [[ ! "$MONGO_URI" =~ ^mongodb:// && ! "$MONGO_URI" =~ ^mongodb\+srv:// ]]; then
-                  echo "Warning: MongoDB URI doesn't start with mongodb:// or mongodb+srv://, adding prefix"
-                  MONGO_URI="mongodb://$MONGO_URI"
-                fi
-                
-                # Debug output with safe masking of credentials
-                echo "MongoDB URI format: ${MONGO_URI%%@*}@****"
-                
-                # Remove any existing quotes that might be in the environment variable
-                MONGO_URI_CLEAN=$(echo "$MONGO_URI" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
-                
-                # Pass the MongoDB URI without quotes
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.uri=$MONGO_URI_CLEAN"
-                
-                # Debug the final MongoDB URI system property
-                echo "MongoDB system property added for spring.data.mongodb.uri"
-              fi
-              
-              if grep -q "MONGODB_DATABASE" $ENV_FILE; then
-                MONGO_DB=$(grep "MONGODB_DATABASE" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.database=$MONGO_DB"
-              fi
-              
-              if grep -q "INFLUXDB_URL" $ENV_FILE; then
-                INFLUX_URL=$(grep "INFLUXDB_URL" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.url=$INFLUX_URL"
-              fi
-              
-              if grep -q "INFLUXDB_TOKEN" $ENV_FILE; then
-                INFLUX_TOKEN=$(grep "INFLUXDB_TOKEN" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.token=$INFLUX_TOKEN"
-              fi
-              
-              if grep -q "INFLUXDB_ORG" $ENV_FILE; then
-                INFLUX_ORG=$(grep "INFLUXDB_ORG" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.org=$INFLUX_ORG"
-              fi
-              
-              if grep -q "INFLUXDB_BUCKET" $ENV_FILE; then
-                INFLUX_BUCKET=$(grep "INFLUXDB_BUCKET" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.influx.bucket=$INFLUX_BUCKET"
-              fi
-              
-              # Add Spring profile as a system property
-              JAVA_OPTS="$JAVA_OPTS -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}"
-              
               # Load all environment variables
               echo "Loading environment variables from $ENV_FILE"
               set -a
@@ -256,12 +179,9 @@ spec:
               echo "INFLUXDB_URL is set to: ${INFLUXDB_URL:-not set}"
               echo "SPRING_PROFILES_ACTIVE is set to: ${SPRING_PROFILES_ACTIVE:-not set}"
               
-              echo "Java system properties:"
-              echo "$JAVA_OPTS"
-              
-              # Start the application with system properties only (no command line args)
-              echo "Starting application with system properties"
-              java $JAVA_OPTS -jar app.jar
+              # Start the application with environment variables
+              echo "Starting application with environment variables"
+              java -jar app.jar
           # Load environment variables from ConfigMap
           envFrom:
             - configMapRef:
