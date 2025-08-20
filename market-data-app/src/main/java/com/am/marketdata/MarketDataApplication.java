@@ -29,7 +29,8 @@ import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 // @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
-@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
+//@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
+@Import({InfluxDBConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.external.api"),
