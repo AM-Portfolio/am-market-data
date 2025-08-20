@@ -26,13 +26,6 @@ REDIS_PORT: 6379
 GRAFANA_ADMIN_USER: 1109403
 GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-KAFKA_CONSUMER_GROUP_ID: am-market-data-service
-KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
 
 # Application Configuration
 STOKUPATE_TOPIC_NAME: am-stock-price-update
@@ -87,17 +80,23 @@ spring:
       web:
         exposure:
           include: "*"
+        base-path: /actuator
     endpoint:
       health:
         show-details: always
+        probes:
+          enabled: true
+        group:
+          readiness:
+            include: redis, diskSpace
+          liveness:
+            include: ping
+    health:
+      livenessState:
+        enabled: true
+      readinessState:
+        enabled: true
 
-  # Kafka Configuration
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID}
-      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
-  
   config:
     import:
       - classpath:isin.yml

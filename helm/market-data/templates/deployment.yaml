@@ -208,6 +208,12 @@ spec:
               value: "health,metrics,prometheus"
             - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
               value: "always"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+            - name: MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED
+              value: "true"
+            - name: MANAGEMENT_HEALTH_READINESSSTATE_ENABLED
+              value: "true"
             - name: MANAGEMENT_METRICS_TAGS_APPLICATION
               value: "market-data-{{ .Values.environment }}"
           ports:
