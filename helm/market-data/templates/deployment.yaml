@@ -187,8 +187,30 @@ spec:
               fi
               
               if grep -q "MONGODB_URL" $ENV_FILE; then
-                MONGO_URI=$(grep "MONGODB_URL" $ENV_FILE | cut -d'=' -f2)
-                JAVA_OPTS="$JAVA_OPTS -Dspring.data.mongodb.uri=$MONGO_URI"
+                # Extract MongoDB URL using the pattern that worked in previous fixes
+                # Read the raw value first
+                MONGO_URI_LINE=$(grep "MONGODB_URL" $ENV_FILE)
+                
+                # Extract everything after the equals sign
+                MONGO_URI=${MONGO_URI_LINE#*=}
+                
+                # Validate MongoDB URI format and add prefix if missing
+                if [[ ! "$MONGO_URI" =~ ^mongodb:// && ! "$MONGO_URI" =~ ^mongodb\+srv:// ]]; then
+                  echo "Warning: MongoDB URI doesn't start with mongodb:// or mongodb+srv://, adding prefix"
+                  MONGO_URI="mongodb://$MONGO_URI"
+                fi
+                
+                # Debug output with safe masking of credentials
+                echo "MongoDB URI format: ${MONGO_URI%%@*}@****"
+                
+                # Create a properties file with the MongoDB URI
+                MONGO_PROPS=$(mktemp)
+                echo "spring.data.mongodb.uri=$MONGO_URI" > $MONGO_PROPS
+                echo "Created MongoDB properties file at $MONGO_PROPS with content:"
+                cat $MONGO_PROPS | sed 's/mongodb:\/\/[^@]*@/mongodb:\/\/****@/'
+                
+                # Pass the MongoDB URI via properties file (proven approach from memory)
+                JAVA_OPTS="$JAVA_OPTS -Dspring.config.import=file:$MONGO_PROPS"
               fi
               
               if grep -q "MONGODB_DATABASE" $ENV_FILE; then
