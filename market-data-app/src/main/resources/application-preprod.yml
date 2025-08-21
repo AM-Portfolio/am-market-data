@@ -173,7 +173,7 @@ feature:
 
 # Server Configuration for Pre-production
 server:
-  port: 8084
+  port: 8080
   shutdown: graceful
   tomcat:
     max-threads: 200

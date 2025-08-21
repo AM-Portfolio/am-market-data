@@ -238,7 +238,7 @@ spec:
               value: "market-data-{{ .Values.environment }}"
           ports:
             - name: http
-              containerPort: 8084
+              containerPort: 8080
               protocol: TCP
           # Health checks with retry-based thresholds
           livenessProbe:
