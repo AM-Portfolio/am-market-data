@@ -5,20 +5,20 @@
 # POSTGRES_DATABASE: portfolio
 
 #mongo
-MONGO_URL: mongodb://ssd2658:ssd2658@mongodb.dev.svc.cluster.local:27017/market_data?authSource=admin
-MONGO_DATABASE: market_data
-MONGO_USERNAME: ssd2658
-MONGO_PASSWORD: ssd2658 
+MONGODB_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+MONGODB_DATABASE: market_data
+MONGODB_USERNAME: ssd2658
+MONGODB_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
 INFLUXDB_TOKEN: ssd2658admin123456789
 INFLUXDB_ORG: am-portfolio
 INFLUXDB_BUCKET: market_data
-INFLUXDB_URL: http://influxdb.dev.svc.cluster.local:8086
+INFLUXDB_URL: http://localhost:8086
 
 
 # Redis Configuration
-REDIS_HOSTNAME: redis.dev.svc.cluster.local
+REDIS_HOSTNAME: localhost
 REDIS_PASSWORD: RedisPassword123!
 REDIS_PORT: 6379
 
@@ -26,13 +26,6 @@ REDIS_PORT: 6379
 GRAFANA_ADMIN_USER: 1109403
 GRAFANA_ADMIN_PASSWORD: XXXXXXXXXX
 
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS: kafka.dev.svc.cluster.local:9092
-KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka.dev.svc.cluster.local:9092
-KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-KAFKA_CONSUMER_GROUP_ID: am-market-data-service
-KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
 
 # Application Configuration
 STOKUPATE_TOPIC_NAME: am-stock-price-update
@@ -60,22 +53,18 @@ UPSTOX_CODE: rNLu2Q
 
 # Spring Configuration
 spring:
-  profiles:
-    active: dev  # Default to development profile
-
   application:
     name: market-data-service
-
   data:
     redis:
-      url: ${REDIS_HOSTNAME}
+      host: ${REDIS_HOSTNAME}
       password: ${REDIS_PASSWORD}
-      port: 6379
+      port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGO_URL}
-      database: ${MONGO_DATABASE}
-      username: ${MONGO_USERNAME}
-      password: ${MONGO_PASSWORD}
+      uri: ${MONGODB_URL}
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
       authentication-database: admin
   
   # InfluxDB Configuration
@@ -84,27 +73,15 @@ spring:
     token: ${INFLUXDB_TOKEN}
     org: ${INFLUXDB_ORG}
     bucket: ${INFLUXDB_BUCKET}
-    
-  # Database Configuration
-  # datasource:
-  #   url: ${POSTGRES_URL}/${POSTGRES_DATABASE}
-  #   username: ${POSTGRES_USERNAME}
-  #   password: ${POSTGRES_PASSWORD}
-  #   driver-class-name: org.postgresql.Driver
-    
-  # Kafka Configuration
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID}
-      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
-  
+
+# Management and Metrics Configuration
+
   config:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
-      - classpath:application-external-api.yml
-      - classpath:application-endpoints.yml
+      #- classpath:application-external-api.yml
+      #- classpath:application-endpoints.yml
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
@@ -117,15 +94,16 @@ spring:
   #       format_sql: true
   #   show-sql: true
 
-  management:
-    endpoints:
-      web:
-        exposure:
-          include: "*"
-    endpoint:
-      health:
-        show-details: always
-
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    '[com.am.marketdata]': INFO
+    '[com.am.marketdata.scheduler]': DEBUG
+    '[com.am.marketdata.service]': INFO
+    '[com.am.marketdata.external.api]': DEBUG
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
 upstox:
   interval: I1
@@ -149,15 +127,28 @@ scraper:
 
 # Server Configuration
 server:
-  port: 8084
+  port: 8080
 
-# Logging Configuration
-logging:
-  level:
-    root: INFO
-    '[com.am.marketdata]': INFO
-    '[com.am.marketdata.scheduler]': DEBUG
-    '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.external.api]': DEBUG
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
+# Management/Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      validate-group-membership: false
+      group:
+        readiness:
+          include: diskSpace
+          exclude: mongodb,redis,kafka
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    mongo:
+      enabled: false

@@ -1,13 +1,16 @@
-# Kafka configuration properties
-spring:
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+# Kafka Configuration
+KAFKA_BOOTSTRAP_SERVERS: localhost:9092
 
 # Application-specific Kafka properties
 app:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    
+    enabled: true
+    bootstrap-servers: kafka.dev.svc.cluster.local:9092
+    properties:
+      security-protocol: SASL_PLAINTEXT
+      sasl-mechanism: PLAIN
+      sasl-jaas-config: org.apache.kafka.common.security.plain.PlainLoginModule required username="kafkaUser" password="kafkaPassword123!";
+
     # Topic configuration
     topics:
       stock-price: ${STOKUPATE_TOPIC_NAME:am-stock-price-update}

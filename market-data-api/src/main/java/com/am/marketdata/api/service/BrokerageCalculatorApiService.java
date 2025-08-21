@@ -5,7 +5,8 @@ import com.marketdata.common.model.margin.BrokerageCalculationResponse;
 import com.marketdata.service.margin.BrokerageCalculatorService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,10 +16,10 @@ import java.util.concurrent.CompletableFuture;
  * API service for brokerage and tax calculation
  * Acts as a bridge between controller and service layer
  */
-@Slf4j
 @Service
 public class BrokerageCalculatorApiService {
 
+    private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorApiService.class);
     private final BrokerageCalculatorService brokerageCalculatorService;
     private final MeterRegistry meterRegistry;
 
