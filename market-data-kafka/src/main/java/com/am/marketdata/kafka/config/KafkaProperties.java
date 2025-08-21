@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import lombok.Data;
 
 @Data
-@Component
+@Component("kafkaProperties")
 @ConfigurationProperties(prefix = "app.kafka")
 public class KafkaProperties {
     

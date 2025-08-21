@@ -7,9 +7,9 @@ app:
     enabled: true
     bootstrap-servers: kafka.dev.svc.cluster.local:9092
     properties:
-      security.protocol: SASL_PLAINTEXT
-      sasl.mechanism: PLAIN
-      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="kafkaUser" password="kafkaPassword123!";
+      security-protocol: SASL_PLAINTEXT
+      sasl-mechanism: PLAIN
+      sasl-jaas-config: org.apache.kafka.common.security.plain.PlainLoginModule required username="kafkaUser" password="kafkaPassword123!";
 
     # Topic configuration
     topics:
