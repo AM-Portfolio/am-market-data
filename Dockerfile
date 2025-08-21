@@ -3,9 +3,8 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-# Copy the pre-built JAR file
-# Note: The JAR file should be copied to the Docker build context
-COPY target/*.jar app.jar
+# Copy the pre-built JAR file from the correct location
+COPY market-data-app/target/*.jar app.jar
 
 # Install curl for healthcheck
 RUN apt-get update && \

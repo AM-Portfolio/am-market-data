@@ -42,13 +42,11 @@ jobs:
           GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
           GITHUB_PACKAGES_TOKEN: ${{ github.token }}
           
-      # Create target directory and copy the JAR file for Docker build
-      - name: Prepare JAR for Docker build
+      # Verify the build output exists
+      - name: Verify build output
         run: |
-          mkdir -p target/
-          cp market-data-app/target/*.jar target/
-          echo "JAR files in target directory:"
-          ls -la target/
+          echo "Maven build output:"
+          ls -la market-data-app/target/
           
       # Set up Docker Buildx for multi-architecture builds
       - name: Set up Docker Buildx
