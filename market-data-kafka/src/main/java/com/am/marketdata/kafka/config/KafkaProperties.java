@@ -14,6 +14,7 @@ public class KafkaProperties {
     private String groupId;
     private TopicProperties topics;
     private ProducerProperties producer;
+    private Properties properties;
     
     @Data
     public static class TopicProperties {
@@ -38,5 +39,12 @@ public class KafkaProperties {
         private int batchSize;
         private int lingerMs;
         private int bufferMemory;
+    }
+
+    @Data
+    public static class Properties {
+        private String securityProtocol;
+        private String saslMechanism;
+        private String saslJaasConfig;
     }
 }
