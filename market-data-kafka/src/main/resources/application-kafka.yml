@@ -1,15 +1,18 @@
 # Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+KAFKA_SASL_MECHANISM: PLAIN
+KAFKA_SASL_JAAS_CONFIG:
 
 # Application-specific Kafka properties
 app:
   kafka:
     enabled: true
-    bootstrap-servers: kafka.dev.svc.cluster.local:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     properties:
-      security-protocol: SASL_PLAINTEXT
-      sasl-mechanism: PLAIN
-      sasl-jaas-config: org.apache.kafka.common.security.plain.PlainLoginModule required username="kafkaUser" password="kafkaPassword123!";
+      security-protocol: ${KAFKA_SECURITY_PROTOCOL}
+      sasl-mechanism: ${KAFKA_SASL_MECHANISM}
+      sasl-jaas-config: ${KAFKA_SASL_JAAS_CONFIG}
 
     # Topic configuration
     topics:
