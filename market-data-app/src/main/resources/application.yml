@@ -80,19 +80,10 @@ spring:
     import:
       - classpath:isin.yml
       - classpath:nseindices.yml
-      #- classpath:application-external-api.yml
-      #- classpath:application-endpoints.yml
+      - classpath:application-external-api.yml
+      - classpath:application-endpoints.yml
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
-
-  # jpa:
-  #   hibernate:
-  #     ddl-auto: update
-  #   properties:
-  #     hibernate:
-  #       dialect: org.hibernate.dialect.PostgreSQLDialect
-  #       format_sql: true
-  #   show-sql: true
 
 # Logging Configuration
 logging:
@@ -102,8 +93,8 @@ logging:
     '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
     '[com.am.marketdata.external.api]': DEBUG
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
+  # pattern:
+  #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
 upstox:
   interval: I1

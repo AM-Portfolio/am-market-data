@@ -4,12 +4,13 @@ import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyR
 import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
+import com.am.marketdata.processor.exception.DataValidationException;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockQuaterlyResultFinanceMapper;
-import com.am.marketdata.scraper.exception.DataFetchException;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +81,7 @@ public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<
             lastFetchedData = stockQuaterlyResultFinanceMapper.toQuarterlyFinancialMetrics(getIndexSymbol(), financials);
             return lastFetchedData;
         } catch (Exception e) {
-            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock quaterly financials data", e);
+            throw new DataValidationException(getIndexSymbol(), getDataTypeName(), maxRetries, "Failed to fetch stock quaterly financials data", e);
         }
     }
     

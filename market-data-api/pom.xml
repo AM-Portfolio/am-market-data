@@ -34,16 +34,8 @@
             <artifactId>market-data-service</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-processor</artifactId>
-            <version>${project.version}</version>
-        </dependency> -->
-        <!-- <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-scraper</artifactId>
-            <version>${project.version}</version>
-        </dependency> -->
+        
+        <!-- Swagger/OpenAPI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -63,6 +55,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        
         <!-- Redis dependencies for caching -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
