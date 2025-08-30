@@ -144,15 +144,18 @@ public class MarketDataController {
      * @return Map of symbol to OHLC data with cache status
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, Object>> getOHLC(
+    public ResponseEntity<?> getOHLC(
             @RequestParam("symbols") String symbols,
+            @RequestParam("isIndexSymbol") boolean isIndexSymbol,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             log.info("Controller received request for OHLC data for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
             String[] symbolArray = symbols.split(",");
+            List<String> symbolList = Arrays.asList(symbolArray);
             
             // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getOHLC(symbolArray, forceRefresh);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getOHLC(symbolList, isIndexSymbol, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
@@ -174,22 +177,6 @@ public class MarketDataController {
         }
     }
 
-    /**
-     * Get last traded price for symbols
-     * @param symbols Comma-separated list of symbols
-     * @return Map of symbol to LTP data
-     */
-    @GetMapping("/ltp")
-    public ResponseEntity<Map<String, Object>> getLTP(@RequestParam("symbols") String symbols) {
-        try {
-            String[] symbolArray = symbols.split(",");
-            Map<String, Object> ltp = marketDataService.getLTP(symbolArray);
-            return ResponseEntity.ok(ltp);
-        } catch (Exception e) {
-            log.error("Error getting LTP: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
 
     /**
      * Get historical data for one or more instruments
@@ -491,7 +478,7 @@ public class MarketDataController {
     @GetMapping("/live-prices")
     public ResponseEntity<Map<String, Object>> getLivePrices(
             @RequestParam(name = "symbols", required = false) String symbols,
-            @RequestParam(name = "indexSymbol", required = false) boolean indexSymbol,
+            @RequestParam(name = "isIndexSymbol", required = false) boolean indexSymbol,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             List<String> symbolList = null;

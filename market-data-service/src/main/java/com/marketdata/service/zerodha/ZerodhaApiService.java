@@ -363,11 +363,10 @@ public class ZerodhaApiService {
     public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
-            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(instrumentIdsArray);
+            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(symbols);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ohlc.time"));
             meterRegistry.counter("market-data.zerodha.api.ohlc.success").increment();
-            return convertInstrumentMaptoSymbolMap(ohlc);
+            return ohlc;
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ohlc.error", "error_type", getErrorType(e)).increment();
             log.error("Failed to get OHLC for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
@@ -380,15 +379,13 @@ public class ZerodhaApiService {
      * @param instruments Array of instruments in format [exchange:tradingsymbol] (e.g., ["NSE:INFY", "BSE:SBIN"])
      * @return Map of instrument to LTP object
      */
-    //@Retry(name = "marketDataZerodhaApi")
     public Map<String, LTPQuote> getLTP(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
-            Map<String, LTPQuote> ltp = kiteConnect.getLTP(instrumentIdsArray);
+            Map<String, LTPQuote> ltp = kiteConnect.getLTP(symbols);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ltp.time"));
             meterRegistry.counter("market-data.zerodha.api.ltp.success").increment();
-            return convertInstrumentMaptoSymbolMap(ltp);
+            return ltp;
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ltp.error", "error_type", getErrorType(e)).increment();
             log.error("Failed to get LTP for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);

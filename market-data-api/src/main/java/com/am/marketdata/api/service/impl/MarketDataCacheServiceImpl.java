@@ -5,6 +5,8 @@ import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+
+import com.am.common.investment.model.stockindice.StockData;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
@@ -123,15 +125,14 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     @Override
     public Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh) {
 
+        String cacheKey = buildCacheKey(new HashSet<>(symbols), indexSymbol, "live-prices");
         Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
 
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for live prices");
-            return fetchAndCacheLivePrices(symbolsSet, indexSymbol);
+            return fetchAndCacheLivePrices(cacheKey, symbolsSet, indexSymbol);
         }
-        
-        String cacheKey = buildLivePricesCacheKey(symbolsSet);
         
         @SuppressWarnings("unchecked")
         Map<String, Object> cachedPrices = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
@@ -143,18 +144,17 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         } else {
             cacheMisses.incrementAndGet();
             log.debug("Cache miss for live prices with key: {}", cacheKey);
-            return fetchAndCacheLivePrices(symbolsSet, indexSymbol);
+            return fetchAndCacheLivePrices(cacheKey, symbolsSet, indexSymbol);
         }
     }
     
-    private Map<String, Object> fetchAndCacheLivePrices(Set<String> symbols, boolean indexSymbol) {
+    private Map<String, Object> fetchAndCacheLivePrices(String cacheKey, Set<String> symbols, boolean indexSymbol) {
         Map<String, Object> prices;
 
         prices = investmentInstrumentService.getLivePrices(new ArrayList<>(symbols));
         
         // Don't cache error responses
         if (prices != null && !prices.containsKey("error")) {
-            String cacheKey = buildLivePricesCacheKey(symbols);
             redisTemplate.opsForValue().set(cacheKey, prices, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
             log.debug("Cached live prices with key: {}", cacheKey);
         }
@@ -167,12 +167,17 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         if (indexSymbol) {
             List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(new HashSet<>(symbols));
-            // Convert indices data to map format
+            // Extract symbols from indices data
             
             if (indicesData != null) {
                 for (StockIndicesMarketData data : indicesData) {
-                    if (data != null && data.getIndexSymbol() != null && !symbols.contains(data.getIndexSymbol())) {
-                        symbolsSet.add(data.getIndexSymbol());
+                    // Extract constituent symbols from the index data if available
+                    if (data != null && data.getData() != null) {
+                        for (StockData stockData : data.getData()) {
+                            if (stockData != null && stockData.getSymbol() != null) {
+                                symbolsSet.add(stockData.getSymbol());
+                            }
+                        }
                     }
                 }
             }
@@ -180,8 +185,13 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
 
         return symbolsSet;
     }
-    private String buildLivePricesCacheKey(Set<String> symbols) {
-        return "live-prices:" + (symbols != null ? String.join(",", symbols) : "all");
+    
+    private String buildCacheKey(Set<String> symbols, boolean isIndexSymbol, String keyPrefix) {
+        if (isIndexSymbol) {
+            return keyPrefix + ":index:" + (symbols != null && !symbols.isEmpty() ? symbols.iterator().next() : "all");
+        } else {
+            return keyPrefix + ":" + (symbols != null ? String.join(",", symbols) : "all");
+        }
     }
 
     @Override
@@ -626,15 +636,16 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
     
     @Override
-    public Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh) {
+    public Map<String, Object> getOHLC(List<String> symbols, boolean isIndexSymbol, boolean forceRefresh) {
+        String cacheKey = buildCacheKey(new HashSet<>(symbols), isIndexSymbol, "ohlc");
+        Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), isIndexSymbol);
+
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for OHLC data");
-            return fetchAndCacheOHLC(symbols);
+            return fetchAndCacheOHLC(cacheKey, symbolsSet, isIndexSymbol);
         }
-        
-        String cacheKey = buildOHLCCacheKey(symbols);
-        
+    
         @SuppressWarnings("unchecked")
         Map<String, Object> cachedData = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
         
@@ -645,12 +656,12 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         } else {
             cacheMisses.incrementAndGet();
             log.debug("Cache miss for OHLC data with key: {}", cacheKey);
-            return fetchAndCacheOHLC(symbols);
+            return fetchAndCacheOHLC(cacheKey, symbolsSet, isIndexSymbol);
         }
     }
     
-    private Map<String, Object> fetchAndCacheOHLC(String[] symbols) {
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(symbols);
+    private Map<String, Object> fetchAndCacheOHLC(String cacheKey, Set<String> symbols, boolean isIndexSymbol) {
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols));
         
         // Create response with cache status
         Map<String, Object> response = new HashMap<>();
@@ -660,7 +671,6 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         // Don't cache if null or empty
         if (ohlcData != null && !ohlcData.isEmpty()) {
-            String cacheKey = buildOHLCCacheKey(symbols);
             redisTemplate.opsForValue().set(cacheKey, response, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
             log.debug("Cached OHLC data with key: {}", cacheKey);
         }
@@ -668,9 +678,6 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         return response;
     }
     
-    private String buildOHLCCacheKey(String[] symbols) {
-        return "ohlc:" + (symbols != null ? String.join(",", symbols) : "all");
-    }
     
     @Override
     public StockIndicesMarketData getStockIndexData(String indexSymbol, boolean forceRefresh) {
