@@ -13,7 +13,7 @@ MONGODB_PASSWORD: ssd2658
 # InfluxDB Configuration
 INFLUXDB_TOKEN: ssd2658admin123456789
 INFLUXDB_ORG: am-portfolio
-INFLUXDB_BUCKET: market_data
+INFLUXDB_BUCKET: market-data
 INFLUXDB_URL: http://localhost:8086
 
 
@@ -85,15 +85,6 @@ spring:
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
-  # jpa:
-  #   hibernate:
-  #     ddl-auto: update
-  #   properties:
-  #     hibernate:
-  #       dialect: org.hibernate.dialect.PostgreSQLDialect
-  #       format_sql: true
-  #   show-sql: true
-
 # Logging Configuration
 logging:
   level:
@@ -102,8 +93,9 @@ logging:
     '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
     '[com.am.marketdata.external.api]': DEBUG
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
+    '[com.am.common.investment.service]': DEBUG
+  # pattern:
+  #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
 upstox:
   interval: I1
@@ -119,8 +111,6 @@ upstox:
     token-refresh-interval: 3600000
     scope: orders feed portfolio
 
-stock-data-scheduler: false
-nse-scraper-scheduler: true
 scraper:
   urls:
     - https://www.nseindia.com/
@@ -128,6 +118,12 @@ scraper:
 # Server Configuration
 server:
   port: 8080
+
+scheduler:
+  cookie:
+    enabled: false
+  stock-indices:
+    enabled: false
 
 # Management/Actuator Configuration
 management:
@@ -151,4 +147,4 @@ management:
     readinessstate:
       enabled: true
     mongo:
-      enabled: false
+      enabled: true

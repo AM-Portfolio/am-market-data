@@ -75,9 +75,9 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
+    public Map<String, OHLCQuote> getOHLC(List<String> symbols) {
         try {
-            Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(symbols);
+            Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(symbols.toArray(new String[0]));
             return new HashMap<>(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC from Zerodha: {}", e.getMessage(), e);
@@ -86,7 +86,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, Object> getLTP(String[] symbols) {
+    public Map<String, LTPQuote> getLTP(String[] symbols) {
         try {
             Map<String, LTPQuote> ltp = zerodhaApiService.getLTP(symbols);
             return new HashMap<>(ltp);

@@ -30,19 +30,29 @@
             <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
         </dependency> -->
-        <!-- <dependency>
+        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scheduler</artifactId>
             <version>${project.version}</version>
-        </dependency> -->
+        </dependency>
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- <dependency>
+        <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scraper</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-processor</artifactId>
             <version>${project.version}</version>
         </dependency> -->
 
@@ -70,11 +80,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        <!-- <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${postgresql.version}</version>
-        </dependency> -->
         <dependency>
             <groupId>com.influxdb</groupId>
             <artifactId>influxdb-client-java</artifactId>

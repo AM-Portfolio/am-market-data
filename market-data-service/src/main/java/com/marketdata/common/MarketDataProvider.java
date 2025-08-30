@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.zerodhatech.models.HistoricalData;
 import com.zerodhatech.models.Instrument;
+import com.zerodhatech.models.LTPQuote;
 import com.zerodhatech.models.OHLCQuote;
 
 /**
@@ -56,14 +57,14 @@ public interface MarketDataProvider {
      * @param symbols Array of symbols
      * @return Map of symbol to OHLC data
      */
-    Map<String, OHLCQuote> getOHLC(String[] symbols);
+    Map<String, OHLCQuote> getOHLC(List<String> symbols);
     
     /**
      * Get last traded price for symbols
      * @param symbols Array of symbols
      * @return Map of symbol to LTP data
      */
-    Map<String, Object> getLTP(String[] symbols);
+    Map<String, LTPQuote> getLTP(String[] symbols);
     
     /**
      * Get historical data for a symbol

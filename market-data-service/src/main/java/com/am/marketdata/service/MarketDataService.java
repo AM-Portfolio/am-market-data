@@ -40,14 +40,7 @@ public interface MarketDataService {
      * @param symbols Array of symbol identifiers
      * @return Map of symbol to OHLC data
      */
-    Map<String, OHLCQuote> getOHLC(String[] symbols);
-    
-    /**
-     * Get last traded price for instruments
-     * @param symbols Array of instrument identifiers
-     * @return Map of instrument to LTP data
-     */
-    Map<String, Object> getLTP(String[] symbols);
+    Map<String, OHLCQuote> getOHLC(List<String> symbols);
     
     /**
      * Get historical data for an instrument

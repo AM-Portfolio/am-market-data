@@ -4,6 +4,7 @@ import com.am.marketdata.service.MarketDataService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import com.zerodhatech.models.OHLCQuote;
+import com.zerodhatech.models.LTPQuote;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
@@ -12,7 +13,7 @@ import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
-import com.am.marketdata.mapper.OHLCMapper;
+import com.am.marketdata.mapper.KiteModelMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final HistoricalDataService historicalDataService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
-    private final OHLCMapper ohlcMapper;
+    private final KiteModelMapper kiteModelMapper;
     private final EquityService equityService;
     private ThreadPoolTaskExecutor marketDataExecutor;
 
@@ -57,13 +58,13 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.max.age.minutes:15}")
     private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, OHLCMapper ohlcMapper, EquityService equityService) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, KiteModelMapper kiteModelMapper, EquityService equityService) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.historicalDataService = historicalDataService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
-        this.ohlcMapper = ohlcMapper;
+        this.kiteModelMapper = kiteModelMapper;
         this.equityService = equityService;
     }
 
@@ -133,7 +134,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     public Map<String, Object> getQuotes(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateSymbols(symbols);
+            //validateSymbols(symbols);
             
             MarketDataProvider provider = providerFactory.getProvider();
             return retryOnFailure(() -> provider.getQuotes(symbols), "getQuotes");
@@ -147,11 +148,15 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
+    public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateSymbols(symbols);
-            
+            validateSymbols(tradingSymbols);
+
+            List<String> symbols = tradingSymbols.stream()
+            .map(id -> "NSE:" + id.toString())
+            .collect(Collectors.toList());
+
             MarketDataProvider provider = providerFactory.getProvider();
             return retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
         } catch (Exception e) {
@@ -160,25 +165,6 @@ public class MarketDataServiceImpl implements MarketDataService {
             throw new RuntimeException("Failed to get OHLC data", e);
         } finally {
             timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC"));
-        }
-    }
-
-    @Override
-    public Map<String, Object> getLTP(String[] symbols) {
-        Timer.Sample timer = Timer.start(meterRegistry);
-        try {
-            validateSymbols(symbols);
-            
-            MarketDataProvider provider = providerFactory.getProvider();
-            Map<String, Object> ltpData = retryOnFailure(() -> provider.getLTP(symbols), "getLTP");
-            
-            return ltpData;
-        } catch (Exception e) {
-            log.error("Error getting LTP data: {}", e.getMessage(), e);
-            meterRegistry.counter("market.data.failure.count", "operation", "getLTP").increment();
-            throw new RuntimeException("Failed to get LTP data", e);
-        } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getLTP"));
         }
     }
 
@@ -420,8 +406,8 @@ public class MarketDataServiceImpl implements MarketDataService {
      * 
      * @param symbols Array of symbols to validate
      */
-    private void validateSymbols(String[] symbols) {
-        if (symbols == null || symbols.length == 0) {
+    private void validateSymbols(List<String> symbols) {
+        if (symbols == null || symbols.isEmpty()) {
             throw new IllegalArgumentException("Symbols cannot be null or empty");
         }
         
@@ -431,16 +417,7 @@ public class MarketDataServiceImpl implements MarketDataService {
             }
         }
     }
-    
-    /**
-     * Get symbols by trading symbols or all available symbols if no IDs provided
-     * 
-     * @param instrumentIds List of instrument IDs or null/empty for all instruments
-     * @return Map of trading symbols to Instrument objects
-     */
-    private List<Instrument> getSymbolsToProcess(List<String> tradingSymbols) {
-       return instrumentService.getInstrumentByTradingsymbols(tradingSymbols);
-    }
+
     
     /**
      * Fetch live prices directly from the provider using instrument IDs
@@ -448,63 +425,42 @@ public class MarketDataServiceImpl implements MarketDataService {
      * @param instrumentIds List of instrument IDs
      * @return List of equity prices
      */
-    private List<EquityPrice> fetchLivePricesFromProvider(List<Long> instrumentIds) {
-        log.info("[DATA_SOURCE] Fetching live prices directly from PROVIDER with {} instrument IDs", instrumentIds.size());
+    private List<EquityPrice> fetchLivePricesFromProvider(List<String> tradingSymbols) {
+        log.info("[DATA_SOURCE] Fetching live prices directly from PROVIDER with {} instrument IDs", tradingSymbols.size());
         
-        if (instrumentIds == null || instrumentIds.isEmpty()) {
+        if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             log.warn("No valid instrument IDs provided");
             return Collections.emptyList();
         }
         
-        log.info("Fetching live prices for {} instruments", instrumentIds.size());
+        log.info("Fetching live prices for {} instruments", tradingSymbols.size());
         
         // Convert instrument IDs to string array for provider API
-        String[] instrumentArray = instrumentIds.stream()
-            .map(id -> id.toString())
+        String[] symbols = tradingSymbols.stream()
+            .map(id -> "NSE:" + id.toString())
             .toArray(String[]::new);
         
-        // Create a map of trading symbols to instruments for the mapper
-        Map<String, Instrument> instrumentMap = new HashMap<>();
-        for (Long id : instrumentIds) {
-            try {
-                Optional<Instrument> instrumentOpt = instrumentService.getInstrumentByInstrumentToken(id);
-                if (instrumentOpt.isPresent()) {
-                    Instrument instrument = instrumentOpt.get();
-                    String instrumentToken = instrument.getInstrumentToken().toString();
-                    if (instrumentToken != null) {
-                        instrumentMap.put(instrumentToken, instrument);
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Error retrieving instrument for ID {}: {}", id, e.getMessage());
-            }
-        }
-        
-        if (instrumentMap.isEmpty()) {
-            log.warn("Could not find any instruments matching the provided IDs");
-            return Collections.emptyList();
-        }
         
         // Get OHLC data from provider with retry mechanism
-        log.debug("[DATA_SOURCE] Calling provider.getOHLC with instrument IDs: {}", Arrays.toString(instrumentArray));
-        Map<String, OHLCQuote> ohlcData;
+        log.debug("[DATA_SOURCE] Calling provider.getLTP with instrument IDs: {}", symbols);
+        Map<String, LTPQuote> ltpData;
         try {
-            ohlcData = retryOnFailure(() -> providerFactory.getProvider().getOHLC(instrumentArray), "getOHLC");
+            ltpData = retryOnFailure(() -> providerFactory.getProvider().getLTP(symbols), "getLTP");
         } catch (Exception e) {
             log.error("Error fetching OHLC data from provider: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
-        log.debug("[DATA_SOURCE] Provider returned {} OHLC quotes", ohlcData != null ? ohlcData.size() : 0);
+        log.debug("[DATA_SOURCE] Provider returned {} OHLC quotes", ltpData != null ? ltpData.size() : 0);
         
-        if (ohlcData == null || ohlcData.isEmpty()) {
+        if (ltpData == null || ltpData.isEmpty()) {
             log.warn("Provider returned empty OHLC data");
             return Collections.emptyList();
         }
         
         // Map OHLC data to equity prices using the mapper
-        List<EquityPrice> prices = ohlcMapper.toEquityPrices(ohlcData, instrumentMap);
+        List<EquityPrice> prices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpData);
         log.info("[DATA_SOURCE] Successfully mapped {} OHLC quotes to {} equity prices from PROVIDER", 
-                ohlcData != null ? ohlcData.size() : 0, prices.size());
+                ltpData != null ? ltpData.size() : 0, prices.size());
         
         return prices;
     }
@@ -515,23 +471,18 @@ public class MarketDataServiceImpl implements MarketDataService {
         try {
             log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
             
-            // Get symbols to process
-            List<Instrument> instruments = getSymbolsToProcess(tradingSymbols);
-            List<Long> instrumentIds = instruments.stream().map(Instrument::getInstrumentToken).collect(Collectors.toList());
-            List<String> symbols = instruments.stream().map(Instrument::getTradingSymbol).collect(Collectors.toList());
-            
             // Use the retry mechanism for resilience
             return retryOnFailure(new Callable<List<EquityPrice>>() {
                 @Override
                 public List<EquityPrice> call() throws Exception {
-                    log.info("[DATA_SOURCE] Attempting to fetch prices from DATABASE first for {} symbols", symbols.size());
+                    log.info("[DATA_SOURCE] Attempting to fetch prices from DATABASE first for {} symbols", tradingSymbols.size());
                     // First try to get prices from the database
-                    List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(symbols);
+                    List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(tradingSymbols);
                     
                     // If database query returns empty results, fetch all from the provider
                     if (equityPrices == null || equityPrices.isEmpty()) {
                         log.info("[DATA_SOURCE] No prices found in DATABASE, switching to PROVIDER source");
-                        equityPrices = fetchLivePricesFromProvider(instrumentIds);
+                        equityPrices = fetchLivePricesFromProvider(tradingSymbols);
                         log.info("[DATA_SOURCE] Successfully fetched {} prices from PROVIDER", equityPrices.size());
                         return equityPrices;
                     }
@@ -544,7 +495,7 @@ public class MarketDataServiceImpl implements MarketDataService {
                             .collect(Collectors.toSet());
                     
                     // Find missing symbols
-                    List<String> missingSymbols = symbols.stream()
+                    List<String> missingSymbols = tradingSymbols.stream()
                             .filter(symbol -> !foundSymbols.contains(symbol))
                             .collect(Collectors.toList());
                     
@@ -553,14 +504,8 @@ public class MarketDataServiceImpl implements MarketDataService {
                         log.info("[DATA_SOURCE] Found {} symbols in DATABASE, fetching {} missing symbols from PROVIDER", 
                                 foundSymbols.size(), missingSymbols.size());
                         
-                        // Get instrument IDs for missing symbols
-                        List<Long> missingInstrumentIds = instruments.stream()
-                                .filter(instrument -> missingSymbols.contains(instrument.getTradingSymbol()))
-                                .map(Instrument::getInstrumentToken)
-                                .collect(Collectors.toList());
-                        
                         // Fetch missing symbols from provider
-                        List<EquityPrice> missingPrices = fetchLivePricesFromProvider(missingInstrumentIds);
+                        List<EquityPrice> missingPrices = fetchLivePricesFromProvider(tradingSymbols);
                         log.info("[DATA_SOURCE] Successfully fetched {} missing prices from PROVIDER", missingPrices.size());
                         
                         // Merge results

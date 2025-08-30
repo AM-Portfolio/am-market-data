@@ -1,6 +1,8 @@
 package com.am.marketdata.api.service;
 
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.zerodhatech.models.OHLCQuote;
+
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +29,7 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map containing prices, count, timestamp and processing time
      */
-    Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh);
+    Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh);
     
     /**
      * Get historical data from cache or service
@@ -119,7 +121,7 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map of symbol to OHLC data with cache status
      */
-    Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh);
+    Map<String, Object> getOHLC(List<String> symbols, boolean isIndexSymbol, boolean forceRefresh);
     
     /**
      * Get latest stock index data from cache or service

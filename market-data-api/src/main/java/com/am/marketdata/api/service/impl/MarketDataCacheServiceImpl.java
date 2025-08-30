@@ -5,6 +5,8 @@ import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+
+import com.am.common.investment.model.stockindice.StockData;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
@@ -19,10 +21,13 @@ import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -118,14 +123,16 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
 
     @Override
-    public Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh) {
+    public Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh) {
+
+        String cacheKey = buildCacheKey(new HashSet<>(symbols), indexSymbol, "live-prices");
+        Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
+
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for live prices");
-            return fetchAndCacheLivePrices(symbols);
+            return fetchAndCacheLivePrices(cacheKey, symbolsSet, indexSymbol);
         }
-        
-        String cacheKey = buildLivePricesCacheKey(symbols);
         
         @SuppressWarnings("unchecked")
         Map<String, Object> cachedPrices = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
@@ -137,25 +144,54 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         } else {
             cacheMisses.incrementAndGet();
             log.debug("Cache miss for live prices with key: {}", cacheKey);
-            return fetchAndCacheLivePrices(symbols);
+            return fetchAndCacheLivePrices(cacheKey, symbolsSet, indexSymbol);
         }
     }
     
-    private Map<String, Object> fetchAndCacheLivePrices(List<String> symbols) {
-        Map<String, Object> prices = investmentInstrumentService.getLivePrices(symbols);
+    private Map<String, Object> fetchAndCacheLivePrices(String cacheKey, Set<String> symbols, boolean indexSymbol) {
+        Map<String, Object> prices;
+
+        prices = investmentInstrumentService.getLivePrices(new ArrayList<>(symbols));
         
         // Don't cache error responses
         if (prices != null && !prices.containsKey("error")) {
-            String cacheKey = buildLivePricesCacheKey(symbols);
             redisTemplate.opsForValue().set(cacheKey, prices, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
             log.debug("Cached live prices with key: {}", cacheKey);
         }
         
         return prices;
     }
+
+    private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
+        Set<String> symbolsSet = new HashSet<>(symbols);
+        
+        if (indexSymbol) {
+            List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(new HashSet<>(symbols));
+            // Extract symbols from indices data
+            
+            if (indicesData != null) {
+                for (StockIndicesMarketData data : indicesData) {
+                    // Extract constituent symbols from the index data if available
+                    if (data != null && data.getData() != null) {
+                        for (StockData stockData : data.getData()) {
+                            if (stockData != null && stockData.getSymbol() != null) {
+                                symbolsSet.add(stockData.getSymbol());
+                            }
+                        }
+                    }
+                }
+            }
+        } 
+
+        return symbolsSet;
+    }
     
-    private String buildLivePricesCacheKey(List<String> symbols) {
-        return "live-prices:" + (symbols != null ? String.join(",", symbols) : "all");
+    private String buildCacheKey(Set<String> symbols, boolean isIndexSymbol, String keyPrefix) {
+        if (isIndexSymbol) {
+            return keyPrefix + ":index:" + (symbols != null && !symbols.isEmpty() ? symbols.iterator().next() : "all");
+        } else {
+            return keyPrefix + ":" + (symbols != null ? String.join(",", symbols) : "all");
+        }
     }
 
     @Override
@@ -600,15 +636,16 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
     
     @Override
-    public Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh) {
+    public Map<String, Object> getOHLC(List<String> symbols, boolean isIndexSymbol, boolean forceRefresh) {
+        String cacheKey = buildCacheKey(new HashSet<>(symbols), isIndexSymbol, "ohlc");
+        Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), isIndexSymbol);
+
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for OHLC data");
-            return fetchAndCacheOHLC(symbols);
+            return fetchAndCacheOHLC(cacheKey, symbolsSet, isIndexSymbol);
         }
-        
-        String cacheKey = buildOHLCCacheKey(symbols);
-        
+    
         @SuppressWarnings("unchecked")
         Map<String, Object> cachedData = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
         
@@ -619,12 +656,12 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         } else {
             cacheMisses.incrementAndGet();
             log.debug("Cache miss for OHLC data with key: {}", cacheKey);
-            return fetchAndCacheOHLC(symbols);
+            return fetchAndCacheOHLC(cacheKey, symbolsSet, isIndexSymbol);
         }
     }
     
-    private Map<String, Object> fetchAndCacheOHLC(String[] symbols) {
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(symbols);
+    private Map<String, Object> fetchAndCacheOHLC(String cacheKey, Set<String> symbols, boolean isIndexSymbol) {
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols));
         
         // Create response with cache status
         Map<String, Object> response = new HashMap<>();
@@ -634,7 +671,6 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         // Don't cache if null or empty
         if (ohlcData != null && !ohlcData.isEmpty()) {
-            String cacheKey = buildOHLCCacheKey(symbols);
             redisTemplate.opsForValue().set(cacheKey, response, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
             log.debug("Cached OHLC data with key: {}", cacheKey);
         }
@@ -642,9 +678,6 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         return response;
     }
     
-    private String buildOHLCCacheKey(String[] symbols) {
-        return "ohlc:" + (symbols != null ? String.join(",", symbols) : "all");
-    }
     
     @Override
     public StockIndicesMarketData getStockIndexData(String indexSymbol, boolean forceRefresh) {
@@ -776,5 +809,47 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     
     private String buildStockIndicesCacheKey(List<String> indexSymbols) {
         return "stock-indices:" + (indexSymbols != null ? String.join(",", indexSymbols) : "all");
+    }
+    
+    /**
+     * Find symbols from StockIndicesMarketData that are not included in the passed list of symbols
+     * 
+     * @param indexSymbols List of index symbols to search for market data
+     * @param symbolsToCheck List of symbols to check against the data
+     * @return List of symbols that are in the market data but not in the symbolsToCheck list
+     */
+    public List<String> findMissingSymbols(List<String> indexSymbols, List<String> symbolsToCheck) {
+        log.debug("Finding symbols not included in the passed list: {}", symbolsToCheck);
+        
+        if (symbolsToCheck == null || symbolsToCheck.isEmpty()) {
+            log.warn("Empty symbols list provided to check against, returning empty list");
+            return Collections.emptyList();
+        }
+        
+        // Get all stock indices market data
+        List<StockIndicesMarketData> indicesData = getStockIndicesData(indexSymbols, false);
+        
+        if (indicesData == null || indicesData.isEmpty()) {
+            log.warn("No stock indices market data found for symbols: {}", indexSymbols);
+            return Collections.emptyList();
+        }
+        
+        // Create a set of symbols to check for faster lookups
+        Set<String> symbolsSet = new HashSet<>(symbolsToCheck);
+        
+        // Collect all symbols from the data that are not in the symbolsToCheck list
+        List<String> missingSymbols = indicesData.stream()
+            .filter(data -> data != null && data.getData() != null)
+            .flatMap(data -> data.getData().stream())
+            .filter(stockData -> stockData != null && stockData.getSymbol() != null)
+            .map(stockData -> stockData.getSymbol())
+            .distinct()
+            .filter(symbol -> !symbolsSet.contains(symbol))
+            .collect(Collectors.toList());
+        
+        log.info("Found {} symbols that are not included in the passed list of {} symbols", 
+                missingSymbols.size(), symbolsToCheck.size());
+        
+        return missingSymbols;
     }
 }

@@ -4,12 +4,12 @@ import com.am.common.investment.model.equity.financial.cashflow.StockCashFlow;
 import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponse;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
+import com.am.marketdata.processor.exception.DataValidationException;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockCashFlowFinanceMapper;
-import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -76,7 +76,7 @@ public class StockCashFlowDataOperation extends AbstractMarketDataOperation<Stoc
             lastFetchedData = cashFlowMapper.toCashFlow(getIndexSymbol(), cashFlow);
             return lastFetchedData;
         } catch (Exception e) {
-            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock cash flow data", e);
+            throw new DataValidationException(getIndexSymbol(), getDataTypeName(), maxRetries, "Failed to fetch stock cash flow data", e);
         }
     }
     

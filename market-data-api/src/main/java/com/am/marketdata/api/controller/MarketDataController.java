@@ -61,10 +61,34 @@ public class MarketDataController {
      * @param requestToken Request token
      * @return Session information
      */
-    @PostMapping("/auth/session")
-    public ResponseEntity<Object> generateSession(@RequestParam("requestToken") String requestToken) {
+    @GetMapping("/auth/session")
+    public ResponseEntity<Object> generateSession(
+            @RequestParam(value = "request_token", required = false) String requestToken,
+            @RequestParam(value = "requestToken", required = false) String requestTokenAlt,
+            @RequestParam(value = "status", required = false, defaultValue = "success") String status) {
         try {
-            Object session = marketDataService.generateSession(requestToken);
+            // Check status parameter - only proceed if it's "success" or not provided
+            if (!"success".equalsIgnoreCase(status)) {
+                log.error("Authentication failed with status: {}", status);
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Authentication failed");
+                errorResponse.put("message", "Login was not successful. Status: " + status);
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            // Use request_token if provided, otherwise fall back to requestToken
+            String token = requestToken != null ? requestToken : requestTokenAlt;
+            
+            if (token == null) {
+                log.error("No request token provided in either request_token or requestToken parameters");
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Missing request token");
+                errorResponse.put("message", "No request token provided");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            log.info("Generating session with token: {}", token);
+            Object session = marketDataService.generateSession(token);
             return ResponseEntity.ok(session);
         } catch (Exception e) {
             log.error("Error generating session: {}", e.getMessage(), e);
@@ -120,15 +144,18 @@ public class MarketDataController {
      * @return Map of symbol to OHLC data with cache status
      */
     @GetMapping("/ohlc")
-    public ResponseEntity<Map<String, Object>> getOHLC(
+    public ResponseEntity<?> getOHLC(
             @RequestParam("symbols") String symbols,
+            @RequestParam("isIndexSymbol") boolean isIndexSymbol,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             log.info("Controller received request for OHLC data for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
             String[] symbolArray = symbols.split(",");
+            List<String> symbolList = Arrays.asList(symbolArray);
             
             // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getOHLC(symbolArray, forceRefresh);
+            // Use cache service instead of direct service call
+            Map<String, Object> response = marketDataCacheService.getOHLC(symbolList, isIndexSymbol, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
@@ -150,22 +177,6 @@ public class MarketDataController {
         }
     }
 
-    /**
-     * Get last traded price for symbols
-     * @param symbols Comma-separated list of symbols
-     * @return Map of symbol to LTP data
-     */
-    @GetMapping("/ltp")
-    public ResponseEntity<Map<String, Object>> getLTP(@RequestParam("symbols") String symbols) {
-        try {
-            String[] symbolArray = symbols.split(",");
-            Map<String, Object> ltp = marketDataService.getLTP(symbolArray);
-            return ResponseEntity.ok(ltp);
-        } catch (Exception e) {
-            log.error("Error getting LTP: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
 
     /**
      * Get historical data for one or more instruments
@@ -467,6 +478,7 @@ public class MarketDataController {
     @GetMapping("/live-prices")
     public ResponseEntity<Map<String, Object>> getLivePrices(
             @RequestParam(name = "symbols", required = false) String symbols,
+            @RequestParam(name = "isIndexSymbol", required = false) boolean indexSymbol,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             List<String> symbolList = null;
@@ -478,7 +490,7 @@ public class MarketDataController {
             }
             
             // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getLivePrices(symbolList, forceRefresh);
+            Map<String, Object> response = marketDataCacheService.getLivePrices(symbolList, indexSymbol, forceRefresh);
             
             // Check if there was an error
             if (response.containsKey("error")) {
