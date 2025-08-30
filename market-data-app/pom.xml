@@ -25,11 +25,11 @@
             <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-external-api</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scheduler</artifactId>
@@ -50,11 +50,11 @@
             <artifactId>market-data-scraper</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-processor</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> -->
 
         <!-- Resilience4j -->
         <dependency>

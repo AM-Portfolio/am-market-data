@@ -18,9 +18,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 //import com.am.marketdata.config.ISINConfig;
 //import com.am.marketdata.scraper.config.NSEIndicesConfig;
 //import com.am.common.investment.persistence.config.InfluxDBConfig;
-import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
+//import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
 import com.am.common.investment.persistence.config.InfluxDBConfig;
-import com.am.marketdata.processor.config.ProcessorModuleConfig;
+//import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 import com.am.marketdata.config.MetricsConfig;
 
@@ -32,7 +32,7 @@ import com.am.marketdata.config.MetricsConfig;
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
 //@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
-@Import({ ExternalApiAutoConfiguration.class, MetricsConfig.class, InfluxDBConfig.class, ProcessorModuleConfig.class})
+@Import({MetricsConfig.class, InfluxDBConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.external.api"),

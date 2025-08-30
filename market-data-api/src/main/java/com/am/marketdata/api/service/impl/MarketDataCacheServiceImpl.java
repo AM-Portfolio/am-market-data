@@ -19,10 +19,13 @@ import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -118,14 +121,17 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
 
     @Override
-    public Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh) {
+    public Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh) {
+
+        Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
+
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for live prices");
-            return fetchAndCacheLivePrices(symbols);
+            return fetchAndCacheLivePrices(symbolsSet, indexSymbol);
         }
         
-        String cacheKey = buildLivePricesCacheKey(symbols);
+        String cacheKey = buildLivePricesCacheKey(symbolsSet);
         
         @SuppressWarnings("unchecked")
         Map<String, Object> cachedPrices = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
@@ -137,12 +143,14 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         } else {
             cacheMisses.incrementAndGet();
             log.debug("Cache miss for live prices with key: {}", cacheKey);
-            return fetchAndCacheLivePrices(symbols);
+            return fetchAndCacheLivePrices(symbolsSet, indexSymbol);
         }
     }
     
-    private Map<String, Object> fetchAndCacheLivePrices(List<String> symbols) {
-        Map<String, Object> prices = investmentInstrumentService.getLivePrices(symbols);
+    private Map<String, Object> fetchAndCacheLivePrices(Set<String> symbols, boolean indexSymbol) {
+        Map<String, Object> prices;
+
+        prices = investmentInstrumentService.getLivePrices(new ArrayList<>(symbols));
         
         // Don't cache error responses
         if (prices != null && !prices.containsKey("error")) {
@@ -153,8 +161,26 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         return prices;
     }
-    
-    private String buildLivePricesCacheKey(List<String> symbols) {
+
+    private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
+        Set<String> symbolsSet = new HashSet<>(symbols);
+        
+        if (indexSymbol) {
+            List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(new HashSet<>(symbols));
+            // Convert indices data to map format
+            
+            if (indicesData != null) {
+                for (StockIndicesMarketData data : indicesData) {
+                    if (data != null && data.getIndexSymbol() != null && !symbols.contains(data.getIndexSymbol())) {
+                        symbolsSet.add(data.getIndexSymbol());
+                    }
+                }
+            }
+        } 
+
+        return symbolsSet;
+    }
+    private String buildLivePricesCacheKey(Set<String> symbols) {
         return "live-prices:" + (symbols != null ? String.join(",", symbols) : "all");
     }
 
@@ -776,5 +802,47 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     
     private String buildStockIndicesCacheKey(List<String> indexSymbols) {
         return "stock-indices:" + (indexSymbols != null ? String.join(",", indexSymbols) : "all");
+    }
+    
+    /**
+     * Find symbols from StockIndicesMarketData that are not included in the passed list of symbols
+     * 
+     * @param indexSymbols List of index symbols to search for market data
+     * @param symbolsToCheck List of symbols to check against the data
+     * @return List of symbols that are in the market data but not in the symbolsToCheck list
+     */
+    public List<String> findMissingSymbols(List<String> indexSymbols, List<String> symbolsToCheck) {
+        log.debug("Finding symbols not included in the passed list: {}", symbolsToCheck);
+        
+        if (symbolsToCheck == null || symbolsToCheck.isEmpty()) {
+            log.warn("Empty symbols list provided to check against, returning empty list");
+            return Collections.emptyList();
+        }
+        
+        // Get all stock indices market data
+        List<StockIndicesMarketData> indicesData = getStockIndicesData(indexSymbols, false);
+        
+        if (indicesData == null || indicesData.isEmpty()) {
+            log.warn("No stock indices market data found for symbols: {}", indexSymbols);
+            return Collections.emptyList();
+        }
+        
+        // Create a set of symbols to check for faster lookups
+        Set<String> symbolsSet = new HashSet<>(symbolsToCheck);
+        
+        // Collect all symbols from the data that are not in the symbolsToCheck list
+        List<String> missingSymbols = indicesData.stream()
+            .filter(data -> data != null && data.getData() != null)
+            .flatMap(data -> data.getData().stream())
+            .filter(stockData -> stockData != null && stockData.getSymbol() != null)
+            .map(stockData -> stockData.getSymbol())
+            .distinct()
+            .filter(symbol -> !symbolsSet.contains(symbol))
+            .collect(Collectors.toList());
+        
+        log.info("Found {} symbols that are not included in the passed list of {} symbols", 
+                missingSymbols.size(), symbolsToCheck.size());
+        
+        return missingSymbols;
     }
 }

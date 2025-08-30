@@ -27,7 +27,7 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map containing prices, count, timestamp and processing time
      */
-    Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh);
+    Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh);
     
     /**
      * Get historical data from cache or service
