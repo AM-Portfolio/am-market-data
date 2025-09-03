@@ -12,10 +12,9 @@ import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.service.MarketDataService;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
@@ -53,30 +52,21 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
 
     @Override
-    public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, boolean forceRefresh) {
-        return fetchAndCacheQuotes(tradingSymbols);
+    public Map<String, Map<String, Object>> getQuotes(Set<String> tradingSymbols, boolean forceRefresh) {
+        return investmentInstrumentService.getQuotes(tradingSymbols.stream().collect(Collectors.toList()));
     }
-    
-    private Map<String, Map<String, Object>> fetchAndCacheQuotes(List<String> tradingSymbols) {
-        return investmentInstrumentService.getQuotes(tradingSymbols);
-    }
-    
 
     @Override
-    public Map<String, Object> getLivePrices(List<String> symbols, boolean indexSymbol, boolean forceRefresh) {
+    public Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh) {
         Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
-        return fetchLivePrices(symbolsSet, indexSymbol);
-    }
-    
-    private Map<String, Object> fetchLivePrices(Set<String> symbols, boolean indexSymbol) {
-        return investmentInstrumentService.getLivePrices(new ArrayList<>(symbols));
+        return investmentInstrumentService.getLivePrices(new ArrayList<>(symbolsSet));
     }
 
     private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
         Set<String> symbolsSet = new HashSet<>(symbols);
         
         if (indexSymbol) {
-            List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(new HashSet<>(symbols));
+            List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(symbols);
             // Extract symbols from indices data
             
             if (indicesData != null) {
@@ -96,14 +86,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         return symbolsSet;
     }
     
-    private String buildCacheKey(Set<String> symbols, boolean isIndexSymbol, String keyPrefix) {
-        if (isIndexSymbol) {
-            return keyPrefix + ":index:" + (symbols != null && !symbols.isEmpty() ? symbols.iterator().next() : "all");
-        } else {
-            return keyPrefix + ":" + (symbols != null ? String.join(",", symbols) : "all");
-        }
-    }
-
+    
     @Override
     public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
                                               String interval, String instrumentType, 
@@ -120,7 +103,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     
 
     @Override
-    public Map<String, Object> getHistoricalDataMultipleSymbols(List<String> symbols, Date fromDate, Date toDate, 
+    public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate, 
                                                          String interval, String instrumentType, 
                                                          Map<String, Object> additionalParams, boolean forceRefresh) {
         log.info("Processing historical data request for multiple symbols: {} from {} to {}", 
@@ -350,10 +333,6 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         return details;
     }
     
-    private String buildMutualFundDetailsCacheKey(String schemeCode) {
-        return "mutual-fund-details:" + schemeCode;
-    }
-
     @Override
     public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh) {
         log.debug("Fetching mutual fund NAV history for scheme code: {} from: {} to: {}", schemeCode, from, to);
@@ -365,24 +344,18 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         return history;
     }
     
-    private String buildMutualFundNavHistoryCacheKey(String schemeCode, Date from, Date to) {
-        return String.format("mutual-fund-nav-history:%s:%s:%s", 
-                            schemeCode, 
-                            from.getTime(), 
-                            to.getTime());
-    }
     
     @Override
-    public Map<String, Object> getOHLC(List<String> symbols, boolean isIndexSymbol, boolean forceRefresh) {
-        String cacheKey = buildCacheKey(new HashSet<>(symbols), isIndexSymbol, "ohlc");
-        Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), isIndexSymbol);
+    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, boolean forceRefresh) {
 
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols));
+        symbols = getSymbols(symbols, isIndexSymbol);
+
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), forceRefresh);
         
         // Create response with cache status
         Map<String, Object> response = new HashMap<>();
         response.put("data", ohlcData);
-        response.put("cached", false);
+        response.put("cached", !forceRefresh);
         response.put("timestamp", System.currentTimeMillis());
         return response;
     
@@ -397,12 +370,12 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     
     
     @Override
-    public List<StockIndicesMarketData> getStockIndicesData(List<String> indexSymbols, boolean forceRefresh) {
+    public Set<StockIndicesMarketData> getStockIndicesData(Set<String> indexSymbols, boolean forceRefresh) {
 
-        List<StockIndicesMarketData> indicesData = indexSymbols.stream()
+        Set<StockIndicesMarketData> indicesData = indexSymbols.stream()
         .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
         .filter(data -> data != null)
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
     
         return indicesData;
     }
@@ -423,7 +396,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         }
         
         // Get all stock indices market data
-        List<StockIndicesMarketData> indicesData = getStockIndicesData(indexSymbols, false);
+        Set<StockIndicesMarketData> indicesData = getStockIndicesData(new HashSet<>(indexSymbols), false);
         
         if (indicesData == null || indicesData.isEmpty()) {
             log.warn("No stock indices market data found for symbols: {}", indexSymbols);

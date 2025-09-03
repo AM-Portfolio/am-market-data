@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import com.am.marketdata.mapper.OHLCMapper;
 import com.marketdata.common.MarketDataProviderFactory;
 import com.marketdata.service.zerodha.ZerodhaApiService;
 import com.marketdata.service.zerodha.ZerodhaMarketDataProvider;
@@ -123,9 +124,9 @@ public class ZerodhaApiConfig {
      * @return ZerodhaMarketDataProvider instance
      */
     @Bean(name = "zerodhaMarketDataProvider")
-    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService) {
+    public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, OHLCMapper ohlcMapper) {
         log.info("Creating Zerodha market data provider");
-        return new ZerodhaMarketDataProvider(zerodhaApiService);
+        return new ZerodhaMarketDataProvider(zerodhaApiService, ohlcMapper);
     }
     
     /**

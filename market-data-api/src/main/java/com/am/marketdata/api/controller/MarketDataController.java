@@ -5,8 +5,10 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
@@ -107,7 +109,7 @@ public class MarketDataController {
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             log.info("Controller received request for quotes for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
-            List<String> symbolList = Arrays.asList(symbols.split(","));
+            Set<String> symbolList = parseSymbols(symbols);
             
             // Use cache service instead of direct service call
             Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(symbolList, forceRefresh);
@@ -150,10 +152,8 @@ public class MarketDataController {
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
             log.info("Controller received request for OHLC data for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
-            String[] symbolArray = symbols.split(",");
-            List<String> symbolList = Arrays.asList(symbolArray);
+            Set<String> symbolList = parseSymbols(symbols);
             
-            // Use cache service instead of direct service call
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getOHLC(symbolList, isIndexSymbol, forceRefresh);
             
@@ -206,10 +206,7 @@ public class MarketDataController {
         
         try {
             // Parse the symbols into a list
-            List<String> symbolList = Arrays.asList(symbols.split(",")).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
+            Set<String> symbolList = parseSymbols(symbols);
             
             if (symbolList.isEmpty()) {
                 Map<String, Object> errorResponse = new HashMap<>();
@@ -481,13 +478,7 @@ public class MarketDataController {
             @RequestParam(name = "isIndexSymbol", required = false) boolean indexSymbol,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            List<String> symbolList = null;
-            if (symbols != null && !symbols.isEmpty()) {
-                symbolList = Arrays.asList(symbols.split(","));
-                log.info("Controller received request for live prices for {} symbols, forceRefresh: {}", symbolList.size(), forceRefresh);
-            } else {
-                log.info("Controller received request for all available symbols, forceRefresh: {}", forceRefresh);
-            }
+            Set<String> symbolList = parseSymbols(symbols);
             
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getLivePrices(symbolList, indexSymbol, forceRefresh);
@@ -510,5 +501,23 @@ public class MarketDataController {
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
+    }
+
+    
+    /**
+     * Utility method to convert comma-separated string to Set of symbols
+     * 
+     * @param symbols Comma-separated string of symbols
+     * @return Set of trimmed symbols, or empty set if input is null/empty
+     */
+    private Set<String> parseSymbols(String symbols) {
+        if (symbols == null || symbols.isEmpty()) {
+            return new HashSet<>();
+        }
+        
+        return Arrays.stream(symbols.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
     }
 }

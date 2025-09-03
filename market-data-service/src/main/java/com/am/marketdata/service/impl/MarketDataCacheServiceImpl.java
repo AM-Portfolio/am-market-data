@@ -4,12 +4,11 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.service.MarketDataCacheService;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -51,10 +50,10 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
                 com.am.common.investment.model.historical.OHLCVTPoint point = 
                     stockCacheService.createPricePoint(
                         LocalDateTime.now(), 
-                        quote.ohlc.open, 
-                        quote.ohlc.high, 
-                        quote.ohlc.low, 
-                        quote.ohlc.close, 
+                        quote.getOhlc().getOpen(), 
+                        quote.getOhlc().getHigh(), 
+                        quote.getOhlc().getLow(), 
+                        quote.getOhlc().getClose(), 
                         0L // Default volume as it might not be available in OHLCQuote
                     );
                 
@@ -240,37 +239,16 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         // Create a new OHLCQuote object
         OHLCQuote quote = new OHLCQuote();
         
-        // Create the OHLC inner object - using reflection to set fields since OHLC is an inner class
-        try {
-            // Create OHLC instance
-            Class<?> ohlcClass = Class.forName("com.zerodhatech.models.OHLCQuote$OHLC");
-            Object ohlcInstance = ohlcClass.getDeclaredConstructor().newInstance();
-            
-            // Set fields using reflection
-            Field openField = ohlcClass.getDeclaredField("open");
-            openField.setAccessible(true);
-            openField.set(ohlcInstance, bar.getOpen());
-            
-            Field highField = ohlcClass.getDeclaredField("high");
-            highField.setAccessible(true);
-            highField.set(ohlcInstance, bar.getHigh());
-            
-            Field lowField = ohlcClass.getDeclaredField("low");
-            lowField.setAccessible(true);
-            lowField.set(ohlcInstance, bar.getLow());
-            
-            Field closeField = ohlcClass.getDeclaredField("close");
-            closeField.setAccessible(true);
-            closeField.set(ohlcInstance, bar.getClose());
-            
-            // Set the ohlc field in the quote
-            Field ohlcField = OHLCQuote.class.getDeclaredField("ohlc");
-            ohlcField.setAccessible(true);
-            ohlcField.set(quote, ohlcInstance);
-            
-        } catch (Exception e) {
-            log.error("Error creating OHLCQuote from bar: {}", e.getMessage(), e);
-        }
+        // Create and set the OHLC object
+        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        ohlc.setOpen(bar.getOpen());
+        ohlc.setHigh(bar.getHigh());
+        ohlc.setLow(bar.getLow());
+        ohlc.setClose(bar.getClose());
+        
+        // Set the OHLC and last price in the quote
+        quote.setOhlc(ohlc);
+        quote.setLastPrice(bar.getClose()); // Set last price to close price
         
         return quote;
     }

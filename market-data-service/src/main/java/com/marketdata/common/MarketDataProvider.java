@@ -8,7 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import com.zerodhatech.models.HistoricalData;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 
 /**
  * Common interface for market data providers (Zerodha, Upstox, etc.)

@@ -1,7 +1,7 @@
 package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 
 import java.util.List;
 import java.util.Map;

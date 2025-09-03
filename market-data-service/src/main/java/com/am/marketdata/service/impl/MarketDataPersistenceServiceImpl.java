@@ -7,7 +7,7 @@ import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.marketdata.mapper.OHLCMapper;
 import com.am.marketdata.service.MarketDataCacheService;
 import com.am.marketdata.service.MarketDataPersistenceService;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -101,43 +103,57 @@ public class MarketDataPersistenceServiceImpl implements MarketDataPersistenceSe
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols) {
+    public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, boolean forceRefresh) {
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
 
         try {
-            // First try to get from cache
-            Map<String, OHLCQuote> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols);
-            if (!cachedData.isEmpty()) {
-                log.debug("Retrieved OHLC data from cache for {} symbols", cachedData.size());
-                return cachedData;
-            }
-            
-            // If not in cache, try to get from database
-            log.debug("No OHLC data found in cache, fetching from database for {} symbols", tradingSymbols.size());
-            
-            // Clean symbols (remove NSE: prefix if present)
-            List<String> cleanSymbols = tradingSymbols.stream()
-                .map(symbol -> symbol.replace("NSE:", ""))
-                .collect(Collectors.toList());
-            
-            // Get equity prices from database
-            List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(cleanSymbols);
-            
-            if (equityPrices.isEmpty()) {
-                log.debug("No OHLC data found in database for the requested symbols");
-                return Collections.emptyMap();
-            }
-            
-            // Convert equity prices to OHLCQuote format
             Map<String, OHLCQuote> result = new HashMap<>();
-            for (EquityPrice price : equityPrices) {
-                OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
-                result.put("NSE:" + price.getSymbol(), quote);
+            Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
+            
+            // Step 1: Try to get from cache if not forcing refresh
+            if (!forceRefresh) {
+                Map<String, OHLCQuote> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols);
+                if (!cachedData.isEmpty()) {
+                    log.debug("Retrieved OHLC data from cache for {} symbols", cachedData.size());
+                    result.putAll(cachedData);
+                    
+                    // Remove found symbols from the remaining set
+                    cachedData.keySet().forEach(symbol -> 
+                        remainingSymbols.remove(symbol.replace("NSE:", "")));
+                }
             }
             
-            log.debug("Retrieved OHLC data from database for {} symbols", result.size());
+            // Step 2: If we have remaining symbols or forceRefresh is true, try database
+            if (!remainingSymbols.isEmpty() || forceRefresh) {
+                log.debug("{} OHLC data from database for {} symbols", 
+                        forceRefresh ? "Forcing refresh of" : "Fetching missing", 
+                        remainingSymbols.size());
+                
+                // Clean symbols (remove NSE: prefix if present)
+                List<String> cleanSymbols = remainingSymbols.stream()
+                    .map(symbol -> symbol.replace("NSE:", ""))
+                    .collect(Collectors.toList());
+                
+                // Get equity prices from database
+                List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(cleanSymbols);
+                
+                if (!equityPrices.isEmpty()) {
+                    // Convert equity prices to OHLCQuote format
+                    for (EquityPrice price : equityPrices) {
+                        OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
+                        String symbol = "NSE:" + price.getSymbol();
+                        result.put(symbol, quote);
+                        
+                        // Remove found symbols from the remaining set
+                        remainingSymbols.remove(price.getSymbol());
+                    }
+                    
+                    log.debug("Retrieved OHLC data from database for {} symbols", equityPrices.size());
+                }
+            }
+            
             return result;
         } catch (Exception e) {
             log.error("Error retrieving OHLC data: {}", e.getMessage(), e);
@@ -189,15 +205,19 @@ public class MarketDataPersistenceServiceImpl implements MarketDataPersistenceSe
      */
     private OHLCQuote createOHLCQuoteFromEquityPrice(EquityPrice price) {
         OHLCQuote quote = new OHLCQuote();
-        quote.ohlc.open = price.getOpen();
-        quote.ohlc.high = price.getHigh();
-        quote.ohlc.low = price.getLow();
-        quote.ohlc.close = price.getClose();
-        quote.lastPrice = price.getClose(); // Set last price to close price
+        quote.setLastPrice(price.getClose());
+        
+        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        ohlc.setOpen(price.getOpen());
+        ohlc.setHigh(price.getHigh());
+        ohlc.setLow(price.getLow());
+        ohlc.setClose(price.getClose());
+        
+        quote.setOhlc(ohlc);
         
         // Set additional fields if available
         // if (price.getVolume() != null) {
-        //     quote.ohlc. = price.getVolume().intValue();
+        //     // Volume is not currently part of the OHLC model
         // }
         
         return quote;

@@ -1,7 +1,7 @@
 package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 
 import java.util.List;
 import java.util.Map;
@@ -32,9 +32,10 @@ public interface MarketDataPersistenceService {
     /**
      * Retrieve OHLC data from cache or database
      * @param tradingSymbols List of trading symbols
+     * @param forceRefresh Whether to bypass cache and fetch directly from database
      * @return Map of symbol to OHLC data
      */
-    Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols);
+    Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, boolean forceRefresh);
     
     /**
      * Retrieve historical data from cache or database

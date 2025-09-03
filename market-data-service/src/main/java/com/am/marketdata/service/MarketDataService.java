@@ -7,7 +7,7 @@ import java.util.Map;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 
 /**
  * Service for market data operations
@@ -38,9 +38,10 @@ public interface MarketDataService {
     /**
      * Get OHLC data for symbols
      * @param symbols Array of symbol identifiers
+     * @param forceRefresh Whether to force refresh from database/provider and bypass cache
      * @return Map of symbol to OHLC data
      */
-    Map<String, OHLCQuote> getOHLC(List<String> symbols);
+    Map<String, OHLCQuote> getOHLC(List<String> symbols, boolean forceRefresh);
     
     /**
      * Get historical data for an instrument

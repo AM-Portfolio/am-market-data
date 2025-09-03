@@ -1,6 +1,7 @@
 package com.marketdata.service.zerodha;
 
-import com.am.common.investment.service.instrument.InstrumentService;
+import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.mapper.OHLCMapper;
 import com.marketdata.common.MarketDataProvider;
 import com.zerodhatech.models.*;
 import com.zerodhatech.ticker.OnTicks;
@@ -27,9 +28,11 @@ import java.util.stream.Collectors;
 public class ZerodhaMarketDataProvider implements MarketDataProvider {
 
     private final ZerodhaApiService zerodhaApiService;
+    private final OHLCMapper ohlcMapper;
 
-    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService) {
+    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, OHLCMapper ohlcMapper) {
         this.zerodhaApiService = zerodhaApiService;
+        this.ohlcMapper = ohlcMapper;
         log.info("Initialized Zerodha market data provider");
     }
 
@@ -77,8 +80,8 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     @Override
     public Map<String, OHLCQuote> getOHLC(List<String> symbols) {
         try {
-            Map<String, OHLCQuote> ohlc = zerodhaApiService.getOHLC(symbols.toArray(new String[0]));
-            return new HashMap<>(ohlc);
+            Map<String, com.zerodhatech.models.OHLCQuote> ohlc = zerodhaApiService.getOHLC(symbols.toArray(new String[0]));
+            return ohlcMapper.toServiceOHLCQuoteMap(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC from Zerodha: {}", e.getMessage(), e);
             return new HashMap<>();
