@@ -4,7 +4,10 @@ import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.scraper.service.MarketDataProcessingService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +19,13 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class StockIndicesService {
     
+    private static final Logger log = LoggerFactory.getLogger(StockIndicesService.class);
+
     private final MarketDataProcessingService marketDataProcessingService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
-    private final MarketDataCacheService marketDataCacheService;
+    private final MarketDataFetchService marketDataCacheService;
     
     @Value("${market.data.cache.enabled:true}")
     private boolean cacheEnabled;

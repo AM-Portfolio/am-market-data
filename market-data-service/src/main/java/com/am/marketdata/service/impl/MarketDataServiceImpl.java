@@ -1,6 +1,5 @@
 package com.am.marketdata.service.impl;
 
-import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.MarketDataService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
@@ -9,7 +8,6 @@ import com.zerodhatech.models.LTPQuote;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
-import com.am.common.investment.service.EquityService;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
@@ -20,9 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.*;
 import java.util.concurrent.*;
@@ -41,15 +36,6 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
     private final KiteModelMapper kiteModelMapper;
-    private final EquityService equityService;
-    private final MarketDataPersistenceService marketDataPersistenceService;
-    private ThreadPoolTaskExecutor marketDataExecutor;
-
-    @Value("${market.data.thread.pool.size:5}")
-    private int threadPoolSize;
-
-    @Value("${market.data.thread.queue.capacity:10}")
-    private int queueCapacity;
 
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
@@ -57,40 +43,15 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.retry.delay.ms:1000}")
     private int retryDelayMs;
 
-    @Value("${market.data.max.age.minutes:15}")
-    private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, KiteModelMapper kiteModelMapper, EquityService equityService, MarketDataPersistenceService marketDataPersistenceService) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, KiteModelMapper kiteModelMapper) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
         this.kiteModelMapper = kiteModelMapper;
-        this.equityService = equityService;
-        this.marketDataPersistenceService = marketDataPersistenceService;
     }
 
-    @PostConstruct
-    public void initialize() {
-        log.info("Initializing MarketDataService with threadPoolSize={}, queueCapacity={}, maxRetries={}, retryDelayMs={}",
-                threadPoolSize, queueCapacity, maxRetries, retryDelayMs);
-        
-        // Initialize thread pool for market data operations
-        marketDataExecutor = new ThreadPoolTaskExecutor();
-        marketDataExecutor.setCorePoolSize(threadPoolSize);
-        marketDataExecutor.setMaxPoolSize(threadPoolSize);
-        marketDataExecutor.setQueueCapacity(queueCapacity);
-        marketDataExecutor.setThreadNamePrefix("market-data-");
-        marketDataExecutor.initialize();
-    }
-
-    @PreDestroy
-    public void cleanup() {
-        log.info("Shutting down MarketDataService thread pool");
-        if (marketDataExecutor != null) {
-            marketDataExecutor.shutdown();
-        }
-    }
 
     @Override
     public Map<String, String> getLoginUrl() {
@@ -154,31 +115,14 @@ public class MarketDataServiceImpl implements MarketDataService {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             validateSymbols(tradingSymbols);
-
-            // First check if data is available in persistence service
-            Map<String, OHLCQuote> cachedData = marketDataPersistenceService.getOHLCData(tradingSymbols);
-            if (!cachedData.isEmpty()) {
-                log.debug("Retrieved OHLC data from persistence service for {} symbols", cachedData.size());
-                return cachedData;
-            }
             
-            // If not in persistence service, get from provider
+            // Get data directly from provider - caching is handled at the service level
             List<String> symbols = tradingSymbols.stream()
                 .map(id -> "NSE:" + id.toString())
                 .collect(Collectors.toList());
                 
             MarketDataProvider provider = providerFactory.getProvider();
             Map<String, OHLCQuote> ohlcData = retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
-            
-            // Save the data asynchronously to both database and cache
-            if (ohlcData != null && !ohlcData.isEmpty()) {
-                marketDataPersistenceService.saveOHLCData(ohlcData)
-                    .exceptionally(ex -> {
-                        log.error("Error saving OHLC data: {}", ex.getMessage(), ex);
-                        return null;
-                    });
-                log.debug("Initiated async save of OHLC data for {} symbols", ohlcData.size());
-            }
             
             return ohlcData;
         } catch (Exception e) {
@@ -208,37 +152,14 @@ public class MarketDataServiceImpl implements MarketDataService {
                 throw new IllegalArgumentException("Interval cannot be null or empty");
             }
             
-            // Format dates for cache lookup
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String fromDateStr = dateFormat.format(fromDate);
-            String toDateStr = dateFormat.format(toDate);
-            
-            // First check if data is available in persistence service
-            HistoricalData cachedData = marketDataPersistenceService.getHistoricalData(
-                symbol, interval, fromDateStr, toDateStr);
-                
-            if (cachedData != null && cachedData.getDataPoints() != null && !cachedData.getDataPoints().isEmpty()) {
-                log.debug("Retrieved historical data from persistence service for symbol: {}", symbol);
-                return cachedData;
-            }
-            
-            // If not in persistence service, get from provider
+            // Get data directly from provider - caching is handled at the service level
             MarketDataProvider provider = providerFactory.getProvider();
             com.zerodhatech.models.HistoricalData zerodhaHistoricalData = retryOnFailure(() -> provider.getHistoricalData(
                     symbol, fromDate, toDate, interval, continuous, additionalParams), "getHistoricalData");
 
             HistoryDataMapper historicalDataMapper = new HistoryDataMapper();
             HistoricalData historicalData = historicalDataMapper.toCommonHistoricalData(zerodhaHistoricalData);
-
             historicalData.setTradingSymbol(symbol);
-            
-            // Save the data asynchronously to both database and cache
-            marketDataPersistenceService.saveHistoricalData(symbol, interval, historicalData)
-                .exceptionally(ex -> {
-                    log.error("Error saving historical data: {}", ex.getMessage(), ex);
-                    return null;
-                });
-            log.debug("Initiated async save of historical data for symbol: {}", symbol);
             
             return historicalData;
         } catch (Exception e) {
@@ -495,51 +416,8 @@ public class MarketDataServiceImpl implements MarketDataService {
         try {
             log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
             
-            // Use the retry mechanism for resilience
-            return retryOnFailure(new Callable<List<EquityPrice>>() {
-                @Override
-                public List<EquityPrice> call() throws Exception {
-                    log.info("[DATA_SOURCE] Attempting to fetch prices from DATABASE first for {} symbols", tradingSymbols.size());
-                    // First try to get prices from the database
-                    List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(tradingSymbols);
-                    
-                    // If database query returns empty results, fetch all from the provider
-                    if (equityPrices == null || equityPrices.isEmpty()) {
-                        log.info("[DATA_SOURCE] No prices found in DATABASE, switching to PROVIDER source");
-                        equityPrices = fetchLivePricesFromProvider(tradingSymbols);
-                        log.info("[DATA_SOURCE] Successfully fetched {} prices from PROVIDER", equityPrices.size());
-                        return equityPrices;
-                    }
-                    
-                    log.info("[DATA_SOURCE] Successfully fetched {} prices from DATABASE", equityPrices.size());
-                    
-                    // Check if we got all requested symbols from the database
-                    Set<String> foundSymbols = equityPrices.stream()
-                            .map(EquityPrice::getSymbol)
-                            .collect(Collectors.toSet());
-                    
-                    // Find missing symbols
-                    List<String> missingSymbols = tradingSymbols.stream()
-                            .filter(symbol -> !foundSymbols.contains(symbol))
-                            .collect(Collectors.toList());
-                    
-                    // If we have missing symbols, fetch them from the provider
-                    if (!missingSymbols.isEmpty()) {
-                        log.info("[DATA_SOURCE] Found {} symbols in DATABASE, fetching {} missing symbols from PROVIDER", 
-                                foundSymbols.size(), missingSymbols.size());
-                        
-                        // Fetch missing symbols from provider
-                        List<EquityPrice> missingPrices = fetchLivePricesFromProvider(tradingSymbols);
-                        log.info("[DATA_SOURCE] Successfully fetched {} missing prices from PROVIDER", missingPrices.size());
-                        
-                        // Merge results
-                        equityPrices.addAll(missingPrices);
-                        log.info("[DATA_SOURCE] Combined {} total prices from DATABASE and PROVIDER", equityPrices.size());
-                    }
-                    
-                    return equityPrices;
-                }
-            }, "getLivePrices");
+            // Get data directly from provider - caching is handled at the service level
+            return fetchLivePricesFromProvider(tradingSymbols);
         } catch (Exception e) {
             log.error("Error fetching live prices: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getLivePrices").increment();
@@ -549,66 +427,4 @@ public class MarketDataServiceImpl implements MarketDataService {
         }
     }
 
-    /**
-     * ThreadPoolTaskExecutor for managing thread pool
-     */
-    private static class ThreadPoolTaskExecutor {
-        private ExecutorService executorService;
-        private int corePoolSize;
-        private int maxPoolSize;
-        private int queueCapacity;
-        private String threadNamePrefix;
-
-        public ExecutorService getExecutorService() {
-            return executorService;
-        }
-
-        public void setCorePoolSize(int corePoolSize) {
-            this.corePoolSize = corePoolSize;
-        }
-
-        public void setMaxPoolSize(int maxPoolSize) {
-            this.maxPoolSize = maxPoolSize;
-        }
-
-        public void setQueueCapacity(int queueCapacity) {
-            this.queueCapacity = queueCapacity;
-        }
-
-        public void setThreadNamePrefix(String threadNamePrefix) {
-            this.threadNamePrefix = threadNamePrefix;
-        }
-
-        public void initialize() {
-            BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(queueCapacity);
-            ThreadFactory threadFactory = r -> {
-                Thread thread = new Thread(r);
-                thread.setName(threadNamePrefix + thread.getId());
-                return thread;
-            };
-            
-            executorService = new ThreadPoolExecutor(
-                    corePoolSize,
-                    maxPoolSize,
-                    60L,
-                    TimeUnit.SECONDS,
-                    queue,
-                    threadFactory
-            );
-        }
-
-        public void shutdown() {
-            if (executorService != null && !executorService.isShutdown()) {
-                executorService.shutdown();
-                try {
-                    if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
-                        executorService.shutdownNow();
-                    }
-                } catch (InterruptedException e) {
-                    executorService.shutdownNow();
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-    }
 }

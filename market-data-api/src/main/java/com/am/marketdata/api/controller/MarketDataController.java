@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
-import com.am.marketdata.api.service.MarketDataCacheService;
+import com.am.marketdata.api.service.MarketDataFetchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -29,12 +29,12 @@ public class MarketDataController {
     private static final Logger log = LoggerFactory.getLogger(MarketDataController.class);
     private final MarketDataService marketDataService;
     private final InvestmentInstrumentService investmentInstrumentService;
-    private final MarketDataCacheService marketDataCacheService;
+    private final MarketDataFetchService marketDataCacheService;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
     public MarketDataController(MarketDataService marketDataService, 
                                InvestmentInstrumentService investmentInstrumentService,
-                               MarketDataCacheService marketDataCacheService) {
+                               MarketDataFetchService marketDataCacheService) {
         this.marketDataService = marketDataService;
         this.investmentInstrumentService = investmentInstrumentService;
         this.marketDataCacheService = marketDataCacheService;

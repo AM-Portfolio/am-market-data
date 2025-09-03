@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 /**
  * Implementation of MarketDataCacheService for caching market data in Redis
  */
-@Service
+@Service("serviceModuleMarketDataCacheService")
 public class MarketDataCacheServiceImpl implements MarketDataCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataCacheServiceImpl.class);

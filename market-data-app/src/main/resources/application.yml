@@ -166,11 +166,6 @@ management:
       enabled: true
     redis:
       enabled: true
-    kafka:
-      enabled: true
-      consumer:
-      enabled: true
-      producer:
-        enabled: true
+
     influxdb:
       enabled: true

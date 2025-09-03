@@ -1,7 +1,6 @@
 package com.am.marketdata.api.service;
 
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
-import com.zerodhatech.models.OHLCQuote;
 
 import java.util.Date;
 import java.util.List;
@@ -11,7 +10,7 @@ import java.util.Map;
  * Cache service for market data
  * Handles caching of responses from MarketDataService and InvestmentInstrumentService
  */
-public interface MarketDataCacheService {
+public interface MarketDataFetchService {
 
     /**
      * Get quotes from cache or service
@@ -94,25 +93,7 @@ public interface MarketDataCacheService {
      * @return NAV history data
      */
     Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh);
-    
-    /**
-     * Clear all cached data
-     */
-    void clearAllCaches();
-    
-    /**
-     * Clear specific cache by key
-     * 
-     * @param cacheKey Cache key to clear
-     */
-    void clearCache(String cacheKey);
-    
-    /**
-     * Get cache statistics
-     * 
-     * @return Map containing cache statistics (hits, misses, etc.)
-     */
-    Map<String, Object> getCacheStatistics();
+
     
     /**
      * Get OHLC data from cache or service
