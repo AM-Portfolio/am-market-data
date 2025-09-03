@@ -1,0 +1,465 @@
+package com.am.marketdata.redis.cache;
+
+import com.am.common.investment.model.historical.OHLCVTPoint;
+import com.am.marketdata.redis.model.StockBars;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Redis-based cache for stock price data, supporting both intraday and historical data.
+ * Implements key design, TTL strategy, and helper functions for managing stock price data.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class StockRedisCache {
+
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    // Valid intervals
+    private static final Set<String> VALID_INTRADAY_INTERVALS = Set.of("5m", "10m", "15m", "30m", "1h", "4h");
+    private static final String HISTORICAL_INTERVAL = "1d";
+    @Value("${redis.cache.ttl.historical:86400}") // Default: 24 hours
+    private long historicalTtlSeconds;
+    
+    @Value("${redis.cache.ttl.intraday.past:14400}") // Default: 4 hours
+    private long intradayPastTtlSeconds;
+    
+    @Value("${redis.cache.ttl.intraday.future:86400}") // Default: 24 hours
+    private long intradayFutureTtlSeconds;
+    
+    @Value("${redis.cache.ttl.intraday.buffer:14400}") // Default: 4 hours after end of day
+    private long intradayBufferSeconds;  
+
+    // Key prefixes
+    private static final String INTRADAY_PREFIX = "stock:intraday";
+    private static final String HISTORICAL_PREFIX = "stock:historical";
+
+    /**
+     * Saves a list of StockBars containing intraday data with appropriate TTL.
+     * 
+     * @param stockBarsList List of StockBars objects containing intraday data
+     * @return true if saved successfully, false otherwise
+     */
+    public boolean saveIntradayBars(List<StockBars> stockBarsList) {
+        if (stockBarsList == null || stockBarsList.isEmpty()) {
+            log.warn("Empty or null StockBars list provided for intraday data");
+            return false;
+        }
+        
+        boolean allSuccess = true;
+        for (StockBars stockBars : stockBarsList) {
+            if (!saveIntradayBars(stockBars.getSymbol(), stockBars.getInterval(), 
+                    stockBars.getStartDate(), stockBars.getBars())) {
+                allSuccess = false;
+            }
+        }
+        
+        return allSuccess;
+    }
+    
+    /**
+     * Saves intraday bars for a specific symbol, interval, and date with appropriate TTL.
+     * 
+     * @param symbol   Stock symbol (e.g., "AAPL")
+     * @param interval Time interval (e.g., "5m", "15m", "1h")
+     * @param date     Date in YYYY-MM-DD format
+     * @param bars     List of OHLCV bars
+     * @return true if saved successfully, false otherwise
+     */
+    public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCVTPoint> bars) {
+        validateIntradayInterval(interval);
+        validateDate(date);
+        
+        String key = generateKey(INTRADAY_PREFIX, symbol, interval, date);
+        
+        try {
+            // Store only the bars list instead of the entire StockBars object
+            String json = objectMapper.writeValueAsString(bars);
+            
+            // Calculate TTL: end of day + 4 hours
+            long ttlSeconds = calculateIntradayTtl(date);
+            
+            redisTemplate.opsForValue().set(key, json, ttlSeconds, TimeUnit.SECONDS);
+            log.debug("Saved {} intraday bars for {}, interval: {}, date: {}, TTL: {} seconds", 
+                    bars.size(), symbol, interval, date, ttlSeconds);
+            return true;
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize stock bars for {}: {}", symbol, e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("Error saving intraday bars for {}: {}", symbol, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Saves a list of StockBars containing historical data with appropriate TTL.
+     * 
+     * @param stockBarsList List of StockBars objects containing historical data
+     * @return true if saved successfully, false otherwise
+     */
+    public boolean saveHistoricalBar(List<StockBars> stockBarsList) {
+        if (stockBarsList == null || stockBarsList.isEmpty()) {
+            log.warn("Empty or null StockBars list provided for historical data");
+            return false;
+        }
+        
+        boolean allSuccess = true;
+        for (StockBars stockBars : stockBarsList) {
+            // For each StockBars object, we need to save each bar individually
+            // as they might represent different dates
+            String symbol = stockBars.getSymbol();
+            List<OHLCVTPoint> bars = stockBars.getBars();
+            
+            if (bars == null || bars.isEmpty()) {
+                log.warn("Empty bars list for symbol: {}", symbol);
+                allSuccess = false;
+                continue;
+            }
+            
+            // Use the date range from the StockBars object
+            String startDate = stockBars.getStartDate();
+            String endDate = stockBars.getEndDate() != null ? stockBars.getEndDate() : startDate;
+            
+            for (OHLCVTPoint bar : bars) {
+                // Format the date from the bar's timestamp
+                String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
+                if (!saveHistoricalBar(symbol, barDate, bar)) {
+                    allSuccess = false;
+                }
+            }
+        }
+        
+        return allSuccess;
+    }
+    
+    /**
+     * Saves a historical (daily) bar for a specific symbol and date with 24-hour TTL.
+     * 
+     * @param symbol Stock symbol (e.g., "AAPL")
+     * @param date   Date in YYYY-MM-DD format
+     * @param bar    OHLCV bar for the day
+     * @return true if saved successfully, false otherwise
+     */
+    public boolean saveHistoricalBar(String symbol, String date, OHLCVTPoint bar) {
+        validateDate(date);
+        
+        String key = generateKey(HISTORICAL_PREFIX, symbol, HISTORICAL_INTERVAL, date);
+        
+        try {
+            // Store only the bar data instead of the entire StockBars object
+            String json = objectMapper.writeValueAsString(bar);
+            
+            // Historical data TTL: 24 hours (86400 seconds)
+            long ttlSeconds = 86400;
+            
+            redisTemplate.opsForValue().set(key, json, ttlSeconds, TimeUnit.SECONDS);
+            log.debug("Saved historical bar for {}, date: {}, TTL: {} seconds", symbol, date, ttlSeconds);
+            return true;
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize historical bar for {}: {}", symbol, e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("Error saving historical bar for {}: {}", symbol, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Retrieves bars for a specific symbol, interval, and date.
+     * 
+     * @param symbol   Stock symbol (e.g., "AAPL")
+     * @param interval Time interval (e.g., "5m", "15m", "1h", "1d")
+     * @param date     Date in YYYY-MM-DD format
+     * @return StockBars object containing the bars, or null if not found or error
+     */
+    public StockBars getBars(String symbol, String interval, String date) {
+        validateInterval(interval);
+        validateDate(date);
+        
+        String prefix = HISTORICAL_INTERVAL.equals(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String key = generateKey(prefix, symbol, interval, date);
+        
+        try {
+            String json = redisTemplate.opsForValue().get(key);
+            if (json == null) {
+                log.debug("No data found for {}, interval: {}, date: {}", symbol, interval, date);
+                return null;
+            }
+            
+            // Reconstruct StockBars from stored bar data
+            if (HISTORICAL_INTERVAL.equals(interval)) {
+                // For historical data, we stored a single OHLCVTPoint
+                OHLCVTPoint bar = objectMapper.readValue(json, OHLCVTPoint.class);
+                return StockBars.builder()
+                        .symbol(symbol)
+                        .interval(interval)
+                        .startDate(date)
+                        .endDate(date)
+                        .bars(Collections.singletonList(bar))
+                        .build();
+            } else {
+                // For intraday data, we stored a List<OHLCVTPoint>
+                List<OHLCVTPoint> bars = objectMapper.readValue(json, 
+                        new TypeReference<List<OHLCVTPoint>>() {});
+                return StockBars.builder()
+                        .symbol(symbol)
+                        .interval(interval)
+                        .startDate(date)
+                        .endDate(date)
+                        .bars(bars)
+                        .build();
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize stock bars for {}: {}", symbol, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("Error retrieving bars for {}: {}", symbol, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Clears all intraday data for a specific date.
+     * 
+     * @param date Date in YYYY-MM-DD format
+     * @return Number of keys deleted
+     */
+    public long clearIntradayDataForDate(String date) {
+        validateDate(date);
+        
+        String pattern = INTRADAY_PREFIX + ":*:*:" + date;
+        Set<String> keys = redisTemplate.keys(pattern);
+        
+        if (keys == null || keys.isEmpty()) {
+            log.debug("No intraday data found for date: {}", date);
+            return 0;
+        }
+        
+        Long deletedCount = redisTemplate.delete(keys);
+        log.debug("Deleted {} intraday keys for date: {}", deletedCount, date);
+        
+        return deletedCount != null ? deletedCount : 0;
+    }
+    
+    /**
+     * Retrieves bars for multiple symbols with the same interval and date in a single operation.
+     * 
+     * @param symbols  List of stock symbols (e.g., ["AAPL", "MSFT", "GOOG"])
+     * @param interval Time interval (e.g., "5m", "15m", "1h", "1d")
+     * @param date     Date in YYYY-MM-DD format
+     * @return Map of symbol to StockBars objects
+     */
+    public Map<String, StockBars> getMultiSymbolBars(List<String> symbols, String interval, String date) {
+        validateInterval(interval);
+        validateDate(date);
+        
+        if (symbols == null || symbols.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        
+        String prefix = HISTORICAL_INTERVAL.equals(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        List<String> keys = new ArrayList<>(symbols.size());
+        
+        // Generate all keys to fetch
+        for (String symbol : symbols) {
+            keys.add(generateKey(prefix, symbol, interval, date));
+        }
+        
+        // Fetch all values in a single Redis operation
+        List<String> jsonValues = redisTemplate.opsForValue().multiGet(keys);
+        
+        if (jsonValues == null) {
+            return Collections.emptyMap();
+        }
+        
+        Map<String, StockBars> result = new HashMap<>();
+        
+        // Process results
+        for (int i = 0; i < symbols.size(); i++) {
+            String json = jsonValues.get(i);
+            if (json != null) {
+                try {
+                    String symbol = symbols.get(i);
+                    
+                    // Reconstruct StockBars from stored bar data
+                    if (HISTORICAL_INTERVAL.equals(interval)) {
+                        // For historical data, we stored a single OHLCVTPoint
+                        OHLCVTPoint bar = objectMapper.readValue(json, OHLCVTPoint.class);
+                        StockBars stockBars = StockBars.builder()
+                                .symbol(symbol)
+                                .interval(interval)
+                                .startDate(date)
+                                .endDate(date)
+                                .bars(Collections.singletonList(bar))
+                                .build();
+                        result.put(symbol, stockBars);
+                    } else {
+                        // For intraday data, we stored a List<OHLCVTPoint>
+                        List<OHLCVTPoint> bars = objectMapper.readValue(json, 
+                                new TypeReference<List<OHLCVTPoint>>() {});
+                        StockBars stockBars = StockBars.builder()
+                                .symbol(symbol)
+                                .interval(interval)
+                                .startDate(date)
+                                .endDate(date)
+                                .bars(bars)
+                                .build();
+                        result.put(symbol, stockBars);
+                    }
+                } catch (JsonProcessingException e) {
+                    log.error("Failed to deserialize stock bars for {}: {}", symbols.get(i), e.getMessage());
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Retrieves historical bars for multiple symbols for a date range.
+     * 
+     * @param symbols   List of stock symbols (e.g., ["AAPL", "MSFT", "GOOG"])
+     * @param startDate Start date in YYYY-MM-DD format (inclusive)
+     * @param endDate   End date in YYYY-MM-DD format (inclusive)
+     * @return Map of symbol to list of StockBars objects for each date in range
+     */
+    public Map<String, List<StockBars>> getMultiSymbolHistoricalBars(List<String> symbols, String startDate, String endDate) {
+        validateDate(startDate);
+        validateDate(endDate);
+        
+        if (symbols == null || symbols.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        
+        try {
+            // Parse dates and generate all dates in the range
+            LocalDate start = LocalDate.parse(startDate, DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDate end = LocalDate.parse(endDate, DateTimeFormatter.ISO_LOCAL_DATE);
+            
+            if (end.isBefore(start)) {
+                throw new IllegalArgumentException("End date cannot be before start date");
+            }
+            
+            List<String> dateRange = new ArrayList<>();
+            LocalDate current = start;
+            while (!current.isAfter(end)) {
+                dateRange.add(current.format(DateTimeFormatter.ISO_LOCAL_DATE));
+                current = current.plusDays(1);
+            }
+            
+            // Initialize result map
+            Map<String, List<StockBars>> result = new HashMap<>();
+            for (String symbol : symbols) {
+                result.put(symbol, new ArrayList<>());
+            }
+            
+            // For each date, get all symbols' data
+            for (String date : dateRange) {
+                Map<String, StockBars> dailyData = getMultiSymbolBars(symbols, HISTORICAL_INTERVAL, date);
+                
+                // Add each symbol's data to its list
+                for (Map.Entry<String, StockBars> entry : dailyData.entrySet()) {
+                    result.get(entry.getKey()).add(entry.getValue());
+                }
+            }
+            
+            return result;
+            
+        } catch (DateTimeParseException e) {
+            log.error("Invalid date format: {}", e.getMessage());
+            throw new IllegalArgumentException("Invalid date format. Use YYYY-MM-DD");
+        }
+    }
+
+    /**
+     * Generates a Redis key in the format: stock:<type>:<symbol>:<interval>:<YYYY-MM-DD>
+     */
+    private String generateKey(String prefix, String symbol, String interval, String date) {
+        return String.format("%s:%s:%s:%s", prefix, symbol.toUpperCase(), interval, date);
+    }
+
+    /**
+     * Calculates TTL for intraday data: end of day + 4 hours.
+     * 
+     * @param dateStr Date in YYYY-MM-DD format
+     * @return TTL in seconds
+     */
+    private long calculateIntradayTtl(String dateStr) {
+        LocalDate date = LocalDate.parse(dateStr);
+        LocalDate now = LocalDate.now();
+        
+        // If the date is in the past, use configured past TTL
+        if (date.isBefore(now)) {
+            return intradayPastTtlSeconds;
+        }
+        
+        // If the date is today, calculate seconds until end of day + buffer
+        if (date.isEqual(now)) {
+            LocalTime currentTime = LocalTime.now();
+            int secondsUntilMidnight = 24 * 60 * 60 - currentTime.toSecondOfDay();
+            return secondsUntilMidnight + intradayBufferSeconds; // End of day + buffer
+        }
+        
+        // If the date is in the future, use configured future TTL
+        return intradayFutureTtlSeconds;
+    }
+
+    /**
+     * Validates if the provided interval is a valid intraday interval.
+     * 
+     * @param interval Time interval to validate
+     * @throws IllegalArgumentException if interval is invalid
+     */
+    private void validateIntradayInterval(String interval) {
+        if (!VALID_INTRADAY_INTERVALS.contains(interval)) {
+            throw new IllegalArgumentException("Invalid intraday interval: " + interval + 
+                    ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS));
+        }
+    }
+
+    /**
+     * Validates if the provided interval is valid (either intraday or historical).
+     * 
+     * @param interval Time interval to validate
+     * @throws IllegalArgumentException if interval is invalid
+     */
+    private void validateInterval(String interval) {
+        if (!VALID_INTRADAY_INTERVALS.contains(interval) && !HISTORICAL_INTERVAL.equals(interval)) {
+            throw new IllegalArgumentException("Invalid interval: " + interval + 
+                    ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS) + 
+                    " or " + HISTORICAL_INTERVAL);
+        }
+    }
+
+    /**
+     * Validates if the provided date string is in the correct format (YYYY-MM-DD).
+     * 
+     * @param date Date string to validate
+     * @throws IllegalArgumentException if date format is invalid
+     */
+    private void validateDate(String date) {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
+            LocalDate.parse(date, formatter);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date format: " + date + 
+                    ". Must be in YYYY-MM-DD format");
+        }
+    }
+}

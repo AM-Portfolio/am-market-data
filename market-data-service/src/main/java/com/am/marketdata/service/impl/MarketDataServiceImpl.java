@@ -1,5 +1,6 @@
 package com.am.marketdata.service.impl;
 
+import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.MarketDataService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
@@ -9,7 +10,6 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.EquityService;
-import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -36,11 +38,11 @@ public class MarketDataServiceImpl implements MarketDataService {
 
     private final MarketDataProviderFactory providerFactory;
     private final InstrumentService instrumentService;
-    private final HistoricalDataService historicalDataService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
     private final KiteModelMapper kiteModelMapper;
     private final EquityService equityService;
+    private final MarketDataPersistenceService marketDataPersistenceService;
     private ThreadPoolTaskExecutor marketDataExecutor;
 
     @Value("${market.data.thread.pool.size:5}")
@@ -58,14 +60,14 @@ public class MarketDataServiceImpl implements MarketDataService {
     @Value("${market.data.max.age.minutes:15}")
     private int maxAgeMinutes;
 
-    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, HistoricalDataService historicalDataService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, KiteModelMapper kiteModelMapper, EquityService equityService) {
+    public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, KiteModelMapper kiteModelMapper, EquityService equityService, MarketDataPersistenceService marketDataPersistenceService) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
-        this.historicalDataService = historicalDataService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
         this.kiteModelMapper = kiteModelMapper;
         this.equityService = equityService;
+        this.marketDataPersistenceService = marketDataPersistenceService;
     }
 
     @PostConstruct
@@ -153,12 +155,32 @@ public class MarketDataServiceImpl implements MarketDataService {
         try {
             validateSymbols(tradingSymbols);
 
+            // First check if data is available in persistence service
+            Map<String, OHLCQuote> cachedData = marketDataPersistenceService.getOHLCData(tradingSymbols);
+            if (!cachedData.isEmpty()) {
+                log.debug("Retrieved OHLC data from persistence service for {} symbols", cachedData.size());
+                return cachedData;
+            }
+            
+            // If not in persistence service, get from provider
             List<String> symbols = tradingSymbols.stream()
-            .map(id -> "NSE:" + id.toString())
-            .collect(Collectors.toList());
-
+                .map(id -> "NSE:" + id.toString())
+                .collect(Collectors.toList());
+                
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
+            Map<String, OHLCQuote> ohlcData = retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
+            
+            // Save the data asynchronously to both database and cache
+            if (ohlcData != null && !ohlcData.isEmpty()) {
+                marketDataPersistenceService.saveOHLCData(ohlcData)
+                    .exceptionally(ex -> {
+                        log.error("Error saving OHLC data: {}", ex.getMessage(), ex);
+                        return null;
+                    });
+                log.debug("Initiated async save of OHLC data for {} symbols", ohlcData.size());
+            }
+            
+            return ohlcData;
         } catch (Exception e) {
             log.error("Error getting OHLC data: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getOHLC").increment();
@@ -186,6 +208,21 @@ public class MarketDataServiceImpl implements MarketDataService {
                 throw new IllegalArgumentException("Interval cannot be null or empty");
             }
             
+            // Format dates for cache lookup
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String fromDateStr = dateFormat.format(fromDate);
+            String toDateStr = dateFormat.format(toDate);
+            
+            // First check if data is available in persistence service
+            HistoricalData cachedData = marketDataPersistenceService.getHistoricalData(
+                symbol, interval, fromDateStr, toDateStr);
+                
+            if (cachedData != null && cachedData.getDataPoints() != null && !cachedData.getDataPoints().isEmpty()) {
+                log.debug("Retrieved historical data from persistence service for symbol: {}", symbol);
+                return cachedData;
+            }
+            
+            // If not in persistence service, get from provider
             MarketDataProvider provider = providerFactory.getProvider();
             com.zerodhatech.models.HistoricalData zerodhaHistoricalData = retryOnFailure(() -> provider.getHistoricalData(
                     symbol, fromDate, toDate, interval, continuous, additionalParams), "getHistoricalData");
@@ -195,26 +232,13 @@ public class MarketDataServiceImpl implements MarketDataService {
 
             historicalData.setTradingSymbol(symbol);
             
-            // Make saveHistoricalData asynchronous but wait for the result
-            CompletableFuture<Void> saveTask = CompletableFuture.supplyAsync(() -> {
-                try {
-                    log.debug("Saving historical data asynchronously for symbol: {}", symbol);
-                    historicalDataService.saveHistoricalData(historicalData);
-                    log.debug("Successfully saved historical data for symbol: {}", symbol);
+            // Save the data asynchronously to both database and cache
+            marketDataPersistenceService.saveHistoricalData(symbol, interval, historicalData)
+                .exceptionally(ex -> {
+                    log.error("Error saving historical data: {}", ex.getMessage(), ex);
                     return null;
-                } catch (Exception e) {
-                    log.error("Error saving historical data asynchronously: {}", e.getMessage(), e);
-                    throw new CompletionException(e);
-                }
-            }, marketDataExecutor.getExecutorService());
-            
-            // Wait for the save operation to complete
-            try {
-                saveTask.join();
-            } catch (CompletionException e) {
-                log.error("Failed to save historical data: {}", e.getMessage(), e);
-                // We don't rethrow here as we still want to return the data even if saving failed
-            }
+                });
+            log.debug("Initiated async save of historical data for symbol: {}", symbol);
             
             return historicalData;
         } catch (Exception e) {

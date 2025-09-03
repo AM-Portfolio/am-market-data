@@ -11,8 +11,8 @@ MONGODB_USERNAME: ssd2658
 MONGODB_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
-INFLUXDB_TOKEN: ssd2658admin123456789
-INFLUXDB_ORG: am-portfolio
+INFLUXDB_TOKEN: my-super-secret-auth-token
+INFLUXDB_ORG: am-investment
 INFLUXDB_BUCKET: market-data
 INFLUXDB_URL: http://localhost:8086
 
@@ -65,7 +65,19 @@ spring:
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
+
+      
       authentication-database: admin
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   
   # InfluxDB Configuration
   influx:
@@ -85,6 +97,11 @@ spring:
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
+market-data:
+  cache:
+    enabled: true
+    price-ttl-minutes: ${MARKET_DATA_CACHE_PRICE_TTL_MINUTES:15}
+    history-ttl-minutes: ${MARKET_HISTORY_DATA_CACHE_HISTORY_TTL_MINUTES:15}
 # Logging Configuration
 logging:
   level:
@@ -117,7 +134,7 @@ scraper:
 
 # Server Configuration
 server:
-  port: 8080
+  port: 8081
 
 scheduler:
   cookie:
@@ -139,12 +156,21 @@ management:
       validate-group-membership: false
       group:
         readiness:
-          include: diskSpace
-          exclude: mongodb,redis,kafka
+          include: diskSpace,mongodb,redis,kafka,influx
   health:
     livenessstate:
       enabled: true
     readinessstate:
       enabled: true
-    mongo:
+    mongodb:
+      enabled: true
+    redis:
+      enabled: true
+    kafka:
+      enabled: true
+      consumer:
+      enabled: true
+      producer:
+        enabled: true
+    influxdb:
       enabled: true
