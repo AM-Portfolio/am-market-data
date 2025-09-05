@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.am.marketdata.api.model.OHLCRequest;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.service.MarketDataService;
 
@@ -141,21 +142,19 @@ public class MarketDataController {
 
     /**
      * Get OHLC data for symbols
-     * @param symbols Comma-separated list of symbols
-     * @param forceRefresh Whether to force a refresh from the source
+     * @param request Request body containing symbols and options
      * @return Map of symbol to OHLC data with cache status
      */
-    @GetMapping("/ohlc")
-    public ResponseEntity<?> getOHLC(
-            @RequestParam("symbols") String symbols,
-            @RequestParam("isIndexSymbol") boolean isIndexSymbol,
-            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
+    @PostMapping("/ohlc")
+    public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
-            log.info("Controller received request for OHLC data for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
-            Set<String> symbolList = parseSymbols(symbols);
+            log.info("Controller received POST request for OHLC data for symbols: {}, forceRefresh: {}", 
+                    request.getSymbols(), request.isForceRefresh());
+            Set<String> symbolList = parseSymbols(request.getSymbols());
             
             // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getOHLC(symbolList, isIndexSymbol, forceRefresh);
+            Map<String, Object> response = marketDataCacheService.getOHLC(
+                symbolList, request.isIndexSymbol(), request.isForceRefresh());
             
             // Check if there was an error
             if (response.containsKey("error")) {
@@ -164,7 +163,7 @@ public class MarketDataController {
             
             // Add cache status to response if not already present
             if (!response.containsKey("cached")) {
-                response.put("cached", !forceRefresh);
+                response.put("cached", !request.isForceRefresh());
             }
             
             return ResponseEntity.ok(response);

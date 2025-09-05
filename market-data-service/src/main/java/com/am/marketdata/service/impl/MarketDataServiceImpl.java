@@ -1,27 +1,39 @@
 package com.am.marketdata.service.impl;
 
-import com.am.marketdata.service.MarketDataService;
-import com.am.marketdata.service.MarketDataPersistenceService;
-import com.am.marketdata.common.model.OHLCQuote;
-import com.marketdata.common.MarketDataProvider;
-import com.marketdata.common.MarketDataProviderFactory;
-import com.zerodhatech.models.LTPQuote;
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.instrument.InstrumentService;
+import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.KiteModelMapper;
+import com.am.marketdata.service.MarketDataPersistenceService;
+import com.am.marketdata.service.MarketDataService;
+import com.am.marketdata.service.TimeFrameAggregationService;
+import com.am.marketdata.service.util.DataSourceType;
+import com.am.marketdata.service.util.OHLCDataRetriever;
+import com.marketdata.common.MarketDataProvider;
+import com.marketdata.common.MarketDataProviderFactory;
+import com.zerodhatech.models.LTPQuote;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +50,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final InstrumentMapper instrumentMapper;
     private final KiteModelMapper kiteModelMapper;
     private final MarketDataPersistenceService persistenceService;
+    private final org.springframework.retry.support.RetryTemplate retryTemplate;
 
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
@@ -55,102 +68,19 @@ public class MarketDataServiceImpl implements MarketDataService {
         this.instrumentMapper = instrumentMapper;
         this.kiteModelMapper = kiteModelMapper;
         this.persistenceService = persistenceService;
+        
+        // Initialize RetryTemplate
+        this.retryTemplate = createRetryTemplate();
     }
-
 
     @Override
     public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            validateSymbols(tradingSymbols);
-            
-            // Result map to store all found quotes
-            Map<String, OHLCQuote> result = new HashMap<>();
-            
-            // Keep track of symbols we still need to find
-            Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
-            
-            // Step 1: Try to get data from cache first (if not forcing refresh)
-            if (!forceRefresh) {
-                log.info("[DATA_SOURCE] Attempting to fetch OHLC data from cache for {} symbols", 
-                        remainingSymbols.size());
-                Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, false);
-                
-                if (cachedData != null && !cachedData.isEmpty()) {
-                    log.info("[DATA_SOURCE] Found {} OHLC quotes in cache", cachedData.size());
-                    result.putAll(cachedData);
+            // Use the new OHLCDataRetriever to get OHLC data
+            Map<String, OHLCQuote> result = createOHLCDataRetriever()
+                    .retrieveData(tradingSymbols, forceRefresh);
                     
-                    // Remove found symbols from the remaining set
-                    cachedData.keySet().forEach(symbol -> 
-                        remainingSymbols.remove(symbol.replace("NSE:", "")));
-                    
-                    log.info("[DATA_SOURCE] {} symbols remaining after cache lookup", remainingSymbols.size());
-                } else {
-                    log.info("[DATA_SOURCE] No OHLC data found in cache");
-                }
-            } else {
-                log.info("[DATA_SOURCE] Skipping cache lookup due to force refresh");
-            }
-            
-            // Step 2: If we still have symbols to find, try database
-            if (!remainingSymbols.isEmpty()) {
-                log.info("[DATA_SOURCE] Attempting to fetch OHLC data from database for {} symbols", 
-                        remainingSymbols.size());
-                
-                // Convert to list for database lookup
-                List<String> remainingSymbolsList = new ArrayList<>(remainingSymbols);
-                
-                // Force refresh is false here because we're explicitly looking for these symbols in the database
-                Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, true);
-                
-                if (dbData != null && !dbData.isEmpty()) {
-                    log.info("[DATA_SOURCE] Found {} OHLC quotes in database", dbData.size());
-                    result.putAll(dbData);
-                    
-                    // Remove found symbols from the remaining set
-                    dbData.keySet().forEach(symbol -> 
-                        remainingSymbols.remove(symbol.replace("NSE:", "")));
-                    
-                    log.info("[DATA_SOURCE] {} symbols remaining after database lookup", remainingSymbols.size());
-                } else {
-                    log.info("[DATA_SOURCE] No OHLC data found in database");
-                }
-            }
-            
-            // Step 3: If we still have symbols to find, fetch from provider API
-            if (!remainingSymbols.isEmpty()) {
-                log.info("[DATA_SOURCE] Fetching OHLC data from provider API for {} symbols", remainingSymbols.size());
-                
-                // Format symbols for provider API call
-                List<String> symbols = remainingSymbols.stream()
-                    .map(id -> "NSE:" + id)
-                    .collect(Collectors.toList());
-                    
-                MarketDataProvider provider = providerFactory.getProvider();
-                Map<String, OHLCQuote> providerData = retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
-                
-                if (providerData != null && !providerData.isEmpty()) {
-                    log.info("[DATA_SOURCE] Successfully fetched {} OHLC quotes from provider", providerData.size());
-                    result.putAll(providerData);
-                    
-                    // Save the data to persistence layer asynchronously
-                    persistenceService.saveOHLCData(providerData);
-                } else {
-                    log.warn("[DATA_SOURCE] Provider returned empty OHLC data");
-                }
-            }
-            
-            // Log final results
-            if (result.isEmpty()) {
-                log.warn("[DATA_SOURCE] Could not find OHLC data for any of the requested symbols");
-            } else if (result.size() < tradingSymbols.size()) {
-                log.warn("[DATA_SOURCE] Partial OHLC data: found {} out of {} requested symbols", 
-                        result.size(), tradingSymbols.size());
-            } else {
-                log.info("[DATA_SOURCE] Successfully retrieved OHLC data for all {} requested symbols", 
-                        tradingSymbols.size());
-            }
-            
             return result;
         } catch (Exception e) {
             log.error("Error getting OHLC data: {}", e.getMessage(), e);
@@ -160,7 +90,35 @@ public class MarketDataServiceImpl implements MarketDataService {
             timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC"));
         }
     }
-
+    
+    private OHLCDataRetriever createOHLCDataRetriever() {
+        return OHLCDataRetriever.builder()
+                .persistenceService(persistenceService)
+                .providerFactory(providerFactory)
+                .retryTemplate(retryTemplate)
+                .retrievalOrder(Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                .cacheResults(true)
+                .build();
+    }
+    
+    /**
+     * Create a retry template with configured retry policy
+     * 
+     * @return Configured RetryTemplate
+     */
+    private RetryTemplate createRetryTemplate() {
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
+        retryPolicy.setMaxAttempts(maxRetries);
+        
+        FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
+        backOffPolicy.setBackOffPeriod(retryDelayMs);
+        
+        RetryTemplate template = new RetryTemplate();
+        template.setRetryPolicy(retryPolicy);
+        template.setBackOffPolicy(backOffPolicy);
+        
+        return template;
+    }
 
     @Override
     public Map<String, String> getLoginUrl() {
@@ -218,7 +176,6 @@ public class MarketDataServiceImpl implements MarketDataService {
             timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getQuotes"));
         }
     }
-
 
     @Override
     public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, String interval, boolean continuous, Map<String, Object> additionalParams) {
@@ -283,17 +240,9 @@ public class MarketDataServiceImpl implements MarketDataService {
     public List<Instrument> getAllSymbols() {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            // First check if instruments are already present in the database
-            List<Instrument> existingInstruments = null;
+            log.info("Fetching instruments from provider");
             
-            if (existingInstruments != null && !existingInstruments.isEmpty()) {
-                log.info("Found {} existing instruments in database", existingInstruments.size());
-                return existingInstruments;
-            }
-            
-            log.info("No instruments found in database, fetching from provider");
-            
-            // If not found in database, fetch from provider
+            // Fetch from provider
             MarketDataProvider provider = providerFactory.getProvider();
             List<com.zerodhatech.models.Instrument> instruments = retryOnFailure(() -> provider.getAllInstruments(), "getAllInstruments");
             
@@ -412,64 +361,21 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     /**
-     * Generic method to retry operations on failure with exponential backoff
+     * Execute a supplier with retry logic
      * 
-     * @param callable The operation to retry
-     * @param operationName Name of the operation for metrics and logging
-     * @param <T> Return type of the operation
-     * @return Result of the operation
-     * @throws Exception If all retry attempts fail
+     * @param supplier The supplier to execute
+     * @param operationName The name of the operation (for logging)
+     * @param <T> The return type
+     * @return The result of the supplier
+     * @deprecated Use com.am.marketdata.service.util.MarketDataRetrievalUtil.retryWithTemplate instead
      */
-    private <T> T retryOnFailure(Callable<T> callable, String operationName) throws Exception {
-        Exception lastException = null;
-        
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                T result = callable.call();
-                if (attempt > 1) {
-                    log.info("Operation {} succeeded after {} attempts", operationName, attempt);
-                }
-                meterRegistry.counter("market.data.success.count", "operation", operationName).increment();
-                return result;
-            } catch (Exception e) {
-                lastException = e;
-                log.warn("Attempt {} for operation {} failed: {}", attempt, operationName, e.getMessage());
-                meterRegistry.counter("market.data.retry.count", "operation", operationName).increment();
-                
-                if (attempt < maxRetries) {
-                    try {
-                        // Exponential backoff
-                        long delay = retryDelayMs * (long) Math.pow(2, attempt - 1);
-                        log.debug("Waiting {}ms before retry attempt {}", delay, attempt + 1);
-                        TimeUnit.MILLISECONDS.sleep(delay);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new RuntimeException("Retry interrupted", ie);
-                    }
-                }
-            }
-        }
-        
-        log.error("Operation {} failed after {} attempts", operationName, maxRetries);
-        throw new RuntimeException("Operation failed after " + maxRetries + " attempts", lastException);
+    @Deprecated
+    private <T> T retryOnFailure(Supplier<T> supplier, String operationName) {
+        return com.am.marketdata.service.util.MarketDataRetrievalUtil.retryWithTemplate(
+                retryTemplate, supplier, operationName);
     }
 
-    /**
-     * Validate symbols array
-     * 
-     * @param symbols Array of symbols to validate
-     */
-    private void validateSymbols(List<String> symbols) {
-        if (symbols == null || symbols.isEmpty()) {
-            throw new IllegalArgumentException("Symbols cannot be null or empty");
-        }
-        
-        for (String symbol : symbols) {
-            if (symbol == null || symbol.trim().isEmpty()) {
-                throw new IllegalArgumentException("Symbol cannot be null or empty");
-            }
-        }
-    }
+    // Method removed as it's no longer used and replaced by utility class
 
     
     /**
@@ -495,7 +401,7 @@ public class MarketDataServiceImpl implements MarketDataService {
         
         
         // Get OHLC data from provider with retry mechanism
-        log.debug("[DATA_SOURCE] Calling provider.getLTP with instrument IDs: {}", symbols);
+            log.debug("[DATA_SOURCE] Calling provider.getLTP with instrument IDs: {}", (Object)symbols);
         Map<String, LTPQuote> ltpData;
         try {
             ltpData = retryOnFailure(() -> providerFactory.getProvider().getLTP(symbols), "getLTP");
