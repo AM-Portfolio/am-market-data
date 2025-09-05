@@ -32,8 +32,8 @@ public class StockRedisCache {
     private final ObjectMapper redisObjectMapper;
 
     // Valid intervals
-    private static final Set<String> VALID_INTRADAY_INTERVALS = Set.of("5m", "10m", "15m", "30m", "1h", "4h");
-    private static final String HISTORICAL_INTERVAL = "1d";
+    private static final Set<String> VALID_INTRADAY_INTERVALS = Set.of("5m", "10m", "15m", "30m", "1H", "4H");
+    private static final Set<String> HISTORICAL_INTERVAL = Set.of("1D", "1W", "1M", "1Y");
     @Value("${redis.cache.ttl.historical:86400}") // Default: 24 hours
     private long historicalTtlSeconds;
     
@@ -83,7 +83,7 @@ public class StockRedisCache {
      * @return true if saved successfully, false otherwise
      */
     public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCVTPoint> bars) {
-        validateIntradayInterval(interval);
+        validateInterval(interval);
         validateDate(date);
         
         String key = generateKey(INTRADAY_PREFIX, symbol, interval, date);
@@ -140,7 +140,7 @@ public class StockRedisCache {
             for (OHLCVTPoint bar : bars) {
                 // Format the date from the bar's timestamp
                 String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
-                if (!saveHistoricalBar(symbol, barDate, bar)) {
+                if (!saveHistoricalBar(symbol, barDate, bar, stockBars.getInterval())) {
                     allSuccess = false;
                 }
             }
@@ -157,10 +157,10 @@ public class StockRedisCache {
      * @param bar    OHLCV bar for the day
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveHistoricalBar(String symbol, String date, OHLCVTPoint bar) {
+    public boolean saveHistoricalBar(String symbol, String date, OHLCVTPoint bar, String interval) {
         validateDate(date);
         
-        String key = generateKey(HISTORICAL_PREFIX, symbol, HISTORICAL_INTERVAL, date);
+        String key = generateKey(HISTORICAL_PREFIX, symbol, interval, date);
         
         try {
             // Store only the bar data instead of the entire StockBars object
@@ -193,7 +193,7 @@ public class StockRedisCache {
         validateInterval(interval);
         validateDate(date);
         
-        String prefix = HISTORICAL_INTERVAL.equals(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         String key = generateKey(prefix, symbol, interval, date);
         
         try {
@@ -204,7 +204,7 @@ public class StockRedisCache {
             }
             
             // Reconstruct StockBars from stored bar data
-            if (HISTORICAL_INTERVAL.equals(interval)) {
+            if (HISTORICAL_INTERVAL.contains(interval)) {
                 // For historical data, we stored a single OHLCVTPoint
                 OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
                 return StockBars.builder()
@@ -274,7 +274,7 @@ public class StockRedisCache {
             return Collections.emptyMap();
         }
         
-        String prefix = HISTORICAL_INTERVAL.equals(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         List<String> keys = new ArrayList<>(symbols.size());
         
         // Generate all keys to fetch
@@ -340,7 +340,7 @@ public class StockRedisCache {
      * @param endDate   End date in YYYY-MM-DD format (inclusive)
      * @return Map of symbol to list of StockBars objects for each date in range
      */
-    public Map<String, List<StockBars>> getMultiSymbolHistoricalBars(List<String> symbols, String startDate, String endDate) {
+    public Map<String, List<StockBars>> getMultiSymbolHistoricalBars(List<String> symbols, String startDate, String endDate, String interval) {
         validateDate(startDate);
         validateDate(endDate);
         
@@ -372,7 +372,7 @@ public class StockRedisCache {
             
             // For each date, get all symbols' data
             for (String date : dateRange) {
-                Map<String, StockBars> dailyData = getMultiSymbolBars(symbols, HISTORICAL_INTERVAL, date);
+                Map<String, StockBars> dailyData = getMultiSymbolBars(symbols, interval, date);
                 
                 // Add each symbol's data to its list
                 for (Map.Entry<String, StockBars> entry : dailyData.entrySet()) {
@@ -422,26 +422,13 @@ public class StockRedisCache {
     }
 
     /**
-     * Validates if the provided interval is a valid intraday interval.
-     * 
-     * @param interval Time interval to validate
-     * @throws IllegalArgumentException if interval is invalid
-     */
-    private void validateIntradayInterval(String interval) {
-        if (!VALID_INTRADAY_INTERVALS.contains(interval)) {
-            throw new IllegalArgumentException("Invalid intraday interval: " + interval + 
-                    ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS));
-        }
-    }
-
-    /**
      * Validates if the provided interval is valid (either intraday or historical).
      * 
      * @param interval Time interval to validate
      * @throws IllegalArgumentException if interval is invalid
      */
     private void validateInterval(String interval) {
-        if (!VALID_INTRADAY_INTERVALS.contains(interval) && !HISTORICAL_INTERVAL.equals(interval)) {
+        if (!VALID_INTRADAY_INTERVALS.contains(interval) && !HISTORICAL_INTERVAL.contains(interval)) {
             throw new IllegalArgumentException("Invalid interval: " + interval + 
                     ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS) + 
                     " or " + HISTORICAL_INTERVAL);

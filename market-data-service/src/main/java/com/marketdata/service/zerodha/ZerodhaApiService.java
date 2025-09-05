@@ -371,11 +371,11 @@ public class ZerodhaApiService {
      * @return Historical data object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, boolean continuous, boolean oi) {
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous, boolean oi) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             // Convert interval to TimeFrame for proper mapping
-            String zerodhaInterval = TimeFrame.toZerodhaValue(interval);
+            String zerodhaInterval = interval.getZerodhaValue();
             String[] instrumentIdsArray = convertSymbolsToInstrumentIds(new String[] { symbol });
             HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentIdsArray[0], zerodhaInterval, continuous, oi);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.historical.time"));

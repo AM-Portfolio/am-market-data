@@ -1,6 +1,7 @@
 package com.am.marketdata.api.service;
 
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.am.marketdata.common.model.TimeFrame;
 
 import java.util.Date;
 import java.util.Map;
@@ -31,22 +32,6 @@ public interface MarketDataFetchService {
     Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh);
     
     /**
-     * Get historical data from cache or service
-     * 
-     * @param symbol Trading symbol
-     * @param fromDate Start date
-     * @param toDate End date
-     * @param interval Data interval (minute, day, etc.)
-     * @param instrumentType Type of instrument (STOCK, OPTION, MUTUAL_FUND, etc.)
-     * @param additionalParams Additional parameters specific to instrument type
-     * @param forceRefresh Whether to force a refresh from the source
-     * @return Historical data response with metadata
-     */
-    Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                       String interval, String instrumentType, 
-                                       Map<String, Object> additionalParams, boolean forceRefresh);
-    
-    /**
      * Get historical data for multiple symbols from cache or service
      * 
      * @param symbols List of trading symbols
@@ -61,7 +46,7 @@ public interface MarketDataFetchService {
      * @return Historical data response with metadata for all symbols
      */
     Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate, 
-                                       String interval, String instrumentType, 
+                                       TimeFrame interval, String instrumentType, 
                                        Map<String, Object> additionalParams, boolean forceRefresh);
     
     /**
@@ -121,4 +106,13 @@ public interface MarketDataFetchService {
      * @return List of stock indices market data with cache status information
      */
     Set<StockIndicesMarketData> getStockIndicesData(Set<String> indexSymbols, boolean forceRefresh);
+    
+    /**
+     * Process historical data request directly from the controller
+     * 
+     * @param request The HistoricalDataRequest containing all parameters
+     * @return Response map with historical data and metadata
+     * @throws Exception If there's an error processing the request
+     */
+    Map<String, Object> processHistoricalDataRequest(com.am.marketdata.api.dto.HistoricalDataRequest request) throws Exception;
 }

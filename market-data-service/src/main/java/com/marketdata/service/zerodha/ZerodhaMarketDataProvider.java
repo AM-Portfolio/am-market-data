@@ -1,6 +1,7 @@
 package com.marketdata.service.zerodha;
 
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.OHLCMapper;
 import com.marketdata.common.MarketDataProvider;
 import com.zerodhatech.models.*;
@@ -100,7 +101,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, 
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, 
                                    boolean continuous, Map<String, Object> additionalParams) {
         boolean oi = additionalParams != null && additionalParams.containsKey("oi") ? 
                     (Boolean) additionalParams.get("oi") : false;

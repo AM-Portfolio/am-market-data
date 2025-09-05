@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.model.OHLCRequest;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.service.MarketDataService;
@@ -179,75 +180,27 @@ public class MarketDataController {
 
     /**
      * Get historical data for one or more instruments
-     * @param symbols Trading symbols (comma-separated list)
-     * @param from From date (yyyy-MM-dd)
-     * @param to To date (yyyy-MM-dd)
-     * @param interval Interval (minute, day, etc.)
-     * @param continuous Whether to use continuous data
-     * @param instrumentType Type of instrument (STOCK, OPTION, MUTUAL_FUND, etc.)
-     * @param filterType Filter type for data points (ALL, START_END, CUSTOM)
-     * @param filterFrequency When using CUSTOM filter, return every Nth data point
-     * @param additionalParams Additional parameters
+     * @param request Request body containing symbols, date range, and other parameters
      * @return Historical data with metadata
      */
-    @GetMapping("/historical-data")
-    public ResponseEntity<Map<String, Object>> getHistoricalData(
-            @RequestParam("symbols") String symbols,
-            @RequestParam("from") String from,
-            @RequestParam("to") String to,
-            @RequestParam(value = "interval", defaultValue = "day") String interval,
-            @RequestParam(value = "continuous", defaultValue = "false") boolean continuous,
-            @RequestParam(value = "instrumentType", required = false) String instrumentType,
-            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh,
-            @RequestParam(value = "filterType", defaultValue = "ALL") String filterType,
-            @RequestParam(value = "filterFrequency", defaultValue = "1") int filterFrequency,
-            @RequestParam(required = false) Map<String, Object> additionalParams) {
+    @PostMapping("/historical-data")
+    public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
+        log.info("Controller received POST request for historical data for symbols: {} from {} to {}, interval: {}, filterType: {}, forceRefresh: {}", 
+                request.getSymbols(), request.getFrom(), request.getTo(), request.getInterval(), request.getFilterType(), request.isForceRefresh());
         
         try {
-            // Parse the symbols into a list
-            Set<String> symbolList = parseSymbols(symbols);
-            
-            if (symbolList.isEmpty()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", "No valid symbols provided");
-                errorResponse.put("message", "Please provide at least one valid symbol");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-            
-            log.info("Controller received request for historical data for symbols: {} from {} to {}, interval: {}, filterType: {}, forceRefresh: {}", 
-                    symbolList, from, to, interval, filterType, forceRefresh);
-            
-            Date fromDate;
-            Date toDate;
-            try {
-                fromDate = dateFormat.parse(from);
-                toDate = dateFormat.parse(to);
-            } catch (ParseException e) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", "Invalid date format");
-                errorResponse.put("message", "Use yyyy-MM-dd format for dates");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-            
-            // Add filter parameters to additionalParams
-            if (additionalParams == null) {
-                additionalParams = new HashMap<>();
-            }
-            additionalParams.put("filterType", filterType);
-            additionalParams.put("filterFrequency", filterFrequency);
-            
-            // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getHistoricalDataMultipleSymbols(
-                symbolList, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh);
+            // Delegate all processing to the service
+            Map<String, Object> response = marketDataCacheService.processHistoricalDataRequest(request);
             
             // Check if there was an error
             if (response.containsKey("error")) {
-                return ResponseEntity.internalServerError().body(response);
-            }
-            
-            // Add cache status to response
-            if (!response.containsKey("cached")) {
-                response.put("cached", !forceRefresh);
+                // Determine if it's a client error or server error
+                String errorType = response.get("error").toString();
+                if (errorType.contains("No valid symbols") || errorType.contains("Invalid date format")) {
+                    return ResponseEntity.badRequest().body(response);
+                } else {
+                    return ResponseEntity.internalServerError().body(response);
+                }
             }
             
             return ResponseEntity.ok(response);

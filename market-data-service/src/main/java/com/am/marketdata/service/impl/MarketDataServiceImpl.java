@@ -5,12 +5,13 @@ import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.mapper.HistoryDataMapper;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.KiteModelMapper;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.service.util.DataSourceType;
+import com.am.marketdata.service.util.HistoricalDataRetriever;
 import com.am.marketdata.service.util.MarketDataRetrievalUtil;
 import com.am.marketdata.service.util.OHLCDataRetriever;
 import com.marketdata.common.MarketDataProvider;
@@ -66,24 +67,6 @@ public class MarketDataServiceImpl implements MarketDataService {
         this.kiteModelMapper = kiteModelMapper;
         this.persistenceService = persistenceService;
         this.marketDataRetrievalUtil = marketDataRetrievalUtil;
-    }
-
-    @Override
-    public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, boolean forceRefresh) {
-        Timer.Sample timer = Timer.start(meterRegistry);
-        try {
-            // Use the new OHLCDataRetriever to get OHLC data
-            Map<String, OHLCQuote> result = createOHLCDataRetriever()
-                    .retrieveData(tradingSymbols, forceRefresh);
-                    
-            return result;
-        } catch (Exception e) {
-            log.error("Error getting OHLC data: {}", e.getMessage(), e);
-            meterRegistry.counter("market.data.failure.count", "operation", "getOHLC").increment();
-            throw new RuntimeException("Failed to get OHLC data", e);
-        } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC"));
-        }
     }
     
     private OHLCDataRetriever createOHLCDataRetriever() {
@@ -154,55 +137,49 @@ public class MarketDataServiceImpl implements MarketDataService {
     }
 
     @Override
-    public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, String interval, boolean continuous, Map<String, Object> additionalParams) {
+    public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            // Validate inputs
-            if (symbol == null || symbol.trim().isEmpty()) {
-                throw new IllegalArgumentException("Symbol cannot be null or empty");
-            }
-            if (fromDate == null || toDate == null) {
-                throw new IllegalArgumentException("From date and to date cannot be null");
-            }
-            if (fromDate.after(toDate)) {
-                throw new IllegalArgumentException("From date cannot be after to date");
-            }
-            if (interval == null || interval.trim().isEmpty()) {
-                throw new IllegalArgumentException("Interval cannot be null or empty");
-            }
-            
-            // Convert dates to string format for persistence service
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-            String fromDateStr = sdf.format(fromDate);
-            String toDateStr = sdf.format(toDate);
-            
-            // First try to get data from persistence layer (cache or database)
-            log.info("[DATA_SOURCE] Attempting to fetch historical data from persistence layer for symbol: {}", symbol);
-            HistoricalData historicalData = persistenceService.getHistoricalData(symbol, interval, fromDateStr, toDateStr);
-            
-            // Check if we got the data from persistence
-            if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
-                log.info("[DATA_SOURCE] No historical data found in persistence layer for symbol: {}", symbol);
-                
-                // If not found in persistence, fetch from provider
-                log.info("[DATA_SOURCE] Fetching historical data from provider for symbol: {}", symbol);
-                MarketDataProvider provider = providerFactory.getProvider();
-                com.zerodhatech.models.HistoricalData zerodhaHistoricalData = retryOnFailure(() -> provider.getHistoricalData(
-                        symbol, fromDate, toDate, interval, continuous, additionalParams), "getHistoricalData");
+            // Use the new OHLCDataRetriever to get OHLC data
+            Map<String, OHLCQuote> result = createOHLCDataRetriever()
+                    .retrieveData(tradingSymbols, forceRefresh);
+                    
+            return result;
+        } catch (Exception e) {
+            log.error("Error getting OHLC data: {}", e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getOHLC").increment();
+            throw new RuntimeException("Failed to get OHLC data", e);
+        } finally {
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC"));
+        }
+    }
 
-                HistoryDataMapper historicalDataMapper = new HistoryDataMapper();
-                historicalData = historicalDataMapper.toCommonHistoricalData(zerodhaHistoricalData);
-                historicalData.setTradingSymbol(symbol);
-                
-                // Save the data to persistence layer asynchronously
-                log.info("[DATA_SOURCE] Saving historical data to persistence layer for symbol: {}", symbol);
-                persistenceService.saveHistoricalData(symbol, interval, historicalData);
-            } else {
-                log.info("[DATA_SOURCE] Found historical data in persistence layer for symbol: {}, data points: {}", 
-                         symbol, historicalData.getDataPoints().size());
-            }
+    @Override
+    public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, TimeFrame interval, boolean continuous, Map<String, Object> additionalParams) {
+        Timer.Sample timer = Timer.start(meterRegistry);
+        try {
             
-            return historicalData;
+            // Use the new HistoricalDataRetriever to get historical data
+            HistoricalDataRetriever retriever = HistoricalDataRetriever.builder()
+                    .persistenceService(persistenceService)
+                    .providerFactory(providerFactory)
+                    .retrievalOrder(Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                    .cacheResults(true)
+                    .fromDate(fromDate)
+                    .toDate(toDate)
+                    .interval(interval)
+                    .continuous(continuous)
+                    .additionalParams(additionalParams)
+                    .build();
+            
+            // Retrieve data for the symbol
+            Map<String, HistoricalData> result = retriever.retrieveData(
+                    Collections.singletonList(symbol), 
+                    false // Not forcing refresh by default
+            );
+            
+            // Return the data for the symbol or null if not found
+            return result.get(symbol);
         } catch (Exception e) {
             log.error("Error getting historical data: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getHistoricalData").increment();

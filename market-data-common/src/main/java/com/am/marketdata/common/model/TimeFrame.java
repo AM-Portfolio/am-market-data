@@ -6,18 +6,18 @@ package com.am.marketdata.common.model;
  * For timeframes not directly supported by Zerodha, client-side aggregation is used.
  */
 public enum TimeFrame {
-    MINUTE("minute", "minute"),
-    THREE_MINUTE("3min", "3minute"),
-    FIVE_MINUTE("5min", "5minute"),
-    TEN_MINUTE("10min", "10minute"),
-    FIFTEEN_MINUTE("15min", "15minute"),
-    THIRTY_MINUTE("30min", "30minute"),
-    HOUR("hour", "60minute"),
-    FOUR_HOUR("4hour", "60minute", true, 4), // 4-hour - requires aggregation from hourly data
-    DAY("day", "day"),
-    WEEK("week", "day", true, 7), // Weekly - requires aggregation from daily data
-    MONTH("month", "day", true, 30), // Monthly - requires aggregation from daily data
-    YEAR("year", "day", true, 365); // Yearly - requires aggregation from daily data
+    MINUTE("1m", "minute"),
+    THREE_MINUTE("3m", "3minute"),
+    FIVE_MINUTE("5m", "5minute"),
+    TEN_MINUTE("10m", "10minute"),
+    FIFTEEN_MINUTE("15m", "15minute"),
+    THIRTY_MINUTE("30m", "30minute"),
+    HOUR("1H", "60minute"),
+    FOUR_HOUR("4H", "60minute", true, 4), // 4-hour - requires aggregation from hourly data
+    DAY("1D", "60minute"),
+    WEEK("1W", "60minute", true, 7), // Weekly - requires aggregation from daily data
+    MONTH("1M", "60minute", true, 30), // Monthly - requires aggregation from daily data
+    YEAR("1Y", "60minute", true, 365); // Yearly - requires aggregation from daily data
 
     private final String userValue;
     private final String zerodhaValue;
@@ -33,14 +33,6 @@ public enum TimeFrame {
         this.zerodhaValue = zerodhaValue;
         this.requiresAggregation = requiresAggregation;
         this.aggregationFactor = aggregationFactor;
-    }
-
-    /**
-     * Get the user-friendly value
-     * @return User value
-     */
-    public String getUserValue() {
-        return userValue;
     }
 
     /**
@@ -109,8 +101,7 @@ public enum TimeFrame {
         }
         
         for (TimeFrame timeFrame : TimeFrame.values()) {
-            if (timeFrame.getUserValue().equalsIgnoreCase(value) || 
-                timeFrame.getApiValue().equalsIgnoreCase(value)) {
+            if (timeFrame.getApiValue().equalsIgnoreCase(value)) {
                 return timeFrame;
             }
         }

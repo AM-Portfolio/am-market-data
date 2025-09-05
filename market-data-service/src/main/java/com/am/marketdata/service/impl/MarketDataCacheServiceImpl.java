@@ -5,6 +5,8 @@ import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.service.MarketDataCacheService;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -74,14 +76,14 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
 
     @Override
-    public void cacheHistoricalData(String symbol, String interval, HistoricalData historicalData) {
+    public void cacheHistoricalData(String symbol, TimeFrame timeFrame, HistoricalData historicalData) {
         try {
             if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
                 log.warn("No historical data to cache for symbol: {}", symbol);
                 return;
             }
             
-            log.info("Caching historical data for symbol: {} with interval: {}", symbol, interval);
+            log.info("Caching historical data for symbol: {} with interval: {}", symbol, timeFrame);
             
             // Get the data points directly as OHLCVTPoint objects
             List<com.am.common.investment.model.historical.OHLCVTPoint> points = 
@@ -90,17 +92,18 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
             // Cache the historical data
             if (!points.isEmpty()) {
                 // For daily data, use the historical bar caching
-                if ("1d".equals(interval) || "day".equals(interval)) {
+               
+                if (timeFrame == TimeFrame.DAY || timeFrame == TimeFrame.WEEK || timeFrame == TimeFrame.MONTH || timeFrame == TimeFrame.YEAR) {
                     // Cache each day's data point individually
                     for (com.am.common.investment.model.historical.OHLCVTPoint point : points) {
                         LocalDate date = point.getTime().toLocalDate();
                         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
-                        stockCacheService.cacheHistoricalBar(symbol, dateStr, point);
+                        stockCacheService.cacheHistoricalBar(symbol, dateStr, point, timeFrame);
                     }
                     log.info("Successfully cached {} daily historical bars for {}", points.size(), symbol);
                 } else {
                     // For intraday data, use the intraday bars caching
-                    boolean success = stockCacheService.cacheIntradayBars(symbol, interval, points);
+                    boolean success = stockCacheService.cacheIntradayBars(symbol, timeFrame.getApiValue(), points);
                     log.info("Cached intraday historical data for {} with status: {}", symbol, success);
                 }
                 log.info("Successfully cached historical data for {}", symbol);
@@ -157,14 +160,14 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
 
     @Override
-    public HistoricalData getHistoricalDataFromCache(String symbol, String interval, String fromDate, String toDate) {
+    public HistoricalData getHistoricalDataFromCache(String symbol, TimeFrame timeFrame, String fromDate, String toDate) {
         try {
             // Parse dates
             LocalDate from = LocalDate.parse(fromDate, DateTimeFormatter.ISO_LOCAL_DATE);
             LocalDate to = LocalDate.parse(toDate, DateTimeFormatter.ISO_LOCAL_DATE);
             
             // For daily data
-            if ("1d".equals(interval) || "day".equals(interval)) {
+            if (timeFrame == TimeFrame.DAY || timeFrame == TimeFrame.WEEK || timeFrame == TimeFrame.MONTH || timeFrame == TimeFrame.YEAR) {
                 // Get historical bars for each day in the range
                 List<com.am.common.investment.model.historical.OHLCVTPoint> points = new ArrayList<>();
                 
@@ -172,7 +175,7 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
                 LocalDate current = from;
                 while (!current.isAfter(to)) {
                     String dateStr = current.format(DateTimeFormatter.ISO_LOCAL_DATE);
-                    StockBars stockBars = stockCacheService.getBarsWithStats(symbol, "1d", dateStr);
+                    StockBars stockBars = stockCacheService.getBarsWithStats(symbol, timeFrame.getApiValue(), dateStr);
                     com.am.common.investment.model.historical.OHLCVTPoint bar = null;
                     if (stockBars != null && stockBars.getBars() != null && !stockBars.getBars().isEmpty()) {
                         bar = stockBars.getBars().get(0);
@@ -192,7 +195,7 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
                 // For intraday data
                 // Get intraday bars for the specified interval
                 String dateStr = from.format(DateTimeFormatter.ISO_LOCAL_DATE);
-                StockBars stockBars = stockCacheService.getBarsWithStats(symbol, interval, dateStr);
+                StockBars stockBars = stockCacheService.getBarsWithStats(symbol, timeFrame.getApiValue(), dateStr);
                 List<com.am.common.investment.model.historical.OHLCVTPoint> bars = 
                     (stockBars != null) ? stockBars.getBars() : null;
                 

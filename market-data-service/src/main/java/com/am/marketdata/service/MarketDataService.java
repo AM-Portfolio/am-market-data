@@ -8,6 +8,7 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 
 /**
  * Service for market data operations
@@ -57,7 +58,7 @@ public interface MarketDataService {
             String symbol, 
             Date fromDate, 
             Date toDate, 
-            String interval, 
+            TimeFrame interval, 
             boolean continuous, 
             Map<String, Object> additionalParams);
     
