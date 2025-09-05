@@ -22,7 +22,6 @@ public abstract class AbstractMarketDataRetriever<K, T> {
 
     protected final MarketDataPersistenceService persistenceService;
     protected final MarketDataProviderFactory providerFactory;
-    protected final RetryTemplate retryTemplate;
     
     @Getter
     protected final List<DataSourceType> retrievalOrder;
@@ -42,12 +41,10 @@ public abstract class AbstractMarketDataRetriever<K, T> {
     protected AbstractMarketDataRetriever(
             MarketDataPersistenceService persistenceService,
             MarketDataProviderFactory providerFactory,
-            RetryTemplate retryTemplate,
             List<DataSourceType> retrievalOrder,
             boolean cacheResults) {
         this.persistenceService = persistenceService;
         this.providerFactory = providerFactory;
-        this.retryTemplate = retryTemplate;
         this.retrievalOrder = retrievalOrder != null && !retrievalOrder.isEmpty() 
                 ? retrievalOrder 
                 : Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER);

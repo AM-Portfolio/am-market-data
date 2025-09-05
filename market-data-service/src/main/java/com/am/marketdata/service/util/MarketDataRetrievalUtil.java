@@ -2,18 +2,39 @@ package com.am.marketdata.service.util;
 
 import com.am.marketdata.common.model.OHLCQuote;
 import com.marketdata.common.MarketDataProvider;
+
 import com.am.marketdata.service.MarketDataPersistenceService;
+
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.retry.support.RetryTemplate;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.function.Supplier;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class for retrieving market data from different sources
  */
 @Slf4j
+@Service
 public class MarketDataRetrievalUtil {
+
+    // Static constants for retry parameters
+    private static final int DEFAULT_MAX_RETRIES = 3;
+    private static final int DEFAULT_RETRY_DELAY_MS = 1000;
+    
+    @Value("${market.data.max.retries:3}")
+    private int maxRetries;
+
+    @Value("${market.data.retry.delay.ms:1000}")
+    private int retryDelayMs;
+
+    @Value("${market.data.max.age.minutes:15}")
+    private int maxAgeMinutes;
+
 
     /**
      * Retrieve OHLC data from cache
@@ -23,7 +44,7 @@ public class MarketDataRetrievalUtil {
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
      * @return Map of symbol to OHLC quote
      */
-    public static Map<String, OHLCQuote> retrieveFromCache(
+    public Map<String, OHLCQuote> retrieveFromCache(
             MarketDataPersistenceService persistenceService,
             List<String> tradingSymbols,
             Set<String> remainingSymbols) {
@@ -55,7 +76,7 @@ public class MarketDataRetrievalUtil {
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
      * @return Map of symbol to OHLC quote
      */
-    public static Map<String, OHLCQuote> retrieveFromDatabase(
+    public Map<String, OHLCQuote> retrieveFromDatabase(
             MarketDataPersistenceService persistenceService,
             Set<String> remainingSymbols) {
         
@@ -90,13 +111,12 @@ public class MarketDataRetrievalUtil {
      * Retrieve OHLC data from provider
      *
      * @param provider The market data provider
-     * @param retryTemplate The retry template to use for provider calls
      * @param symbols List of symbols to retrieve
      * @return Map of symbol to OHLC quote
      */
-    public static Map<String, OHLCQuote> retrieveFromProvider(
+    @SneakyThrows
+    public Map<String, OHLCQuote> retrieveFromProvider(
             MarketDataProvider provider,
-            RetryTemplate retryTemplate,
             List<String> symbols) {
         
         if (symbols.isEmpty()) {
@@ -105,8 +125,7 @@ public class MarketDataRetrievalUtil {
         
         log.info("[DATA_SOURCE] Fetching OHLC data from provider for {} symbols", symbols.size());
         
-        Map<String, OHLCQuote> providerData = retryWithTemplate(retryTemplate, 
-                () -> provider.getOHLC(symbols), "getOHLC");
+        Map<String, OHLCQuote> providerData = retryOnFailure(() -> provider.getOHLC(symbols), "getOHLC");
         
         if (providerData != null && !providerData.isEmpty()) {
             log.info("[DATA_SOURCE] Successfully fetched {} OHLC quotes from provider", providerData.size());
@@ -117,30 +136,6 @@ public class MarketDataRetrievalUtil {
         return providerData != null ? providerData : Collections.emptyMap();
     }
     
-    /**
-     * Execute a supplier with retry logic
-     *
-     * @param retryTemplate The retry template to use
-     * @param supplier The supplier to execute
-     * @param operationName The name of the operation (for logging)
-     * @param <T> The return type
-     * @return The result of the supplier
-     */
-    public static <T> T retryWithTemplate(RetryTemplate retryTemplate, Supplier<T> supplier, String operationName) {
-        try {
-            return retryTemplate.execute(context -> {
-                int retryCount = context.getRetryCount();
-                if (retryCount > 0) {
-                    log.warn("Retry attempt {} for operation {}", retryCount, operationName);
-                }
-                return supplier.get();
-            });
-        } catch (Exception e) {
-            log.error("Operation {} failed after retries: {}", operationName, e.getMessage(), e);
-            // Rethrow the exception instead of returning null
-            throw new RuntimeException("Operation " + operationName + " failed after retries", e);
-        }
-    }
     
     /**
      * Save OHLC data to persistence asynchronously
@@ -148,7 +143,7 @@ public class MarketDataRetrievalUtil {
      * @param persistenceService The persistence service to use
      * @param data The data to save
      */
-    public static void saveDataAsync(MarketDataPersistenceService persistenceService, Map<String, OHLCQuote> data) {
+    public void saveDataAsync(MarketDataPersistenceService persistenceService, Map<String, OHLCQuote> data) {
         if (data == null || data.isEmpty()) {
             return;
         }
@@ -167,10 +162,66 @@ public class MarketDataRetrievalUtil {
      * @param tradingSymbols List of trading symbols
      * @throws IllegalArgumentException if the symbols are invalid
      */
-    public static void validateSymbols(List<String> tradingSymbols) {
+    public void validateSymbols(List<String> tradingSymbols) {
         if (tradingSymbols == null) {
             throw new IllegalArgumentException("Trading symbols cannot be null");
         }
+    }
+
+    /**
+     * Execute a callable with retry logic using default retry parameters
+     *
+     * @param callable The callable to execute
+     * @param operationName The name of the operation (for logging)
+     * @param <T> The return type
+     * @return The result of the callable
+     * @throws Exception If all retries fail
+     */
+    public <T> T retryOnFailure(Callable<T> callable, String operationName) throws Exception {
+        return retryOnFailure(callable, operationName, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY_MS);
+    }
+    
+    /**
+     * Execute a callable with retry logic using specified retry parameters
+     *
+     * @param callable The callable to execute
+     * @param operationName The name of the operation (for logging)
+     * @param maxRetries Maximum number of retry attempts
+     * @param retryDelayMs Base delay in milliseconds between retries
+     * @param <T> The return type
+     * @return The result of the callable
+     * @throws Exception If all retries fail
+     */
+    public <T> T retryOnFailure(Callable<T> callable, String operationName, int maxRetries, int retryDelayMs) throws Exception {
+        Exception lastException = null;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                T result = callable.call();
+                if (attempt > 1) {
+                    log.info("Operation {} succeeded after {} attempts", operationName, attempt);
+                }
+                return result;
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("Attempt {} for operation {} failed: {}", attempt, operationName, e.getMessage());
+                
+                if (attempt < maxRetries) {
+                    try {
+                        // Exponential backoff
+                        long delay = retryDelayMs * (long) Math.pow(2, attempt - 1);
+                        log.debug("Waiting {}ms before retry attempt {}", delay, attempt + 1);
+                        TimeUnit.MILLISECONDS.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Retry interrupted", ie);
+                    }
+                }
+            }
+        }
+        
+        log.error("Operation {} failed after {} attempts", operationName, maxRetries);
+        throw new RuntimeException("Operation failed after " + maxRetries + " attempts", lastException);
     }
 }
 

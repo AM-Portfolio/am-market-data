@@ -5,7 +5,6 @@ import com.am.marketdata.service.MarketDataPersistenceService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.retry.support.RetryTemplate;
 
 import java.util.*;
 
@@ -19,10 +18,9 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
     private OHLCDataRetriever(
             MarketDataPersistenceService persistenceService,
             MarketDataProviderFactory providerFactory,
-            RetryTemplate retryTemplate,
             List<DataSourceType> retrievalOrder,
             boolean cacheResults) {
-        super(persistenceService, providerFactory, retryTemplate, retrievalOrder, cacheResults);
+        super(persistenceService, providerFactory, retrievalOrder, cacheResults);
     }
     
     /**
@@ -104,16 +102,21 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
         
         log.info(provider.getProviderName() + " Fetching OHLC data from provider for {} symbols", symbols.size());
         
-        Map<String, OHLCQuote> providerData = MarketDataRetrievalUtil.retryWithTemplate(retryTemplate, 
-                () -> provider.getOHLC(symbols), "getOHLC");
-        
-        if (providerData != null && !providerData.isEmpty()) {
-            log.info(provider.getProviderName() + " Successfully fetched {} OHLC quotes from provider", providerData.size());
-        } else {
-            log.info(provider.getProviderName() + " No OHLC data returned from provider");
+        try {
+            // Use the static method from MarketDataRetrievalUtil
+            Map<String, OHLCQuote> providerData = provider.getOHLC(symbols);
+            
+            if (providerData != null && !providerData.isEmpty()) {
+                log.info(provider.getProviderName() + " Successfully fetched {} OHLC quotes from provider", providerData.size());
+            } else {
+                log.info(provider.getProviderName() + " No OHLC data returned from provider");
+            }
+            
+            return providerData != null ? providerData : Collections.emptyMap();
+        } catch (Exception e) {
+            log.error(provider.getProviderName() + " Error fetching OHLC data: {}", e.getMessage(), e);
+            return Collections.emptyMap();
         }
-        
-        return providerData != null ? providerData : Collections.emptyMap();
     }
     
     /**
@@ -147,14 +150,10 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
             if (providerFactory == null) {
                 throw new IllegalStateException("ProviderFactory must be provided");
             }
-            if (retryTemplate == null) {
-                throw new IllegalStateException("RetryTemplate must be provided");
-            }
             
             return new OHLCDataRetriever(
                     persistenceService,
                     providerFactory,
-                    retryTemplate,
                     retrievalOrder,
                     cacheResults != null ? cacheResults : true
             );

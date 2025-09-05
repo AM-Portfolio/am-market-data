@@ -5,14 +5,13 @@ import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.KiteModelMapper;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.MarketDataService;
-import com.am.marketdata.service.TimeFrameAggregationService;
 import com.am.marketdata.service.util.DataSourceType;
+import com.am.marketdata.service.util.MarketDataRetrievalUtil;
 import com.am.marketdata.service.util.OHLCDataRetriever;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
@@ -21,9 +20,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -50,7 +46,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private final InstrumentMapper instrumentMapper;
     private final KiteModelMapper kiteModelMapper;
     private final MarketDataPersistenceService persistenceService;
-    private final org.springframework.retry.support.RetryTemplate retryTemplate;
+    private final MarketDataRetrievalUtil marketDataRetrievalUtil;
 
     @Value("${market.data.max.retries:3}")
     private int maxRetries;
@@ -61,16 +57,15 @@ public class MarketDataServiceImpl implements MarketDataService {
 
     public MarketDataServiceImpl(MarketDataProviderFactory providerFactory, InstrumentService instrumentService, 
                                MeterRegistry meterRegistry, InstrumentMapper instrumentMapper, 
-                               KiteModelMapper kiteModelMapper, MarketDataPersistenceService persistenceService) {
+                               KiteModelMapper kiteModelMapper, MarketDataPersistenceService persistenceService,
+                               MarketDataRetrievalUtil marketDataRetrievalUtil) {
         this.providerFactory = providerFactory;
-        this.instrumentService = instrumentService;
+        this.instrumentService = instrumentService; 
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
         this.kiteModelMapper = kiteModelMapper;
         this.persistenceService = persistenceService;
-        
-        // Initialize RetryTemplate
-        this.retryTemplate = createRetryTemplate();
+        this.marketDataRetrievalUtil = marketDataRetrievalUtil;
     }
 
     @Override
@@ -95,30 +90,11 @@ public class MarketDataServiceImpl implements MarketDataService {
         return OHLCDataRetriever.builder()
                 .persistenceService(persistenceService)
                 .providerFactory(providerFactory)
-                .retryTemplate(retryTemplate)
                 .retrievalOrder(Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
                 .cacheResults(true)
                 .build();
     }
     
-    /**
-     * Create a retry template with configured retry policy
-     * 
-     * @return Configured RetryTemplate
-     */
-    private RetryTemplate createRetryTemplate() {
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
-        retryPolicy.setMaxAttempts(maxRetries);
-        
-        FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-        backOffPolicy.setBackOffPeriod(retryDelayMs);
-        
-        RetryTemplate template = new RetryTemplate();
-        template.setRetryPolicy(retryPolicy);
-        template.setBackOffPolicy(backOffPolicy);
-        
-        return template;
-    }
 
     @Override
     public Map<String, String> getLoginUrl() {
@@ -150,7 +126,7 @@ public class MarketDataServiceImpl implements MarketDataService {
             }
             
             MarketDataProvider provider = providerFactory.getProvider();
-            return retryOnFailure(() -> provider.generateSession(requestToken), "generateSession");
+            return marketDataRetrievalUtil.retryOnFailure(() -> provider.generateSession(requestToken), "generateSession");
         } catch (Exception e) {
             log.error("Error generating session: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "generateSession").increment();
@@ -367,15 +343,16 @@ public class MarketDataServiceImpl implements MarketDataService {
      * @param operationName The name of the operation (for logging)
      * @param <T> The return type
      * @return The result of the supplier
-     * @deprecated Use com.am.marketdata.service.util.MarketDataRetrievalUtil.retryWithTemplate instead
      */
-    @Deprecated
     private <T> T retryOnFailure(Supplier<T> supplier, String operationName) {
-        return com.am.marketdata.service.util.MarketDataRetrievalUtil.retryWithTemplate(
-                retryTemplate, supplier, operationName);
+        try {
+            // Convert Supplier to Callable for compatibility with MarketDataRetrievalUtil
+            return marketDataRetrievalUtil.retryOnFailure(() -> supplier.get(), operationName);
+        } catch (Exception e) {
+            log.error("Error in operation {}: {}", operationName, e.getMessage(), e);
+            throw new RuntimeException("Failed to execute operation: " + operationName, e);
+        }
     }
-
-    // Method removed as it's no longer used and replaced by utility class
 
     
     /**
