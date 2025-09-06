@@ -60,6 +60,29 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Map<String, Object>> getQuotes(Set<String> tradingSymbols, boolean forceRefresh) {
         return investmentInstrumentService.getQuotes(tradingSymbols.stream().collect(Collectors.toList()));
     }
+    
+    @Override
+    public Map<String, Object> getQuotes(Set<String> tradingSymbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh) {
+        log.info("Getting quotes for {} symbols with timeFrame: {}, isIndexSymbol: {}, forceRefresh: {}", 
+            tradingSymbols.size(), timeFrame.getApiValue(), isIndexSymbol, forceRefresh);
+        
+        // Get all symbols including index constituents if requested
+        Set<String> symbols = getSymbols(tradingSymbols, isIndexSymbol);
+        
+        // Get OHLC data with timeframe support
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh);
+        
+        // Create response with cache status
+        Map<String, Object> response = new HashMap<>();
+        response.put("quotes", ohlcData);
+        response.put("count", ohlcData.size());
+        response.put("cached", !forceRefresh);
+        response.put("timestamp", System.currentTimeMillis());
+        response.put("timeFrame", timeFrame.getApiValue());
+        response.put("source", forceRefresh ? "provider" : "cache");
+        
+        return response;
+    }
 
     @Override
     public Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh) {

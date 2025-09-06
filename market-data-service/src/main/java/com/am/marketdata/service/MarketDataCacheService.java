@@ -4,6 +4,7 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.util.ApplicationContextProvider;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.redis.util.CacheLoggingUtil;
@@ -11,6 +12,8 @@ import com.am.marketdata.redis.util.CacheLoggingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.util.Set;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -303,5 +306,80 @@ public class MarketDataCacheService {
         }
         
         return quote;
+    }
+    
+    /**
+     * Get quotes for a list of symbols with timeframe support
+     * 
+     * @param symbols List of trading symbols
+     * @param isIndexSymbol Whether the symbols are index symbols
+     * @param timeFrame The timeframe for the quotes
+     * @param forceRefresh Whether to force refresh from provider
+     * @return Map containing quotes or error information
+     */
+    public Map<String, Object> getQuotes(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh) {
+        try {
+            // Log the request
+            log.info("Getting quotes for {} symbols with timeFrame: {}, forceRefresh: {}", 
+                symbols.size(), timeFrame.getApiValue(), forceRefresh);
+            
+            // Convert Set<String> to List<String>
+            List<String> symbolList = new ArrayList<>(symbols);
+            
+            // Try to get data from cache first if not forcing refresh
+            if (!forceRefresh) {
+                Map<String, OHLCQuote> cachedData = getOHLCFromCache(symbolList, timeFrame);
+                if (!cachedData.isEmpty()) {
+                    log.info("Retrieved quotes from cache for {} symbols with timeFrame: {}", 
+                        cachedData.size(), timeFrame.getApiValue());
+                    
+                    // Format the response
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("quotes", cachedData);
+                    response.put("source", "cache");
+                    return response;
+                }
+            }
+            
+            // If we get here, we need to fetch from the provider
+            log.info("Fetching quotes from provider for {} symbols with timeFrame: {}", 
+                symbols.size(), timeFrame.getApiValue());
+            
+            // Call the MarketDataService to get quotes from provider
+            MarketDataService marketDataService = ApplicationContextProvider.getBean(MarketDataService.class);
+            Map<String, OHLCQuote> providerData = marketDataService.getOHLC(symbolList, timeFrame, true);
+            
+            if (providerData.isEmpty()) {
+                log.warn("No quotes data returned from provider for timeFrame: {}", timeFrame.getApiValue());
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("ERROR", Map.of(
+                    "error", "NO_DATA",
+                    "message", "No quotes data available for the requested symbols and timeframe"
+                ));
+                return errorResponse;
+            }
+            
+            // Cache the data for future use
+            cacheOHLCData(providerData);
+            
+            // Format the response
+            Map<String, Object> response = new HashMap<>();
+            response.put("quotes", providerData);
+            response.put("source", "provider");
+            
+            return response;
+        } catch (Exception e) {
+            // Log the error
+            CacheLoggingUtil.logCacheException(log, "GET_QUOTES", String.join(", ", symbols), 
+                "Error retrieving quotes", e);
+            
+            // Return error response
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("ERROR", Map.of(
+                "error", "PROVIDER_ERROR",
+                "message", e.getMessage()
+            ));
+            return errorResponse;
+        }
     }
 }
