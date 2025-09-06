@@ -149,13 +149,13 @@ public class MarketDataController {
     @PostMapping("/ohlc")
     public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
-            log.info("Controller received POST request for OHLC data for symbols: {}, forceRefresh: {}", 
-                    request.getSymbols(), request.isForceRefresh());
+            log.info("Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
             Set<String> symbolList = parseSymbols(request.getSymbols());
             
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getOHLC(
-                symbolList, request.isIndexSymbol(), request.isForceRefresh());
+                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
             
             // Check if there was an error
             if (response.containsKey("error")) {

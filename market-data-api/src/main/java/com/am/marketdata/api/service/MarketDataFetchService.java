@@ -84,10 +84,12 @@ public interface MarketDataFetchService {
      * Get OHLC data from cache or service
      * 
      * @param symbols Array of trading symbols
+     * @param isIndexSymbol Whether the symbols are index symbols
+     * @param timeFrame The time frame for the OHLC data
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map of symbol to OHLC data with cache status
      */
-    Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, boolean forceRefresh);
+    Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh);
     
     /**
      * Get latest stock index data from cache or service

@@ -559,17 +559,19 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     
     
     @Override
-    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, boolean forceRefresh) {
+    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh) {
 
         symbols = getSymbols(symbols, isIndexSymbol);
 
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), forceRefresh);
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh);
         
         // Create response with cache status
         Map<String, Object> response = new HashMap<>();
         response.put("data", ohlcData);
+        response.put("count", ohlcData.size());
         response.put("cached", !forceRefresh);
         response.put("timestamp", System.currentTimeMillis());
+        response.put("timeFrame", timeFrame.getApiValue());
         return response;
     
     }

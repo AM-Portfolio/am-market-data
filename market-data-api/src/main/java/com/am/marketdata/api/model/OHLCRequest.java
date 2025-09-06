@@ -16,6 +16,9 @@ public class OHLCRequest {
     
     @JsonProperty("isIndexSymbol")
     private boolean indexSymbol = false;
+
+    @JsonProperty("timeFrame")
+    private TimeFrame timeFrame = TimeFrame.FIVE_MINUTE;
     
     @JsonProperty("refresh")
     private boolean forceRefresh = false;
