@@ -12,16 +12,18 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import com.am.marketdata.api.dto.HistoricalDataRequest;
+import com.am.marketdata.api.model.OHLCRequest;
+import com.am.marketdata.api.model.QuotesRequest;
+import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
+import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.service.MarketDataService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.am.marketdata.api.dto.HistoricalDataRequest;
-import com.am.marketdata.api.model.OHLCRequest;
-import com.am.marketdata.api.service.InvestmentInstrumentService;
-import com.am.marketdata.service.MarketDataService;
 
 /**
  * REST API controller for market data operations
@@ -101,41 +103,88 @@ public class MarketDataController {
     }
 
     /**
-     * Get quotes for symbols
+     * Get quotes for symbols with timeframe support
      * @param symbols Comma-separated list of symbols
+     * @param timeFrame The timeframe for quotes (e.g., 5m, 15m, 1H, 1D)
+     * @param refresh Whether to force refresh from provider
      * @return Map of symbol to quote data with metadata
      */
     @GetMapping("/quotes")
     public ResponseEntity<Map<String, Object>> getQuotes(
             @RequestParam("symbols") String symbols,
+            @RequestParam(name = "timeFrame", defaultValue = "5m") String timeFrameStr,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for quotes for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
+            log.info("Controller received request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                symbols, timeFrameStr, forceRefresh);
+            
+            // Parse symbols and timeframe
             Set<String> symbolList = parseSymbols(symbols);
+            TimeFrame timeFrame = TimeFrame.fromApiValue(timeFrameStr);
             
             // Use cache service instead of direct service call
-            Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(symbolList, forceRefresh);
+            Map<String, Object> quotesResponse = marketDataCacheService.getQuotes(symbolList, false, timeFrame, forceRefresh);
             
             // Check if there was an error
-            if (quotesMap.containsKey("ERROR")) {
+            if (quotesResponse.containsKey("ERROR")) {
                 Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", quotesMap.get("ERROR").get("error"));
-                errorResponse.put("message", quotesMap.get("ERROR").get("message"));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> errorDetails = (Map<String, Object>) quotesResponse.get("ERROR");
+                errorResponse.put("error", errorDetails.get("error"));
+                errorResponse.put("message", errorDetails.get("message"));
                 return ResponseEntity.internalServerError().body(errorResponse);
             }
             
-            // Convert to the response format expected by clients
-            Map<String, Object> response = new HashMap<>();
-            response.put("quotes", quotesMap);
-            response.put("count", quotesMap.size());
-            response.put("timestamp", new Date());
-            response.put("cached", !forceRefresh);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {                                                                                                                                                                        
-            log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
+            return ResponseEntity.ok(quotesResponse);
+        } catch (IllegalArgumentException e) {
+            // Handle invalid timeframe
+            log.error("Invalid timeFrame parameter: {}", timeFrameStr, e);
             Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to fetch quotes");
+            errorResponse.put("error", "INVALID_PARAMETER");
+            errorResponse.put("message", "Invalid timeFrame parameter: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "INTERNAL_ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /**
+     * Get quotes for symbols with timeframe support (POST version)
+     * @param request The quotes request containing symbols and timeframe
+     * @return Map of symbol to quote data with metadata
+     */
+    @PostMapping("/quotes")
+    public ResponseEntity<Map<String, Object>> getQuotesPost(@RequestBody QuotesRequest request) {
+        try {
+            log.info("Controller received POST request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
+            
+            // Parse symbols
+            Set<String> symbolList = parseSymbols(request.getSymbols());
+            
+            // Use cache service instead of direct service call
+            Map<String, Object> quotesResponse = marketDataCacheService.getQuotes(
+                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
+            
+            // Check if there was an error
+            if (quotesResponse.containsKey("ERROR")) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> errorDetails = (Map<String, Object>) quotesResponse.get("ERROR");
+                errorResponse.put("error", errorDetails.get("error"));
+                errorResponse.put("message", errorDetails.get("message"));
+                return ResponseEntity.internalServerError().body(errorResponse);
+            }
+            
+            return ResponseEntity.ok(quotesResponse);
+        } catch (Exception e) {
+            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "INTERNAL_ERROR");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
@@ -149,13 +198,13 @@ public class MarketDataController {
     @PostMapping("/ohlc")
     public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
-            log.info("Controller received POST request for OHLC data for symbols: {}, forceRefresh: {}", 
-                    request.getSymbols(), request.isForceRefresh());
+            log.info("Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
             Set<String> symbolList = parseSymbols(request.getSymbols());
             
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getOHLC(
-                symbolList, request.isIndexSymbol(), request.isForceRefresh());
+                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
             
             // Check if there was an error
             if (response.containsKey("error")) {

@@ -48,10 +48,11 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      *
      * @param allSymbols All symbols being requested
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
+     * @param timeFrame The time frame for the data (ignored as we use the interval from constructor)
      * @return Map of symbol to historical data
      */
     @Override
-    protected Map<String, HistoricalData> retrieveFromCache(List<String> allSymbols, Set<String> remainingSymbols) {
+    protected Map<String, HistoricalData> retrieveFromCache(List<String> allSymbols, Set<String> remainingSymbols, TimeFrame timeFrame) {
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -87,10 +88,11 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      * Retrieve historical data from database
      *
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
+     * @param timeFrame The time frame for the data (ignored as we use the interval from constructor)
      * @return Map of symbol to historical data
      */
     @Override
-    protected Map<String, HistoricalData> retrieveFromDatabase(Set<String> remainingSymbols) {
+    protected Map<String, HistoricalData> retrieveFromDatabase(Set<String> remainingSymbols, TimeFrame timeFrame) {
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }

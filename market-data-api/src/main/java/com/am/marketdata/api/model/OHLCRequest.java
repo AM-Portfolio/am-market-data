@@ -1,5 +1,6 @@
 package com.am.marketdata.api.model;
 
+import com.am.marketdata.common.model.TimeFrame;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,9 @@ public class OHLCRequest {
     
     @JsonProperty("isIndexSymbol")
     private boolean indexSymbol = false;
+
+    @JsonProperty("timeFrame")
+    private TimeFrame timeFrame = TimeFrame.FIVE_MINUTE;
     
     @JsonProperty("refresh")
     private boolean forceRefresh = false;

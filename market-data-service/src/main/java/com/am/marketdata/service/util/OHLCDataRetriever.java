@@ -1,9 +1,12 @@
 package com.am.marketdata.service.util;
 
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -14,6 +17,9 @@ import java.util.*;
  */
 @Slf4j
 public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQuote> {
+    
+    @Getter @Setter
+    private TimeFrame timeFrame = TimeFrame.FIVE_MINUTE; // Default to 5-minute timeframe
     
     private OHLCDataRetriever(
             MarketDataPersistenceService persistenceService,
@@ -28,25 +34,27 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
      *
      * @param allSymbols All symbols being requested
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of symbol to OHLC quote
      */
     @Override
-    protected Map<String, OHLCQuote> retrieveFromCache(List<String> allSymbols, Set<String> remainingSymbols) {
-        log.info("[CACHE] Attempting to fetch OHLC data from cache for {} symbols", 
-                remainingSymbols.size());
+    protected Map<String, OHLCQuote> retrieveFromCache(List<String> allSymbols, Set<String> remainingSymbols, TimeFrame timeFrame) {
+        log.info("[CACHE] Attempting to fetch OHLC data from cache for {} symbols with timeFrame {}", 
+                remainingSymbols.size(), timeFrame.getApiValue());
         
-        Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(allSymbols, false);
+        // Pass timeFrame to persistence service if it supports it
+        Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(allSymbols, timeFrame, false);
         
         if (cachedData != null && !cachedData.isEmpty()) {
-            log.info("[CACHE] Found {} OHLC quotes in cache", cachedData.size());
+            log.info("[CACHE] Found {} OHLC quotes in cache for timeFrame {}", cachedData.size(), timeFrame.getApiValue());
             
             // Remove found symbols from the remaining set
             cachedData.keySet().forEach(symbol -> 
                 remainingSymbols.remove(symbol.replace("NSE:", "")));
             
-            log.info("[CACHE] {} symbols remaining after cache lookup", remainingSymbols.size());
+            log.info("[CACHE] {} symbols remaining after cache lookup for timeFrame {}", remainingSymbols.size(), timeFrame.getApiValue());
         } else {
-            log.info("[CACHE] No OHLC data found in cache");
+            log.info("[CACHE] No OHLC data found in cache for timeFrame {}", timeFrame.getApiValue());
         }
         
         return cachedData != null ? cachedData : Collections.emptyMap();
@@ -56,32 +64,33 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
      * Retrieve OHLC data from database
      *
      * @param remainingSymbols Set of symbols that still need to be retrieved (will be modified)
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of symbol to OHLC quote
      */
     @Override
-    protected Map<String, OHLCQuote> retrieveFromDatabase(Set<String> remainingSymbols) {
+    protected Map<String, OHLCQuote> retrieveFromDatabase(Set<String> remainingSymbols, TimeFrame timeFrame) {
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
         
-        log.info("[DATABASE] Attempting to fetch OHLC data from database for {} symbols", 
-                remainingSymbols.size());
+        log.info("[DATABASE] Attempting to fetch OHLC data from database for {} symbols with timeFrame {}", 
+                remainingSymbols.size(), timeFrame.getApiValue());
         
         List<String> remainingSymbolsList = new ArrayList<>(remainingSymbols);
         
         // Force refresh is true here because we want to bypass cache and go directly to database
-        Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, true);
+        Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, timeFrame, true);
         
         if (dbData != null && !dbData.isEmpty()) {
-            log.info("[DATABASE] Found {} OHLC quotes in database", dbData.size());
+            log.info("[DATABASE] Found {} OHLC quotes in database for timeFrame {}", dbData.size(), timeFrame.getApiValue());
             
             // Remove found symbols from the remaining set
             dbData.keySet().forEach(symbol -> 
                 remainingSymbols.remove(symbol.replace("NSE:", "")));
             
-            log.info("[DATABASE] {} symbols remaining after database lookup", remainingSymbols.size());
+            log.info("[DATABASE] {} symbols remaining after database lookup for timeFrame {}", remainingSymbols.size(), timeFrame.getApiValue());
         } else {
-            log.info("[DATABASE] No OHLC data found in database");
+            log.info("[DATABASE] No OHLC data found in database for timeFrame {}", timeFrame.getApiValue());
         }
         
         return dbData != null ? dbData : Collections.emptyMap();
@@ -100,21 +109,25 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
             return Collections.emptyMap();
         }
         
-        log.info(provider.getProviderName() + " Fetching OHLC data from provider for {} symbols", symbols.size());
+        log.info(provider.getProviderName() + " Fetching OHLC data from provider for {} symbols with timeFrame {}", 
+                symbols.size(), timeFrame.getApiValue());
         
         try {
-            // Use the static method from MarketDataRetrievalUtil
+            // Pass the timeFrame to the provider
             Map<String, OHLCQuote> providerData = provider.getOHLC(symbols);
             
             if (providerData != null && !providerData.isEmpty()) {
-                log.info(provider.getProviderName() + " Successfully fetched {} OHLC quotes from provider", providerData.size());
+                log.info(provider.getProviderName() + " Successfully fetched {} OHLC quotes from provider with timeFrame {}", 
+                        providerData.size(), timeFrame.getApiValue());
             } else {
-                log.info(provider.getProviderName() + " No OHLC data returned from provider");
+                log.info(provider.getProviderName() + " No OHLC data returned from provider for timeFrame {}", 
+                        timeFrame.getApiValue());
             }
             
             return providerData != null ? providerData : Collections.emptyMap();
         } catch (Exception e) {
-            log.error(provider.getProviderName() + " Error fetching OHLC data: {}", e.getMessage(), e);
+            log.error(provider.getProviderName() + " Error fetching OHLC data for timeFrame {}: {}", 
+                    timeFrame.getApiValue(), e.getMessage(), e);
             return Collections.emptyMap();
         }
     }

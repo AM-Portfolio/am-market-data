@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.support.RetryTemplate;
 
+import com.am.marketdata.common.model.TimeFrame;
+
 import java.util.*;
 
 /**
@@ -57,10 +59,11 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * in the specified order until all requested data is found or all sources are exhausted.
      *
      * @param keys The keys (e.g., symbols) to retrieve data for
+     * @param timeFrame The time frame for the OHLC data
      * @param forceRefresh Whether to force a refresh from the provider
      * @return Map of keys to retrieved data
      */
-    public Map<K, T> retrieveData(List<K> keys, boolean forceRefresh) {
+    public Map<K, T> retrieveData(List<K> keys, TimeFrame timeFrame, boolean forceRefresh) {
         if (keys == null || keys.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -69,7 +72,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
         
         // If force refresh is requested, check database first, then provider
         if (forceRefresh) {
-            return retrieveFromDatabaseAndProvider(keys);
+            return retrieveFromDatabaseAndProvider(keys, timeFrame);
         }
 
         // Track which keys still need to be retrieved
@@ -85,12 +88,13 @@ public abstract class AbstractMarketDataRetriever<K, T> {
             Map<K, T> sourceData;
             switch (sourceType) {
                 case CACHE:
-                    sourceData = retrieveFromCache(keys, remainingKeys);
+                    sourceData = retrieveFromCache(keys, remainingKeys, timeFrame);
                     break;
                 case DATABASE:
-                    sourceData = retrieveFromDatabase(remainingKeys);
+                    sourceData = retrieveFromDatabase(remainingKeys, timeFrame);
                     break;
                 case PROVIDER:
+                    // Provider doesn't support timeFrame, so we don't pass it
                     List<K> remainingKeysList = new ArrayList<>(remainingKeys);
                     sourceData = retrieveFromProviderWithSave(remainingKeysList);
                     break;
@@ -175,21 +179,22 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * but still leverage existing database records
      * 
      * @param keys The keys to retrieve data for
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of keys to retrieved data
      */
-    protected Map<K, T> retrieveFromDatabaseAndProvider(List<K> keys) {
-        log.info("Force refresh requested: checking database first, then provider for {} keys", keys.size());
+    protected Map<K, T> retrieveFromDatabaseAndProvider(List<K> keys, TimeFrame timeFrame) {
+        log.info("Force refresh requested: checking database first, then provider for {} keys with timeFrame {}", keys.size(), timeFrame.getApiValue());
         
-        // First check database
-        Map<K, T> result = retrieveFromDatabase(keys);
-        log.info("Found {} keys in database", result.size());
+        // First check database with timeFrame
+        Map<K, T> result = retrieveFromDatabase(keys, timeFrame);
+        log.info("Found {} keys in database for timeFrame {}", result.size(), timeFrame.getApiValue());
         
         // Find keys not in database
         Set<K> remainingKeys = new HashSet<>(keys);
         remainingKeys.removeAll(result.keySet());
         
         if (!remainingKeys.isEmpty()) {
-            log.info("Retrieving {} remaining keys from provider", remainingKeys.size());
+            log.info("Retrieving {} remaining keys from provider (timeFrame not supported by provider)", remainingKeys.size());
             Map<K, T> providerData = retrieveFromProvider(new ArrayList<K>(remainingKeys));
             
             // Cache provider data if configured to do so
@@ -209,26 +214,29 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      *
      * @param allKeys All keys being requested
      * @param remainingKeys Set of keys that still need to be retrieved (will be modified)
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of key to data
      */
-    protected abstract Map<K, T> retrieveFromCache(List<K> allKeys, Set<K> remainingKeys);
+    protected abstract Map<K, T> retrieveFromCache(List<K> allKeys, Set<K> remainingKeys, TimeFrame timeFrame);
 
     /**
      * Retrieve data from database
      *
      * @param remainingKeys Set of keys that still need to be retrieved
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of key to data
      */
-    protected abstract Map<K, T> retrieveFromDatabase(Set<K> remainingKeys);
+    protected abstract Map<K, T> retrieveFromDatabase(Set<K> remainingKeys, TimeFrame timeFrame);
     
     /**
      * Retrieve data from database for a list of keys
      *
      * @param keys List of keys to retrieve
+     * @param timeFrame The time frame for the OHLC data
      * @return Map of key to data
      */
-    protected Map<K, T> retrieveFromDatabase(List<K> keys) {
-        return retrieveFromDatabase(new HashSet<>(keys));
+    protected Map<K, T> retrieveFromDatabase(List<K> keys, TimeFrame timeFrame) {
+        return retrieveFromDatabase(new HashSet<>(keys), timeFrame);
     }
 
     /**

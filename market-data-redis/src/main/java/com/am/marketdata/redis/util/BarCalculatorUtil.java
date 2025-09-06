@@ -3,6 +3,8 @@ package com.am.marketdata.redis.util;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -19,12 +21,13 @@ public class BarCalculatorUtil {
     
     // Map of interval to minutes
     public static final Map<String, Integer> INTERVAL_MINUTES = Map.of(
-            "5m", 5,
-            "15m", 15,
-            "30m", 30,
-            "1h", 60,
-            "4h", 240,
-            "1d", 1440
+            INTERVAL_5_MINUTE, 5,
+            INTERVAL_10_MINUTE, 10,
+            INTERVAL_15_MINUTE, 15,
+            INTERVAL_30_MINUTE, 30,
+            INTERVAL_1_HOUR, 60,
+            INTERVAL_4_HOUR,240,
+            INTERVAL_1_DAY, 1440
     );
     
     private BarCalculatorUtil() {

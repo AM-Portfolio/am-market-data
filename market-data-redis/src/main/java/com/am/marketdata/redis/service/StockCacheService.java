@@ -1,10 +1,10 @@
 package com.am.marketdata.redis.service;
 
 import com.am.marketdata.common.model.TimeFrame;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
 import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.redis.model.StockBars;
-import com.am.marketdata.redis.util.BarCalculatorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,8 +159,8 @@ public class StockCacheService {
         Map<String, Boolean> result = new HashMap<>();
         
         try {
-            // Process and cache intraday bars (5m, 15m, 30m, 1h, 4h)
-            for (String interval : List.of("5m", "15m", "30m", "1h", "4h")) {
+            // Process and cache intraday bars
+            for (String interval : INTRADAY_INTERVALS) {
                 List<OHLCVTPoint> bars = barCalculator.calculateBars(rawPrices, interval, date);
                 if (!bars.isEmpty()) {
                     // Create StockBars object for the symbol service
@@ -173,24 +172,26 @@ public class StockCacheService {
                             .build();
                     boolean success = symbolService.cacheIntradayBars(List.of(stockBars));
                     result.put(interval, success);
-                    log.debug("Processed and cached {} {} bars for {} on {}", bars.size(), interval, symbol, date);
+                    log.debug("Processed and cached {} {} bars for {} on {} with Redis key 'stock:intraday:{}:{}:{}'", 
+                        bars.size(), interval, symbol, date, symbol.toUpperCase(), interval, date.format(DATE_FORMATTER));
                 }
             }
             
             // Process and cache daily bar
-            List<OHLCVTPoint> dailyBars = barCalculator.calculateBars(rawPrices, "1d", date);
-            if (!dailyBars.isEmpty()) {
-                // Create StockBars object for the historical service
-                StockBars stockBars = StockBars.builder()
-                        .symbol(symbol)
-                        .interval("1d")
-                        .startDate(date.format(DATE_FORMATTER))
-                        .bars(List.of(dailyBars.get(0)))
-                        .build();
-                boolean success = historicalService.cacheHistoricalBar(List.of(stockBars));
-                result.put("1d", success);
-                log.debug("Processed and cached daily bar for {} on {}", symbol, date);
-            }
+            // List<OHLCVTPoint> dailyBars = barCalculator.calculateBars(rawPrices, INTERVAL_1_DAY, date);
+            // if (!dailyBars.isEmpty()) {
+            //     // Create StockBars object for the historical service
+            //     StockBars stockBars = StockBars.builder()
+            //             .symbol(symbol)
+            //             .interval(INTERVAL_1_DAY)
+            //             .startDate(date.format(DATE_FORMATTER))
+            //             .bars(List.of(dailyBars.get(0)))
+            //             .build();
+            //     boolean success = historicalService.cacheHistoricalBar(List.of(stockBars));
+            //     result.put(INTERVAL_1_DAY, success);
+            //     log.debug("Processed and cached daily bar for {} on {} with Redis key 'stock:historical:{}:{}:{}'", 
+            //         symbol, date, symbol.toUpperCase(), INTERVAL_1_DAY, date.format(DATE_FORMATTER));
+            // }
             
         } catch (Exception e) {
             log.error("Error processing raw price data for {}: {}", symbol, e.getMessage());
