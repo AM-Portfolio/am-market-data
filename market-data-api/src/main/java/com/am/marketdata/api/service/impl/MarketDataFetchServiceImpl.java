@@ -3,16 +3,21 @@ package com.am.marketdata.api.service.impl;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 
+import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 
 import com.am.common.investment.model.stockindice.StockData;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
+import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -85,26 +90,78 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
         return symbolsSet;
     }
-    
-    
-    @Override
-    public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                              String interval, String instrumentType, 
-                                              Map<String, Object> additionalParams, boolean forceRefresh) {
-        return fetchHistoricalData(symbol, fromDate, toDate, interval, instrumentType, additionalParams);
-    }
-    
-    private Map<String, Object> fetchHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                                         String interval, String instrumentType, 
-                                                         Map<String, Object> additionalParams) {
-        return investmentInstrumentService.getHistoricalData(
-            symbol, fromDate, toDate, interval, instrumentType, additionalParams);
-    }
-    
 
+    /**
+     * Process historical data for a single symbol with filtering if requested
+     * 
+     * @param symbol Symbol to process
+     * @param fromDate From date
+     * @param toDate To date
+     * @param interval Data interval
+     * @param instrumentType Instrument type
+     * @param additionalParams Additional parameters
+     * @param forceRefresh Whether to force refresh from provider
+     * @param filterParams Filter parameters
+     * @return Result containing the processed data and metrics
+     */
+    private SymbolProcessingResult processSymbolHistoricalData(String symbol, Date fromDate, Date toDate, 
+                                                       TimeFrame interval, String instrumentType, 
+                                                       Map<String, Object> additionalParams, boolean forceRefresh,
+                                                       FilterParams filterParams) {
+        try {
+            // Get raw historical data
+            Map<String, Object> singleResult =  investmentInstrumentService.getHistoricalData(
+                symbol, fromDate, toDate, interval, instrumentType, additionalParams);
+            
+            if (singleResult != null && !singleResult.containsKey("error")) {
+                // Get original count
+                int originalCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : 0;
+                
+                // Apply data filtering if requested
+                if (filterParams.isFiltered) {
+                    singleResult = applyDataFiltering(singleResult, additionalParams);
+                }
+                
+                // Get filtered count
+                int filteredCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : originalCount;
+                
+                return new SymbolProcessingResult(symbol, singleResult, true, originalCount, filteredCount, null);
+            } else {
+                log.warn("Failed to get historical data for symbol: {}", symbol);
+                return new SymbolProcessingResult(symbol, 
+                        Collections.singletonMap("error", "Failed to fetch data"), 
+                        false, 0, 0, null);
+            }
+        } catch (Exception e) {
+            log.error("Error processing historical data for symbol {}: {}", symbol, e.getMessage(), e);
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", "Failed to fetch historical data");
+            errorResult.put("message", e.getMessage());
+            return new SymbolProcessingResult(symbol, errorResult, false, 0, 0, e);
+        }
+    }
+    
+    /**
+     * Class to hold the result of processing a single symbol
+     */
+    private static class SymbolProcessingResult {
+        final Map<String, Object> data;
+        final boolean success;
+        final int originalCount;
+        final int filteredCount;
+        
+        SymbolProcessingResult(String symbol, Map<String, Object> data, boolean success, 
+                              int originalCount, int filteredCount, Exception error) {
+            this.data = data;
+            this.success = success;
+            this.originalCount = originalCount;
+            this.filteredCount = filteredCount;
+        }
+    }
+    
     @Override
     public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate, 
-                                                         String interval, String instrumentType, 
+                                                         TimeFrame interval, String instrumentType, 
                                                          Map<String, Object> additionalParams, boolean forceRefresh) {
         log.info("Processing historical data request for multiple symbols: {} from {} to {}", 
                 symbols, fromDate, toDate);
@@ -119,35 +176,33 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             return aggregatedResult;
         }
         
+        // Extract filter parameters once
+        FilterParams filterParams = extractFilterParams(additionalParams);
+        
         long startTime = System.currentTimeMillis();
         int successCount = 0;
         int totalDataPoints = 0;
+        int totalFilteredDataPoints = 0;
         
         // Process each symbol
         for (String symbol : symbols) {
-            try {
-                Map<String, Object> singleResult = getHistoricalData(symbol, fromDate, toDate, 
-                                                           interval, instrumentType, additionalParams, false);
-                if (singleResult != null && !singleResult.containsKey("error")) {
-                    // Add to the results
-                    symbolsData.put(symbol, singleResult);
-                    successCount++;
-                    
-                    // Count data points
-                    if (singleResult.containsKey("count")) {
-                        totalDataPoints += (int) singleResult.get("count");
-                    }
-                } else {
-                    log.warn("Failed to get historical data for symbol: {}", symbol);
-                    symbolsData.put(symbol, Collections.singletonMap("error", "Failed to fetch data"));
-                }
-            } catch (Exception e) {
-                log.error("Error processing historical data for symbol {}: {}", symbol, e.getMessage(), e);
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("error", "Failed to fetch historical data");
-                errorResult.put("message", e.getMessage());
-                symbolsData.put(symbol, errorResult);
+            SymbolProcessingResult result = processSymbolHistoricalData(
+                symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams);
+            
+            // Add to results
+            symbolsData.put(symbol, result.data);
+            
+            // Update metrics
+            if (result.success) {
+                successCount++;
+                totalDataPoints += result.originalCount;
+                totalFilteredDataPoints += result.filteredCount;
             }
+        }
+        
+        // If no filtering, filtered count equals total count
+        if (!filterParams.isFiltered) {
+            totalFilteredDataPoints = totalDataPoints;
         }
         
         long endTime = System.currentTimeMillis();
@@ -161,31 +216,37 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         aggregatedResult.put("totalSymbols", symbols.size());
         aggregatedResult.put("successfulSymbols", successCount);
         aggregatedResult.put("totalDataPoints", totalDataPoints);
+        aggregatedResult.put("filteredDataPoints", totalFilteredDataPoints);
+        aggregatedResult.put("filtered", filterParams.isFiltered);
+        aggregatedResult.put("filterType", filterParams.filterType);
+        if (filterParams.isFiltered) {
+            aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
+        }
         aggregatedResult.put("processingTimeMs", (endTime - startTime));
         
-        log.info("Successfully processed historical data for {}/{} symbols with {} total data points in {}ms", 
-                successCount, symbols.size(), totalDataPoints, (endTime - startTime));
+        // Log results
+        // logProcessingResults(successCount, symbols.size(), totalDataPoints, totalFilteredDataPoints, 
+        //                    filterParams.isFiltered, (endTime - startTime));
         
         return aggregatedResult;
     }
     
     /**
-     * Apply filtering to historical data based on filter parameters
+     * Extract filter parameters from the additionalParams map
      * 
-     * @param data Original historical data response
-     * @param params Parameters containing filter settings
-     * @return Filtered historical data
+     * @param params Parameters map containing filter settings
+     * @return FilterParams object with extracted parameters
      */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> applyDataFiltering(Map<String, Object> data, Map<String, Object> params) {
-        String filterType = params.get("filterType").toString();
+    private FilterParams extractFilterParams(Map<String, Object> params) {
+        if (params == null) {
+            return new FilterParams("ALL", 1, false);
+        }
+        
+        String filterType = params.containsKey("filterType") ? 
+                params.get("filterType").toString() : "ALL";
+                
         int filterFrequency = params.containsKey("filterFrequency") ? 
                 Integer.parseInt(params.get("filterFrequency").toString()) : 1;
-        
-        // If no filtering needed (ALL type)
-        if ("ALL".equalsIgnoreCase(filterType)) {
-            return data;
-        }
         
         // For CUSTOM type, ensure filterFrequency is at least 2
         if ("CUSTOM".equalsIgnoreCase(filterType) && filterFrequency < 2) {
@@ -193,19 +254,94 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             filterFrequency = 2;
         }
         
-        // Get the historical data points
-        Map<String, Object> result = new HashMap<>(data);
-        Object dataObj = data.get("data");
+        boolean isFiltered = !"ALL".equalsIgnoreCase(filterType);
         
-        // Handle different data types
-        List<OHLCVTPoint> originalPoints = new ArrayList<>();
+        return new FilterParams(filterType, filterFrequency, isFiltered);
+    }
+    
+    /**
+     * Simple class to hold filter parameters
+     */
+    private static class FilterParams {
+        final String filterType;
+        final int filterFrequency;
+        final boolean isFiltered;
+        
+        FilterParams(String filterType, int filterFrequency, boolean isFiltered) {
+            this.filterType = filterType;
+            this.filterFrequency = filterFrequency;
+            this.isFiltered = isFiltered;
+        }
+    }
+    
+    /**
+     * Class to hold historical data information extracted from different data structures
+     */
+    private static class HistoricalDataInfo {
+        final List<OHLCVTPoint> dataPoints;
+        final String tradingSymbol;
+        final String interval;
+        
+        HistoricalDataInfo(List<OHLCVTPoint> dataPoints, String tradingSymbol, String interval) {
+            this.dataPoints = dataPoints;
+            this.tradingSymbol = tradingSymbol;
+            this.interval = interval;
+        }
+    }
+    
+    /**
+     * Apply filtering strategy to data points based on filter parameters
+     * 
+     * @param dataPoints Original data points to filter
+     * @param filterParams Filter parameters
+     * @return Filtered list of data points
+     */
+    private List<OHLCVTPoint> applyFilterStrategy(List<OHLCVTPoint> dataPoints, FilterParams filterParams) {
+        List<OHLCVTPoint> filteredPoints = new ArrayList<>();
+        
+        if ("START_END".equalsIgnoreCase(filterParams.filterType)) {
+            // Only include first and last points
+            filteredPoints.add(dataPoints.get(0)); // First point
+            
+            if (dataPoints.size() > 1) {
+                filteredPoints.add(dataPoints.get(dataPoints.size() - 1)); // Last point
+            }
+        } else if ("CUSTOM".equalsIgnoreCase(filterParams.filterType)) {
+            // Include every Nth point
+            for (int i = 0; i < dataPoints.size(); i += filterParams.filterFrequency) {
+                filteredPoints.add(dataPoints.get(i));
+            }
+            
+            // Always include the last point if not already included
+            int lastIndex = dataPoints.size() - 1;
+            if (lastIndex >= 0 && lastIndex % filterParams.filterFrequency != 0) {
+                filteredPoints.add(dataPoints.get(lastIndex));
+            }
+        } else {
+            // Default case - return all points
+            return new ArrayList<>(dataPoints);
+        }
+        
+        return filteredPoints;
+    }
+    
+    /**
+     * Extract historical data information from different data structures
+     * 
+     * @param data The data map containing historical data
+     * @return HistoricalDataInfo object with extracted data points and metadata
+     */
+    @SuppressWarnings("unchecked") // Needed for type safety with Map and List casts
+    private HistoricalDataInfo extractHistoricalDataInfo(Map<String, Object> data) {
+        Object dataObj = data.get("data");
+        List<OHLCVTPoint> dataPoints = new ArrayList<>();
         String tradingSymbol = "";
         String interval = "";
         
         // Extract data from either HistoricalData object or Map
         if (dataObj instanceof HistoricalData) {
             HistoricalData historicalData = (HistoricalData) dataObj;
-            originalPoints = historicalData.getDataPoints();
+            dataPoints = historicalData.getDataPoints();
             tradingSymbol = historicalData.getTradingSymbol();
             interval = historicalData.getInterval();
         } else if (dataObj instanceof Map) {
@@ -255,57 +391,68 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                         point.setVolume(Long.parseLong(pointMap.get("volume").toString()));
                     }
                     
-                    originalPoints.add(point);
+                    dataPoints.add(point);
                 }
             }
         } else {
             log.warn("Unexpected data type for filtering: {}", dataObj != null ? dataObj.getClass().getName() : "null");
-            return data; // Return original data if unexpected type
+            return null; // Return null if unexpected type
         }
         
-        if (originalPoints.isEmpty()) {
+        if (dataPoints.isEmpty()) {
             log.warn("No data points found for filtering");
-            return data; // Nothing to filter
+            return null; // Return null if no data points
         }
+        
+        return new HistoricalDataInfo(dataPoints, tradingSymbol, interval);
+    }
+    
+    /**
+     * Apply filtering to historical data based on filter parameters
+     * 
+     * @param data Original historical data response
+     * @param params Parameters containing filter settings
+     * @return Filtered historical data
+     */
+    private Map<String, Object> applyDataFiltering(Map<String, Object> data, Map<String, Object> params) {
+        FilterParams filterParams = extractFilterParams(params);
+        
+        // If no filtering needed (ALL type)
+        if (!filterParams.isFiltered) {
+            return data;
+        }
+        
+        // Get the historical data points
+        Map<String, Object> result = new HashMap<>(data);
+        
+        // Extract data points and metadata
+        HistoricalDataInfo dataInfo = extractHistoricalDataInfo(data);
+        
+        // Return original data if extraction failed or no data points found
+        if (dataInfo == null || dataInfo.dataPoints.isEmpty()) {
+            return data;
+        }
+        
+        List<OHLCVTPoint> originalPoints = dataInfo.dataPoints;
         
         // Apply filtering based on type
-        List<OHLCVTPoint> filteredPoints = new ArrayList<>();
-        
-        if ("START_END".equalsIgnoreCase(filterType)) {
-            // Only include first and last points
-            filteredPoints.add(originalPoints.get(0)); // First point
-            
-            if (originalPoints.size() > 1) {
-                filteredPoints.add(originalPoints.get(originalPoints.size() - 1)); // Last point
-            }
-        } else if ("CUSTOM".equalsIgnoreCase(filterType)) {
-            // Include every Nth point
-            for (int i = 0; i < originalPoints.size(); i += filterFrequency) {
-                filteredPoints.add(originalPoints.get(i));
-            }
-            
-            // Always include the last point if not already included
-            int lastIndex = originalPoints.size() - 1;
-            if (lastIndex >= 0 && lastIndex % filterFrequency != 0) {
-                filteredPoints.add(originalPoints.get(lastIndex));
-            }
-        }
+        List<OHLCVTPoint> filteredPoints = applyFilterStrategy(originalPoints, filterParams);
         
         // Create a new HistoricalData object with filtered points
         HistoricalData filteredData = new HistoricalData();
         filteredData.setDataPoints(filteredPoints);
-        filteredData.setTradingSymbol(tradingSymbol);
-        filteredData.setInterval(interval);
+        filteredData.setTradingSymbol(dataInfo.tradingSymbol);
+        filteredData.setInterval(dataInfo.interval);
         
         // Update the result
         result.put("data", filteredData);
         result.put("count", filteredPoints.size());
         result.put("filtered", true);
-        result.put("filterType", filterType);
+        result.put("filterType", filterParams.filterType);
         result.put("originalCount", originalPoints.size());
         
         log.debug("Applied {} filtering to historical data, reduced from {} to {} points", 
-                filterType, originalPoints.size(), filteredPoints.size());
+                filterParams.filterType, originalPoints.size(), filteredPoints.size());
         
         return result;
     }
@@ -342,6 +489,72 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     private Map<String, Object> fetchMutualFundNavHistory(String schemeCode, Date from, Date to) {
         Map<String, Object> history = investmentInstrumentService.getMutualFundNavHistory(schemeCode, from, to);
         return history;
+    }
+    
+    @Override
+    public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
+        log.info("Processing historical data request for symbols: {} from {} to {}, interval: {}, filterType: {}", 
+                request.getSymbols(), request.getFrom(), request.getTo(), request.getInterval(), request.getFilterType());
+        
+        // Parse symbols
+        Set<String> symbolList = parseSymbols(request.getSymbols());
+        if (symbolList.isEmpty()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "No valid symbols provided");
+            errorResponse.put("message", "Please provide at least one valid symbol");
+            return errorResponse;
+        }
+        
+        // Parse dates
+        Date fromDate;
+        Date toDate;
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            fromDate = dateFormat.parse(request.getFrom());
+            toDate = dateFormat.parse(request.getTo());
+        } catch (ParseException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid date format");
+            errorResponse.put("message", "Use yyyy-MM-dd format for dates");
+            return errorResponse;
+        }
+        
+        // Prepare additional parameters
+        Map<String, Object> additionalParams = request.getAdditionalParams();
+        if (additionalParams == null) {
+            additionalParams = new HashMap<>();
+        }
+        additionalParams.put("filterType", request.getFilterType());
+        additionalParams.put("filterFrequency", request.getFilterFrequency());
+        
+        // Get historical data
+        Map<String, Object> response = getHistoricalDataMultipleSymbols(
+            symbolList, fromDate, toDate, request.getInterval(), request.getInstrumentType(), 
+            additionalParams, request.isForceRefresh());
+        
+        // Add cache status if not present
+        if (!response.containsKey("cached")) {
+            response.put("cached", !request.isForceRefresh());
+        }
+        
+        return response;
+    }
+    
+    /**
+     * Parse comma-separated symbols into a set
+     * 
+     * @param symbolsString Comma-separated symbols
+     * @return Set of symbols
+     */
+    private Set<String> parseSymbols(String symbolsString) {
+        if (symbolsString == null || symbolsString.trim().isEmpty()) {
+            return new HashSet<>();
+        }
+        
+        return Arrays.stream(symbolsString.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
     }
     
     

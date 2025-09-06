@@ -8,6 +8,8 @@ import com.am.marketdata.mapper.OHLCMapper;
 import com.am.marketdata.service.MarketDataCacheService;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -79,7 +81,7 @@ public class MarketDataPersistenceServiceImpl implements MarketDataPersistenceSe
     }
 
     @Override
-    public CompletableFuture<Void> saveHistoricalData(String symbol, String interval, HistoricalData historicalData) {
+    public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData) {
         if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
             log.warn("No historical data to save for symbol: {}", symbol);
             return CompletableFuture.completedFuture(null);
@@ -224,8 +226,8 @@ public class MarketDataPersistenceServiceImpl implements MarketDataPersistenceSe
     }
     
     @Override
-    public HistoricalData getHistoricalData(String symbol, String interval, String fromDate, String toDate) {
-        if (symbol == null || symbol.isEmpty() || interval == null || interval.isEmpty()) {
+    public HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate) {
+        if (symbol == null || symbol.isEmpty() || interval == null) {
             return null;
         }
 
@@ -259,7 +261,7 @@ public class MarketDataPersistenceServiceImpl implements MarketDataPersistenceSe
             }
             
             // Map interval to the format expected by the database service
-            String mappedInterval = mapIntervalFormat(interval);
+            String mappedInterval = interval.name().toLowerCase();
             
             // Get historical data from database using HistoricalDataService
             // Convert LocalDate to Instant at the start of the day in UTC

@@ -2,6 +2,7 @@ package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +26,7 @@ public interface MarketDataCacheService {
      * @param interval The data interval (e.g., "1d", "1h")
      * @param historicalData The historical data to cache
      */
-    void cacheHistoricalData(String symbol, String interval, HistoricalData historicalData);
+    void cacheHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData);
 
     /**
      * Retrieve OHLC data from cache
@@ -44,5 +45,5 @@ public interface MarketDataCacheService {
      * @param toDate To date in ISO format (YYYY-MM-DD)
      * @return HistoricalData if found in cache, null otherwise
      */
-    HistoricalData getHistoricalDataFromCache(String symbol, String interval, String fromDate, String toDate);
+    HistoricalData getHistoricalDataFromCache(String symbol, TimeFrame interval, String fromDate, String toDate);
 }

@@ -1,5 +1,6 @@
 package com.am.marketdata.redis.service;
 
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.redis.model.StockBars;
@@ -54,9 +55,9 @@ public class StockCacheHistoricalService {
     /**
      * Get historical bars for multiple symbols within a date range
      */
-    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate, String endDate) {
+    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate, String endDate, String interval) {
         // Use Redis's multi-key operation for better performance
-        Map<String, List<StockBars>> result = stockRedisCache.getMultiSymbolHistoricalBars(symbols, startDate, endDate);
+        Map<String, List<StockBars>> result = stockRedisCache.getMultiSymbolHistoricalBars(symbols, startDate, endDate, interval);
         
         // Update cache hit/miss statistics
         try {
@@ -110,7 +111,7 @@ public class StockCacheHistoricalService {
             OHLCVTPoint dailyBar = BarCalculatorUtil.createBar(rawPrices, date.atStartOfDay());
             if (dailyBar != null) {
                 String dateStr = BarCalculatorUtil.formatDate(date);
-                boolean success = stockRedisCache.saveHistoricalBar(symbol, dateStr, dailyBar);
+                boolean success = stockRedisCache.saveHistoricalBar(symbol, dateStr, dailyBar, TimeFrame.DAY.getApiValue());
                 log.debug("Processed and cached daily bar for {} on {}", symbol, dateStr);
                 return success;
             }

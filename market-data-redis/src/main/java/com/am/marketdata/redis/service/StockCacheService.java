@@ -1,5 +1,6 @@
 package com.am.marketdata.redis.service;
 
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.redis.model.StockBars;
@@ -51,11 +52,11 @@ public class StockCacheService {
     /**
      * Cache a historical bar for a symbol and date
      */
-    public boolean cacheHistoricalBar(String symbol, String date, OHLCVTPoint bar) {
+    public boolean cacheHistoricalBar(String symbol, String date, OHLCVTPoint bar, TimeFrame timeFrame) {
         // Create StockBars object for the historical service
         StockBars stockBars = StockBars.builder()
                 .symbol(symbol)
-                .interval("1d")
+                .interval(timeFrame.getApiValue())
                 .startDate(date)
                 .bars(List.of(bar))
                 .build();
@@ -136,9 +137,11 @@ public class StockCacheService {
     /**
      * Get historical bars for multiple symbols within a date range
      */
-    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate, String endDate) {
-        return historicalService.getHistoricalBarsWithStats(symbols, startDate, endDate);
+    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate, String endDate, String interval) {
+        return historicalService.getHistoricalBarsWithStats(symbols, startDate, endDate, interval);
     }
+
+
     
     /**
      * Process raw price data into interval-based bars and cache them

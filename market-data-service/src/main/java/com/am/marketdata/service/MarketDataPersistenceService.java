@@ -2,6 +2,7 @@ package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ public interface MarketDataPersistenceService {
      * @param historicalData Historical data to save
      * @return CompletableFuture for async operations
      */
-    CompletableFuture<Void> saveHistoricalData(String symbol, String interval, HistoricalData historicalData);
+    CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData);
     
     /**
      * Retrieve OHLC data from cache or database
@@ -45,5 +46,5 @@ public interface MarketDataPersistenceService {
      * @param toDate End date in format yyyy-MM-dd
      * @return Historical data if found, null otherwise
      */
-    HistoricalData getHistoricalData(String symbol, String interval, String fromDate, String toDate);
+    HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate);
 }
