@@ -1,6 +1,7 @@
 package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.service.MarketDataCacheService;
@@ -36,7 +37,6 @@ public class MarketDataCacheService {
         this.stockCacheService = stockCacheService;
     }
 
-    @Override
     public void cacheOHLCData(Map<String, OHLCQuote> ohlcData) {
         try {
             LocalDate today = LocalDate.now();
@@ -67,7 +67,37 @@ public class MarketDataCacheService {
             if (!symbolPrices.isEmpty()) {
                 log.info("Caching OHLC data for {} symbols", symbolPrices.size());
                 stockCacheService.processAndCacheMultiSymbolData(symbolPrices, today);
-                log.info("Successfully cached OHLC data");
+                // Build a list of actual Redis keys and values for logging
+                List<String> keyValuePairs = new ArrayList<>();
+                String todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE);
+                
+                for (String symbol : symbolPrices.keySet()) {
+                    List<OHLCVTPoint> points = symbolPrices.get(symbol);
+                    if (points != null && !points.isEmpty()) {
+                        OHLCVTPoint latestPoint = points.get(points.size() - 1);
+                        for (String interval : com.am.marketdata.common.constants.TimeIntervalConstants.INTRADAY_INTERVALS) {
+                            String key = String.format("stock:intraday:%s:%s:%s", symbol.toUpperCase(), interval, todayStr);
+                            String value = String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f", 
+                                latestPoint.getOpen(), latestPoint.getHigh(), latestPoint.getLow(), latestPoint.getClose());
+                            keyValuePairs.add(key + "=" + value);
+                        }
+                    }
+                }
+                
+                log.info("Successfully cached OHLC data for symbols: {} in Redis with key-value pairs: {}", 
+                    String.join(", ", symbolPrices.keySet()),
+                    String.join(", ", keyValuePairs));
+                
+                // Also log in debug mode with more detailed information
+                for (String symbol : symbolPrices.keySet()) {
+                    List<OHLCVTPoint> points = symbolPrices.get(symbol);
+                    if (points != null && !points.isEmpty()) {
+                        for (OHLCVTPoint point : points) {
+                            log.debug("Cached data point for {}: time={}, open={}, high={}, low={}, close={}, volume={}",
+                                symbol, point.getTime(), point.getOpen(), point.getHigh(), point.getLow(), point.getClose(), point.getVolume());
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("Error caching OHLC data: {}", e.getMessage(), e);
@@ -75,7 +105,6 @@ public class MarketDataCacheService {
         }
     }
 
-    @Override
     public void cacheHistoricalData(String symbol, TimeFrame timeFrame, HistoricalData historicalData) {
         try {
             if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
@@ -83,7 +112,19 @@ public class MarketDataCacheService {
                 return;
             }
             
-            log.info("Caching historical data for symbol: {} with interval: {}", symbol, timeFrame);
+            String todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            String redisKey = String.format("stock:historical:%s:%s:%s", symbol.toUpperCase(), timeFrame.getApiValue(), todayStr);
+            
+            // Get a preview of the data for logging
+            String dataPreview = "No data";
+            if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
+                OHLCVTPoint firstPoint = (OHLCVTPoint) historicalData.getDataPoints().get(0);
+                dataPreview = String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f", 
+                    firstPoint.getOpen(), firstPoint.getHigh(), firstPoint.getLow(), firstPoint.getClose());
+            }
+            
+            log.info("Caching historical data for symbol: {} with interval: {} in Redis with key: {} value: {}", 
+                symbol, timeFrame, redisKey, dataPreview);
             
             // Get the data points directly as OHLCVTPoint objects
             List<com.am.common.investment.model.historical.OHLCVTPoint> points = 
@@ -100,13 +141,49 @@ public class MarketDataCacheService {
                         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
                         stockCacheService.cacheHistoricalBar(symbol, dateStr, point, timeFrame);
                     }
-                    log.info("Successfully cached {} daily historical bars for {}", points.size(), symbol);
+                    // Collect all the actual Redis keys and values used
+                    List<String> keyValuePairs = points.stream()
+                        .map(point -> {
+                            String dateStr = point.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
+                            String key = String.format("stock:historical:%s:%s:%s", symbol.toUpperCase(), timeFrame.getApiValue(), dateStr);
+                            String value = String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f", 
+                                point.getOpen(), point.getHigh(), point.getLow(), point.getClose());
+                            return key + "=" + value;
+                        })
+                        .collect(Collectors.toList());
+                    
+                    log.info("Successfully cached {} daily historical bars for {} in Redis with key-value pairs: {}", 
+                        points.size(), symbol, String.join(", ", keyValuePairs));
+                        
+                    // Also log in debug mode with more detailed information
+                    for (OHLCVTPoint point : points) {
+                        log.debug("Cached historical data point for {}: time={}, open={}, high={}, low={}, close={}, volume={}",
+                            symbol, point.getTime(), point.getOpen(), point.getHigh(), point.getLow(), point.getClose(), point.getVolume());
+                    }
                 } else {
                     // For intraday data, use the intraday bars caching
                     boolean success = stockCacheService.cacheIntradayBars(symbol, timeFrame.getApiValue(), points);
-                    log.info("Cached intraday historical data for {} with status: {}", symbol, success);
+                    String intradayDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+                    String intradayKey = String.format("stock:intraday:%s:%s:%s", symbol.toUpperCase(), timeFrame.getApiValue(), intradayDate);
+                    
+                    // Get a preview of the data for logging
+                    String intradayDataPreview = "No data";
+                    if (!points.isEmpty()) {
+                        OHLCVTPoint firstPoint = points.get(0);
+                        intradayDataPreview = String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f", 
+                            firstPoint.getOpen(), firstPoint.getHigh(), firstPoint.getLow(), firstPoint.getClose());
+                    }
+                    
+                    log.info("Cached intraday historical data for {} with status: {} in Redis with key: {} value: {}", 
+                        symbol, success, intradayKey, intradayDataPreview);
+                        
+                    // Also log in debug mode with more detailed information
+                    for (OHLCVTPoint point : points) {
+                        log.debug("Cached intraday data point for {}: time={}, open={}, high={}, low={}, close={}, volume={}",
+                            symbol, point.getTime(), point.getOpen(), point.getHigh(), point.getLow(), point.getClose(), point.getVolume());
+                    }
                 }
-                log.info("Successfully cached historical data for {}", symbol);
+                log.info("Successfully cached historical data for {} in Redis", symbol);
             }
         } catch (Exception e) {
             log.error("Error caching historical data for symbol {}: {}", symbol, e.getMessage(), e);
@@ -114,7 +191,6 @@ public class MarketDataCacheService {
         }
     }
 
-    @Override
     public Map<String, OHLCQuote> getOHLCFromCache(List<String> tradingSymbols, TimeFrame timeFrame) {
         try {
             // Clean symbols (remove NSE: prefix if present)
@@ -159,7 +235,6 @@ public class MarketDataCacheService {
         }
     }
 
-    @Override
     public HistoricalData getHistoricalDataFromCache(String symbol, TimeFrame timeFrame, String fromDate, String toDate) {
         try {
             // Parse dates

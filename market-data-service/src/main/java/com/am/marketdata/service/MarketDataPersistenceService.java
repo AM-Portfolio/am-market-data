@@ -6,7 +6,6 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.EquityService;
 import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.marketdata.mapper.OHLCMapper;
-import com.am.marketdata.service.MarketDataCacheService;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
@@ -56,7 +55,6 @@ public class MarketDataPersistenceService {
         this.taskExecutor = taskExecutor;
     }
 
-    @Override
     public CompletableFuture<Void> saveOHLCData(Map<String, OHLCQuote> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {
             log.warn("No OHLC data to save");
@@ -81,7 +79,6 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    @Override
     public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData) {
         if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
             log.warn("No historical data to save for symbol: {}", symbol);
@@ -105,7 +102,6 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    @Override
     public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh) {
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             return Collections.emptyMap();
@@ -230,7 +226,6 @@ public class MarketDataPersistenceService {
         return quote;
     }
     
-    @Override
     public HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate) {
         if (symbol == null || symbol.isEmpty() || interval == null) {
             return null;

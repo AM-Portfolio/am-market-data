@@ -1,6 +1,9 @@
 package com.am.marketdata.redis.cache;
 
 import com.am.common.investment.model.historical.OHLCVTPoint;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.HISTORICAL_INTERVALS;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.INTRADAY_INTERVALS;
+
 import com.am.marketdata.redis.model.StockBars;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,6 +21,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+
 /**
  * Redis-based cache for stock price data, supporting both intraday and historical data.
  * Implements key design, TTL strategy, and helper functions for managing stock price data.
@@ -31,9 +35,6 @@ public class StockRedisCache {
 
     private final ObjectMapper redisObjectMapper;
 
-    // Valid intervals
-    private static final Set<String> VALID_INTRADAY_INTERVALS = Set.of("5m", "10m", "15m", "30m", "1H", "4H");
-    private static final Set<String> HISTORICAL_INTERVAL = Set.of("1D", "1W", "1M", "1Y");
     @Value("${redis.cache.ttl.historical:86400}") // Default: 24 hours
     private long historicalTtlSeconds;
     
@@ -193,7 +194,7 @@ public class StockRedisCache {
         validateInterval(interval);
         validateDate(date);
         
-        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         String key = generateKey(prefix, symbol, interval, date);
         
         try {
@@ -204,7 +205,7 @@ public class StockRedisCache {
             }
             
             // Reconstruct StockBars from stored bar data
-            if (HISTORICAL_INTERVAL.contains(interval)) {
+            if (HISTORICAL_INTERVALS.contains(interval)) {
                 // For historical data, we stored a single OHLCVTPoint
                 OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
                 return StockBars.builder()
@@ -274,7 +275,7 @@ public class StockRedisCache {
             return Collections.emptyMap();
         }
         
-        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         List<String> keys = new ArrayList<>(symbols.size());
         
         // Generate all keys to fetch
@@ -299,7 +300,7 @@ public class StockRedisCache {
                     String symbol = symbols.get(i);
                     
                     // Reconstruct StockBars from stored bar data
-                    if (HISTORICAL_INTERVAL.equals(interval)) {
+                    if (HISTORICAL_INTERVALS.contains(interval)) {
                         // For historical data, we stored a single OHLCVTPoint
                         OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
                         StockBars stockBars = StockBars.builder()
@@ -428,10 +429,19 @@ public class StockRedisCache {
      * @throws IllegalArgumentException if interval is invalid
      */
     private void validateInterval(String interval) {
-        if (!VALID_INTRADAY_INTERVALS.contains(interval) && !HISTORICAL_INTERVAL.contains(interval)) {
+        // Convert to uppercase for case-insensitive comparison
+        String normalizedInterval = interval.toUpperCase();
+        
+        // Check if the normalized interval matches any valid interval (case-insensitive)
+        boolean isValid = INTRADAY_INTERVALS.stream()
+                .anyMatch(valid -> valid.equalsIgnoreCase(normalizedInterval)) ||
+                HISTORICAL_INTERVALS.stream()
+                .anyMatch(valid -> valid.equalsIgnoreCase(normalizedInterval));
+                
+        if (!isValid) {
             throw new IllegalArgumentException("Invalid interval: " + interval + 
-                    ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS) + 
-                    " or " + HISTORICAL_INTERVAL);
+                    ". Must be one of: " + String.join(", ", INTRADAY_INTERVALS) + 
+                    " or " + HISTORICAL_INTERVALS);
         }
     }
 

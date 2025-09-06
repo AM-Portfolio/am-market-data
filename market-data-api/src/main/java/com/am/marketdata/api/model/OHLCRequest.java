@@ -1,5 +1,6 @@
 package com.am.marketdata.api.model;
 
+import com.am.marketdata.common.model.TimeFrame;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;

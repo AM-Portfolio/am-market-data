@@ -1,6 +1,7 @@
 package com.am.marketdata.redis.service;
 
 import com.am.common.investment.model.historical.OHLCVTPoint;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
 import com.am.marketdata.redis.util.BarCalculatorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class BarCalculator {
         // Sort prices by timestamp
         prices.sort(Comparator.comparing(OHLCVTPoint::getTime));
         
-        if (interval.equals("1d")) {
+        if (interval.equals(INTERVAL_1_DAY)) {
             return calculateDailyBar(prices, date);
         } else {
             return calculateIntradayBars(prices, interval, date);
