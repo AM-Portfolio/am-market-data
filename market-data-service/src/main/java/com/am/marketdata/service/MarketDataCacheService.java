@@ -152,7 +152,7 @@ public class MarketDataCacheService {
                     
                     // Create OHLCQuote from the latest bar
                     OHLCQuote quote = createOHLCQuoteFromBar(latestBar);
-                    result.put("NSE:" + symbol, quote);
+                    result.put(symbol, quote);
                     
                     // Record the cache hit for logging
                     cacheHits.put(symbol, String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f", 

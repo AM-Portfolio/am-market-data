@@ -1,6 +1,7 @@
 package com.am.marketdata.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.zerodhatech.models.LTPQuote;
 import com.zerodhatech.models.OHLCQuote;
 
@@ -52,7 +53,7 @@ public class KiteModelMapper {
                 // Create and populate EquityPrice object
                 EquityPrice price = new EquityPrice();
                 price.setSymbol(symbol);
-                price.setClose(quote.lastPrice);
+                price.setLastPrice(quote.lastPrice);
                 price.setExchange(exchange);
                 equityPrices.add(price);
             } catch (Exception e) {
@@ -98,10 +99,7 @@ public class KiteModelMapper {
                 // Create and populate EquityPrice object
                 EquityPrice price = new EquityPrice();
                 price.setSymbol(symbol);
-                price.setOpen(quote.ohlc.open);
-                price.setHigh(quote.ohlc.high);
-                price.setLow(quote.ohlc.low);
-                price.setClose(quote.ohlc.close);
+                price.setOhlcv(OHLCVTPoint.builder().open(quote.ohlc.open).high(quote.ohlc.high).low(quote.ohlc.low).close(quote.ohlc.close).build());
                 price.setExchange(exchange);
                 equityPrices.add(price);
             } catch (Exception e) {

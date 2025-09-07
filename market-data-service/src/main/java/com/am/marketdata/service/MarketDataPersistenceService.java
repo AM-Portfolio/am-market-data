@@ -143,9 +143,12 @@ public class MarketDataPersistenceService {
                 if (!equityPrices.isEmpty()) {
                     // Convert equity prices to OHLCQuote format
                     for (EquityPrice price : equityPrices) {
+                        if (price.getLastPrice() == null) {
+                            continue;
+                        }
                         OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
-                        String symbol = "NSE:" + price.getSymbol();
-                        result.put(symbol, quote);
+                        //String symbol = "NSE:" + price.getSymbol();
+                        result.put(price.getSymbol(), quote);
                         
                         // Remove found symbols from the remaining set
                         remainingSymbols.remove(price.getSymbol());
@@ -208,13 +211,13 @@ public class MarketDataPersistenceService {
      */
     private OHLCQuote createOHLCQuoteFromEquityPrice(EquityPrice price) {
         OHLCQuote quote = new OHLCQuote();
-        quote.setLastPrice(price.getClose());
+        quote.setLastPrice(price.getLastPrice());
         
         OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
-        ohlc.setOpen(price.getOpen());
-        ohlc.setHigh(price.getHigh());
-        ohlc.setLow(price.getLow());
-        ohlc.setClose(price.getClose());
+        ohlc.setOpen(price.getOhlcv().getOpen());
+        ohlc.setHigh(price.getOhlcv().getHigh());
+        ohlc.setLow(price.getOhlcv().getLow());
+        ohlc.setClose(price.getOhlcv().getClose());
         
         quote.setOhlc(ohlc);
         

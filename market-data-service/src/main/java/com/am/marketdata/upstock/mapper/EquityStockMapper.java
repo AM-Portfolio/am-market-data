@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.am.common.investment.model.equity.EquityPrice;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.upstock.model.OHLCResponse.OHLCData;
 import com.am.marketdata.upstock.model.common.StockQuote;
 
@@ -26,11 +27,7 @@ public class EquityStockMapper {
     public EquityPrice getEquityPrice(StockQuote stockQuote) {
         return EquityPrice.builder()
             .symbol(stockQuote.getSymbol())
-            .open(stockQuote.getOpenPrice())
-            .high(stockQuote.getHighPrice())
-            .low(stockQuote.getLowPrice())
-            .close(stockQuote.getClosePrice())
-            .volume(stockQuote.getVolume())
+            .ohlcv(OHLCVTPoint.builder().open(stockQuote.getOpenPrice()).high(stockQuote.getHighPrice()).low(stockQuote.getLowPrice()).close(stockQuote.getClosePrice()).volume(stockQuote.getVolume()).build())
             .time(ZonedDateTime.now().toInstant())
             .build();
     }
@@ -54,10 +51,7 @@ public class EquityStockMapper {
         .exchange(exchange)
         .isin(ohlcData.getISIN())
             .symbol(extractedSymbol)
-            .open(ohlcData.getOpen())
-            .high(ohlcData.getHigh())
-            .low(ohlcData.getLow())
-            .close(ohlcData.getClose())
+            .ohlcv(OHLCVTPoint.builder().open(ohlcData.getOpen()).high(ohlcData.getHigh()).low(ohlcData.getLow()).close(ohlcData.getClose()).build())
             .time(ZonedDateTime.now().toInstant())
             .build();
     }
