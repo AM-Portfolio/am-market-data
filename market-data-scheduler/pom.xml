@@ -22,11 +22,6 @@
             <artifactId>market-data-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-processor</artifactId>
-            <version>${project.version}</version>
-        </dependency> -->
         <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-service</artifactId>

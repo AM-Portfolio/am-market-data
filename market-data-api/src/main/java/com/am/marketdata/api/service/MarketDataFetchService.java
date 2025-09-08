@@ -1,15 +1,17 @@
 package com.am.marketdata.api.service;
 
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.am.marketdata.common.model.TimeFrame;
+
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Cache service for market data
  * Handles caching of responses from MarketDataService and InvestmentInstrumentService
  */
-public interface MarketDataCacheService {
+public interface MarketDataFetchService {
 
     /**
      * Get quotes from cache or service
@@ -18,7 +20,18 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map containing quote data for each symbol
      */
-    Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, boolean forceRefresh);
+    Map<String, Map<String, Object>> getQuotes(Set<String> tradingSymbols, boolean forceRefresh);
+    
+    /**
+     * Get quotes from cache or service with timeframe support
+     * 
+     * @param tradingSymbols List of trading symbols
+     * @param isIndexSymbol Whether the symbols are index symbols
+     * @param timeFrame The time frame for the quotes data
+     * @param forceRefresh Whether to force a refresh from the source
+     * @return Map containing quotes data and metadata
+     */
+    Map<String, Object> getQuotes(Set<String> tradingSymbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh);
     
     /**
      * Get live prices from cache or service
@@ -27,23 +40,7 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map containing prices, count, timestamp and processing time
      */
-    Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh);
-    
-    /**
-     * Get historical data from cache or service
-     * 
-     * @param symbol Trading symbol
-     * @param fromDate Start date
-     * @param toDate End date
-     * @param interval Data interval (minute, day, etc.)
-     * @param instrumentType Type of instrument (STOCK, OPTION, MUTUAL_FUND, etc.)
-     * @param additionalParams Additional parameters specific to instrument type
-     * @param forceRefresh Whether to force a refresh from the source
-     * @return Historical data response with metadata
-     */
-    Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                       String interval, String instrumentType, 
-                                       Map<String, Object> additionalParams, boolean forceRefresh);
+    Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh);
     
     /**
      * Get historical data for multiple symbols from cache or service
@@ -59,8 +56,8 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return Historical data response with metadata for all symbols
      */
-    Map<String, Object> getHistoricalDataMultipleSymbols(List<String> symbols, Date fromDate, Date toDate, 
-                                       String interval, String instrumentType, 
+    Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate, 
+                                       TimeFrame interval, String instrumentType, 
                                        Map<String, Object> additionalParams, boolean forceRefresh);
     
     /**
@@ -92,34 +89,18 @@ public interface MarketDataCacheService {
      * @return NAV history data
      */
     Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh);
-    
-    /**
-     * Clear all cached data
-     */
-    void clearAllCaches();
-    
-    /**
-     * Clear specific cache by key
-     * 
-     * @param cacheKey Cache key to clear
-     */
-    void clearCache(String cacheKey);
-    
-    /**
-     * Get cache statistics
-     * 
-     * @return Map containing cache statistics (hits, misses, etc.)
-     */
-    Map<String, Object> getCacheStatistics();
+
     
     /**
      * Get OHLC data from cache or service
      * 
      * @param symbols Array of trading symbols
+     * @param isIndexSymbol Whether the symbols are index symbols
+     * @param timeFrame The time frame for the OHLC data
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map of symbol to OHLC data with cache status
      */
-    Map<String, Object> getOHLC(String[] symbols, boolean forceRefresh);
+    Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh);
     
     /**
      * Get latest stock index data from cache or service
@@ -137,5 +118,14 @@ public interface MarketDataCacheService {
      * @param forceRefresh Whether to force a refresh from the source
      * @return List of stock indices market data with cache status information
      */
-    List<StockIndicesMarketData> getStockIndicesData(List<String> indexSymbols, boolean forceRefresh);
+    Set<StockIndicesMarketData> getStockIndicesData(Set<String> indexSymbols, boolean forceRefresh);
+    
+    /**
+     * Process historical data request directly from the controller
+     * 
+     * @param request The HistoricalDataRequest containing all parameters
+     * @return Response map with historical data and metadata
+     * @throws Exception If there's an error processing the request
+     */
+    Map<String, Object> processHistoricalDataRequest(com.am.marketdata.api.dto.HistoricalDataRequest request) throws Exception;
 }

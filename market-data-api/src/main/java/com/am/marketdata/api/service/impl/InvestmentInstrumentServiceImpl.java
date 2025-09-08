@@ -4,6 +4,7 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -67,7 +68,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
 
     @Override
     public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                               String interval, String instrumentType, Map<String, Object> additionalParams) {
+                                               TimeFrame interval, String instrumentType, Map<String, Object> additionalParams) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             log.info("Processing historical data request for symbol {} from {} to {} with interval {}", 
@@ -78,7 +79,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             long startTime = System.currentTimeMillis();
             
             // Default to continuous data unless specified otherwise
-            boolean continuous = true; // Default value
+            boolean continuous = false; // Default value
             if (additionalParams != null && additionalParams.containsKey("continuous")) {
                 Object continuousValue = additionalParams.get("continuous");
                 if (continuousValue instanceof Boolean) {
@@ -304,7 +305,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     /**
      * Validate parameters for historical data request
      */
-    private void validateHistoricalDataParams(String symbol, Date fromDate, Date toDate, String interval) {
+    private void validateHistoricalDataParams(String symbol, Date fromDate, Date toDate, TimeFrame interval) {
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new IllegalArgumentException("Symbol cannot be null or empty");
         }
@@ -314,7 +315,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
         if (fromDate.after(toDate)) {
             throw new IllegalArgumentException("From date cannot be after to date");
         }
-        if (interval == null || interval.trim().isEmpty()) {
+        if (interval == null || interval.toString().isEmpty()) {
             throw new IllegalArgumentException("Interval cannot be null or empty");
         }
     }

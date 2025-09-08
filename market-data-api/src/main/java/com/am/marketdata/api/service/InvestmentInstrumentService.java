@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.am.marketdata.common.model.TimeFrame;
+
 /**
  * Service interface for unified access to investment instruments data (stocks, mutual funds, options, etc.)
  * This service acts as a facade for the underlying market data services while keeping
@@ -31,7 +33,7 @@ public interface InvestmentInstrumentService {
      * @return Historical data response with metadata
      */
     Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                         String interval, String instrumentType, Map<String, Object> additionalParams);
+                                         TimeFrame interval, String instrumentType, Map<String, Object> additionalParams);
     
     /**
      * Search for instruments across all types with pagination and filtering

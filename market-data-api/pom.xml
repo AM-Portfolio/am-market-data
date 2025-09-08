@@ -34,21 +34,33 @@
             <artifactId>market-data-service</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- <dependency>
-            <groupId>com.marketdata</groupId>
-            <artifactId>market-data-processor</artifactId>
-            <version>${project.version}</version>
-        </dependency> -->
-        <!-- <dependency>
+        <dependency>
             <groupId>com.marketdata</groupId>
             <artifactId>market-data-scraper</artifactId>
             <version>${project.version}</version>
-        </dependency> -->
+        </dependency>
+        
+        <!-- Swagger/OpenAPI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.3.0</version>
+            <version>2.2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-web</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-webmvc</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+        
         <!-- Redis dependencies for caching -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
