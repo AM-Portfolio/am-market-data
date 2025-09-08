@@ -168,7 +168,7 @@ public class MarketDataController {
             
             // Use cache service instead of direct service call
             Map<String, Object> quotesResponse = marketDataCacheService.getQuotes(
-                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
+                symbolList, request.isIndexSymbol(), TimeFrame.fromApiValue(request.getTimeFrame()), request.isForceRefresh());
             
             // Check if there was an error
             if (quotesResponse.containsKey("ERROR")) {
@@ -204,7 +204,7 @@ public class MarketDataController {
             
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getOHLC(
-                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
+                symbolList, request.isIndexSymbol(), TimeFrame.fromApiValue(request.getTimeFrame()), request.isForceRefresh());
             
             // Check if there was an error
             if (response.containsKey("error")) {
@@ -235,7 +235,7 @@ public class MarketDataController {
     @PostMapping("/historical-data")
     public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
         log.info("Controller received POST request for historical data for symbols: {} from {} to {}, interval: {}, filterType: {}, forceRefresh: {}", 
-                request.getSymbols(), request.getFrom(), request.getTo(), request.getInterval(), request.getFilterType(), request.isForceRefresh());
+                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()), request.getFilterType(), request.isForceRefresh());
         
         try {
             // Delegate all processing to the service

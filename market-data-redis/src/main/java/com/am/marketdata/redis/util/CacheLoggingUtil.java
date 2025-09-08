@@ -2,6 +2,8 @@ package com.am.marketdata.redis.util;
 
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.common.util.LoggingUtil;
+import com.am.marketdata.redis.model.OHLCV;
+
 import org.slf4j.Logger;
 
 import java.time.LocalDate;
@@ -51,7 +53,7 @@ public class CacheLoggingUtil {
      * @param symbolPrices Map of symbols to their price points
      * @param date The date for the data
      */
-    public static void logBatchOHLCCaching(Logger logger, Map<String, List<OHLCVTPoint>> symbolPrices, 
+    public static void logBatchOHLCCaching(Logger logger, Map<String, List<OHLCV>> symbolPrices, 
                                           LocalDate date) {
         if (symbolPrices.isEmpty()) {
             return;
@@ -63,13 +65,13 @@ public class CacheLoggingUtil {
         List<String> keyValuePairs = symbolPrices.entrySet().stream()
             .flatMap(entry -> {
                 String symbol = entry.getKey();
-                List<OHLCVTPoint> points = entry.getValue();
+                List<OHLCV> points = entry.getValue();
                 
                 if (points == null || points.isEmpty()) {
                     return List.<String>of().stream();
                 }
                 
-                OHLCVTPoint latestPoint = points.get(points.size() - 1);
+                OHLCV latestPoint = points.get(points.size() - 1);
                 
                 return CacheKeyGenerator.getIntradayIntervals().stream()
                     .map(interval -> {
@@ -91,11 +93,11 @@ public class CacheLoggingUtil {
             symbolPrices.forEach((symbol, points) -> {
                 if (points != null && !points.isEmpty()) {
                     points.forEach(point -> {
-                        logger.debug("Cached data point for {}: time={}, open={}, high={}, low={}, close={}, volume={}",
-                                symbol, point.getTime(), point.getOpen(), point.getHigh(), 
-                                point.getLow(), point.getClose(), point.getVolume());
+                        logger.debug("Cached data point for {}: open={}, high={}, low={}, close={}, volume={}, lastPrice={}",
+                                symbol, point.getOpen(), point.getHigh(), 
+                                point.getLow(), point.getClose(), point.getVolume(), point.getLastPrice());
                     });
-                }
+                }  
             });
         }
     }

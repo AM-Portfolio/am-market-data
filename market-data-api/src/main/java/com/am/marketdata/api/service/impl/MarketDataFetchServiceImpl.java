@@ -517,7 +517,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     @Override
     public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
         log.info("Processing historical data request for symbols: {} from {} to {}, interval: {}, filterType: {}", 
-                request.getSymbols(), request.getFrom(), request.getTo(), request.getInterval(), request.getFilterType());
+                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()), request.getFilterType());
         
         // Parse symbols
         Set<String> symbolList = parseSymbols(request.getSymbols());
@@ -552,7 +552,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         
         // Get historical data
         Map<String, Object> response = getHistoricalDataMultipleSymbols(
-            symbolList, fromDate, toDate, request.getInterval(), request.getInstrumentType(), 
+            symbolList, fromDate, toDate, TimeFrame.fromApiValue(request.getInterval()), request.getInstrumentType(), 
             additionalParams, request.isForceRefresh());
         
         // Add cache status if not present
