@@ -1,7 +1,8 @@
 package com.am.marketdata.redis.service;
 
-import com.am.common.investment.model.historical.OHLCVTPoint;
 import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
+
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.util.BarCalculatorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ public class BarCalculator {
      * @param date The date for which to calculate bars
      * @return List of calculated OHLCV bars
      */
-    public List<OHLCVTPoint> calculateBars(List<OHLCVTPoint> prices, String interval, LocalDate date) {
+    public List<OHLCV> calculateBars(List<OHLCV> prices, String interval, LocalDate date) {
         if (prices == null || prices.isEmpty()) {
             return Collections.emptyList();
         }
@@ -33,7 +34,7 @@ public class BarCalculator {
         BarCalculatorUtil.validateInterval(interval);
         
         // Sort prices by timestamp
-        prices.sort(Comparator.comparing(OHLCVTPoint::getTime));
+        prices.sort(Comparator.comparing(OHLCV::getTime));
         
         if (interval.equals(INTERVAL_1_DAY)) {
             return calculateDailyBar(prices, date);
@@ -45,16 +46,16 @@ public class BarCalculator {
     /**
      * Calculate intraday bars (5m, 15m, 30m, 1h, 4h)
      */
-    private List<OHLCVTPoint> calculateIntradayBars(List<OHLCVTPoint> prices, String interval, LocalDate date) {
+    private List<OHLCV> calculateIntradayBars(List<OHLCV> prices, String interval, LocalDate date) {
         int minutes = BarCalculatorUtil.INTERVAL_MINUTES.get(interval);
-        Map<LocalDateTime, List<OHLCVTPoint>> groupedPrices = 
+        Map<LocalDateTime, List<OHLCV>> groupedPrices = 
                 BarCalculatorUtil.groupPricesByInterval(prices, minutes, date);
         
-        List<OHLCVTPoint> bars = new ArrayList<>();
+        List<OHLCV> bars = new ArrayList<>();
         
-        for (Map.Entry<LocalDateTime, List<OHLCVTPoint>> entry : groupedPrices.entrySet()) {
+        for (Map.Entry<LocalDateTime, List<OHLCV>> entry : groupedPrices.entrySet()) {
             LocalDateTime barTime = entry.getKey();
-            List<OHLCVTPoint> barPrices = entry.getValue();
+            List<OHLCV> barPrices = entry.getValue();
             
             if (!barPrices.isEmpty()) {
                 bars.add(BarCalculatorUtil.createBar(barPrices, barTime));
@@ -67,7 +68,7 @@ public class BarCalculator {
     /**
      * Calculate a single daily bar
      */
-    private List<OHLCVTPoint> calculateDailyBar(List<OHLCVTPoint> prices, LocalDate date) {
+    private List<OHLCV> calculateDailyBar(List<OHLCV> prices, LocalDate date) {
         LocalDateTime barTime = date.atStartOfDay();
         return Collections.singletonList(BarCalculatorUtil.createBar(prices, barTime));
     }

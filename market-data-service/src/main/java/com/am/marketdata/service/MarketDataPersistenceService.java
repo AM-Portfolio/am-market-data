@@ -54,6 +54,15 @@ public class MarketDataPersistenceService {
         this.ohlcMapper = ohlcMapper;
         this.taskExecutor = taskExecutor;
     }
+    
+    /**
+     * Get the market data cache service
+     * 
+     * @return The market data cache service
+     */
+    public MarketDataCacheService getMarketDataCacheService() {
+        return marketDataCacheService;
+    }
 
     public CompletableFuture<Void> saveOHLCData(Map<String, OHLCQuote> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {

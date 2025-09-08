@@ -189,6 +189,12 @@ public abstract class AbstractMarketDataRetriever<K, T> {
         Map<K, T> result = retrieveFromDatabase(keys, timeFrame);
         log.info("Found {} keys in database for timeFrame {}", result.size(), timeFrame.getApiValue());
         
+        // Update cache with database results if configured to do so and we have data
+        if (cacheResults && !result.isEmpty()) {
+            log.info("Updating cache with {} keys from database for timeFrame {}", result.size(), timeFrame.getApiValue());
+            updateCacheOnly(result);
+        }
+        
         // Find keys not in database
         Set<K> remainingKeys = new HashSet<>(keys);
         remainingKeys.removeAll(result.keySet());
@@ -196,12 +202,13 @@ public abstract class AbstractMarketDataRetriever<K, T> {
         if (!remainingKeys.isEmpty()) {
             log.info("Retrieving {} remaining keys from provider (timeFrame not supported by provider)", remainingKeys.size());
             Map<K, T> providerData = retrieveFromProvider(new ArrayList<K>(remainingKeys));
-            
+
             // Cache provider data if configured to do so
             if (cacheResults && !providerData.isEmpty()) {
+                log.info("Saving {} keys from provider to database and cache for timeFrame {}", providerData.size(), timeFrame.getApiValue());
                 saveDataAsync(providerData);
             }
-            
+
             // Add provider data to result
             result.putAll(providerData);
         }
@@ -240,11 +247,19 @@ public abstract class AbstractMarketDataRetriever<K, T> {
     }
 
     /**
-     * Save data to persistence asynchronously
+     * Save data to persistence asynchronously (both database and cache)
      *
      * @param data The data to save
      */
     protected abstract void saveDataAsync(Map<K, T> data);
+    
+    /**
+     * Update only the cache with the provided data, without saving to database
+     * This is useful when we already have data from the database and just want to refresh the cache
+     *
+     * @param data The data to update in the cache
+     */
+    protected abstract void updateCacheOnly(Map<K, T> data);
 
     /**
      * Abstract builder for market data retrievers

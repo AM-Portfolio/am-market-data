@@ -1,9 +1,9 @@
 package com.am.marketdata.redis.cache;
 
-import com.am.common.investment.model.historical.OHLCVTPoint;
 import static com.am.marketdata.common.constants.TimeIntervalConstants.HISTORICAL_INTERVALS;
 import static com.am.marketdata.common.constants.TimeIntervalConstants.INTRADAY_INTERVALS;
 
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -83,7 +83,7 @@ public class StockRedisCache {
      * @param bars     List of OHLCV bars
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCVTPoint> bars) {
+    public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCV> bars) {
         validateInterval(interval);
         validateDate(date);
         
@@ -126,7 +126,7 @@ public class StockRedisCache {
             // For each StockBars object, we need to save each bar individually
             // as they might represent different dates
             String symbol = stockBars.getSymbol();
-            List<OHLCVTPoint> bars = stockBars.getBars();
+            List<OHLCV> bars = stockBars.getBars();
             
             if (bars == null || bars.isEmpty()) {
                 log.warn("Empty bars list for symbol: {}", symbol);
@@ -138,7 +138,7 @@ public class StockRedisCache {
             String startDate = stockBars.getStartDate();
             String endDate = stockBars.getEndDate() != null ? stockBars.getEndDate() : startDate;
             
-            for (OHLCVTPoint bar : bars) {
+            for (OHLCV bar : bars) {
                 // Format the date from the bar's timestamp
                 String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
                 if (!saveHistoricalBar(symbol, barDate, bar, stockBars.getInterval())) {
@@ -158,7 +158,7 @@ public class StockRedisCache {
      * @param bar    OHLCV bar for the day
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveHistoricalBar(String symbol, String date, OHLCVTPoint bar, String interval) {
+    public boolean saveHistoricalBar(String symbol, String date, OHLCV bar, String interval) {
         validateDate(date);
         
         String key = generateKey(HISTORICAL_PREFIX, symbol, interval, date);
@@ -206,8 +206,8 @@ public class StockRedisCache {
             
             // Reconstruct StockBars from stored bar data
             if (HISTORICAL_INTERVALS.contains(interval)) {
-                // For historical data, we stored a single OHLCVTPoint
-                OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
+                // For historical data, we stored a single OHLCV
+                OHLCV bar = redisObjectMapper.readValue(json, OHLCV.class);
                 return StockBars.builder()
                         .symbol(symbol)
                         .interval(interval)
@@ -216,9 +216,9 @@ public class StockRedisCache {
                         .bars(Collections.singletonList(bar))
                         .build();
             } else {
-                // For intraday data, we stored a List<OHLCVTPoint>
-                List<OHLCVTPoint> bars = redisObjectMapper.readValue(json, 
-                        new TypeReference<List<OHLCVTPoint>>() {});
+                // For intraday data, we stored a List<OHLCV>
+                List<OHLCV> bars = redisObjectMapper.readValue(json, 
+                        new TypeReference<List<OHLCV>>() {});
                 return StockBars.builder()
                         .symbol(symbol)
                         .interval(interval)
@@ -301,8 +301,8 @@ public class StockRedisCache {
                     
                     // Reconstruct StockBars from stored bar data
                     if (HISTORICAL_INTERVALS.contains(interval)) {
-                        // For historical data, we stored a single OHLCVTPoint
-                        OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
+                        // For historical data, we stored a single OHLCV
+                        OHLCV bar = redisObjectMapper.readValue(json, OHLCV.class);
                         StockBars stockBars = StockBars.builder()
                                 .symbol(symbol)
                                 .interval(interval)
@@ -312,9 +312,9 @@ public class StockRedisCache {
                                 .build();
                         result.put(symbol, stockBars);
                     } else {
-                        // For intraday data, we stored a List<OHLCVTPoint>
-                        List<OHLCVTPoint> bars = redisObjectMapper.readValue(json, 
-                                new TypeReference<List<OHLCVTPoint>>() {});
+                        // For intraday data, we stored a List<OHLCV>
+                        List<OHLCV> bars = redisObjectMapper.readValue(json, 
+                                new TypeReference<List<OHLCV>>() {});
                         StockBars stockBars = StockBars.builder()
                                 .symbol(symbol)
                                 .interval(interval)

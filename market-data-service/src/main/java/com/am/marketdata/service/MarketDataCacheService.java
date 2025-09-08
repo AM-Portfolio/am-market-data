@@ -5,6 +5,7 @@ import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.common.util.ApplicationContextProvider;
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.redis.util.CacheLoggingUtil;
@@ -43,32 +44,33 @@ public class MarketDataCacheService {
     public void cacheOHLCData(Map<String, OHLCQuote> ohlcData) {
         try {
             LocalDate today = LocalDate.now();
-            Map<String, List<OHLCVTPoint>> symbolPrices = new HashMap<>();
+            Map<String, List<OHLCV>> symbolPrices = new HashMap<>();
             
-            // Convert OHLC quotes to OHLCVTPoint objects
+            // Convert OHLC quotes to OHLCV objects
             for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
                 String fullSymbol = entry.getKey();
                 String symbol = fullSymbol.replace("NSE:", "");
                 OHLCQuote quote = entry.getValue();
                 
-                // Create OHLCVTPoint from OHLCQuote
-                OHLCVTPoint point = stockCacheService.createPricePoint(
+                // Create OHLCV from OHLCQuote
+                OHLCV ohlcv = StockCacheService.createPricePoint(
                     LocalDateTime.now(), 
                     quote.getOhlc().getOpen(), 
                     quote.getOhlc().getHigh(), 
                     quote.getOhlc().getLow(), 
                     quote.getOhlc().getClose(), 
-                    0L // Default volume as it might not be available in OHLCQuote
+                    0L, // Default volume as it might not be available in OHLCQuote
+                    quote.getLastPrice()
                 );
                 
                 // Add to map
-                symbolPrices.computeIfAbsent(symbol, k -> new ArrayList<>()).add(point);
+                symbolPrices.computeIfAbsent(symbol, k -> new ArrayList<>()).add(ohlcv);
             }
             
             // Process and cache data for each symbol
             if (!symbolPrices.isEmpty()) {
                 // Use the specialized cache logging utility
-                CacheLoggingUtil.logBatchOHLCCaching(log, symbolPrices, today);
+                //CacheLoggingUtil.logBatchOHLCCaching(log, symbolPrices, today);
                 
                 // Process and cache the data
                 stockCacheService.processAndCacheMultiSymbolData(symbolPrices, today);
@@ -88,7 +90,8 @@ public class MarketDataCacheService {
             }
             
             // Get the data points directly as OHLCVTPoint objects
-            List<OHLCVTPoint> points = (List<OHLCVTPoint>) historicalData.getDataPoints();
+            List<OHLCVTPoint> points =  historicalData.getDataPoints();
+            List<OHLCV> ohlcvs = points.stream().map(point -> StockCacheService.createPricePoint(point.getTime(), point.getOpen(), point.getHigh(), point.getLow(), point.getClose(), point.getVolume(), null)).collect(Collectors.toList());
             
             // Cache the historical data
             if (!points.isEmpty()) {
@@ -103,11 +106,12 @@ public class MarketDataCacheService {
                     for (OHLCVTPoint point : points) {
                         LocalDate date = point.getTime().toLocalDate();
                         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
-                        stockCacheService.cacheHistoricalBar(symbol, dateStr, point, timeFrame);
+                        OHLCV ohlcv = StockCacheService.createPricePoint(point.getTime(), point.getOpen(), point.getHigh(), point.getLow(), point.getClose(), point.getVolume(), null);
+                        stockCacheService.cacheHistoricalBar(symbol, dateStr, ohlcv, timeFrame);
                     }
                 } else {
                     // For intraday data, use the intraday bars caching
-                    stockCacheService.cacheIntradayBars(symbol, timeFrame.getApiValue(), points);
+                    stockCacheService.cacheIntradayBars(symbol, timeFrame.getApiValue(), ohlcvs);
                 }
             }
         } catch (Exception e) {
@@ -148,7 +152,7 @@ public class MarketDataCacheService {
                 
                 if (bars != null && bars.getBars() != null && !bars.getBars().isEmpty()) {
                     // Get the latest bar
-                    OHLCVTPoint latestBar = bars.getBars().get(bars.getBars().size() - 1);
+                    OHLCV latestBar = bars.getBars().get(bars.getBars().size() - 1);
                     
                     // Create OHLCQuote from the latest bar
                     OHLCQuote quote = createOHLCQuoteFromBar(latestBar);
@@ -188,7 +192,7 @@ public class MarketDataCacheService {
             // For daily data
             if (timeFrame == TimeFrame.DAY || timeFrame == TimeFrame.WEEK || timeFrame == TimeFrame.MONTH || timeFrame == TimeFrame.YEAR) {
                 // Get historical bars for each day in the range
-                List<OHLCVTPoint> points = new ArrayList<>();
+                List<OHLCV> points = new ArrayList<>();
                 Map<String, String> cacheHits = new HashMap<>();
                 
                 // Iterate through each day in the range
@@ -199,7 +203,8 @@ public class MarketDataCacheService {
                         symbol.toUpperCase(), timeFrame.getApiValue(), dateStr);
                     
                     StockBars stockBars = stockCacheService.getBarsWithStats(symbol, timeFrame.getApiValue(), dateStr);
-                    OHLCVTPoint bar = null;
+                    List<OHLCV> bars = stockBars.getBars();
+                    OHLCV bar = null;
                     if (stockBars != null && stockBars.getBars() != null && !stockBars.getBars().isEmpty()) {
                         bar = stockBars.getBars().get(0);
                         
@@ -230,7 +235,7 @@ public class MarketDataCacheService {
                     symbol.toUpperCase(), timeFrame.getApiValue(), dateStr);
                 
                 StockBars stockBars = stockCacheService.getBarsWithStats(symbol, timeFrame.getApiValue(), dateStr);
-                List<OHLCVTPoint> bars = (stockBars != null) ? stockBars.getBars() : null;
+                List<OHLCV> bars = (stockBars != null) ? stockBars.getBars() : null;
                 
                 if (bars != null && !bars.isEmpty()) {
                     // Log the cache hit
@@ -239,7 +244,7 @@ public class MarketDataCacheService {
                     
                     // Log detailed data at debug level
                     if (log.isDebugEnabled()) {
-                        for (OHLCVTPoint bar : bars) {
+                        for (OHLCV bar : bars) {
                             log.debug("Retrieved data point: time={}, open={}, high={}, low={}, close={}, volume={}",
                                 bar.getTime(), bar.getOpen(), bar.getHigh(), bar.getLow(), bar.getClose(), bar.getVolume());
                         }
@@ -260,18 +265,28 @@ public class MarketDataCacheService {
     }
 
     /**
-     * Convert OHLCVTPoint list to HistoricalData
+     * Convert OHLCV list to HistoricalData
      *
      * @param symbol The trading symbol
-     * @param points List of OHLCVTPoint objects
+     * @param points List of OHLCV objects
      * @return HistoricalData object
      */
-    private HistoricalData convertToHistoricalData(String symbol, List<OHLCVTPoint> points) {
+    private HistoricalData convertToHistoricalData(String symbol, List<OHLCV> points) {
         HistoricalData historicalData = new HistoricalData();
         historicalData.setTradingSymbol(symbol);
         
-        // Set the OHLCVTPoint list directly as dataPoints
-        historicalData.setDataPoints(points);
+        List<OHLCVTPoint> ohlcvtPoints = points.stream().map(point -> 
+        OHLCVTPoint.builder()
+        .time(point.getTime())
+        .open(point.getOpen())
+        .high(point.getHigh())
+        .low(point.getLow())
+        .close(point.getClose())
+        .volume(point.getVolume())
+        .build()
+        ).collect(Collectors.toList());
+        // Set the OHLCV list directly as dataPoints
+        historicalData.setDataPoints(ohlcvtPoints);
         
         // No need for additional logging here as the calling methods already log the details
         
@@ -279,12 +294,12 @@ public class MarketDataCacheService {
     }
 
     /**
-     * Create an OHLCQuote object from an OHLCVTPoint
+     * Create an OHLCQuote object from an OHLCV
      *
-     * @param bar The OHLCVTPoint bar
+     * @param bar The OHLCV bar
      * @return OHLCQuote object
      */
-    private OHLCQuote createOHLCQuoteFromBar(OHLCVTPoint bar) {
+    private OHLCQuote createOHLCQuoteFromBar(OHLCV bar) {
         // Create a new OHLCQuote object
         OHLCQuote quote = new OHLCQuote();
         
@@ -297,7 +312,7 @@ public class MarketDataCacheService {
         
         // Set the OHLC and last price in the quote
         quote.setOhlc(ohlc);
-        quote.setLastPrice(bar.getClose()); // Set last price to close price
+        quote.setLastPrice(bar.getLastPrice()); // Set last price to close price
         
         // Log at debug level
         if (log.isDebugEnabled()) {

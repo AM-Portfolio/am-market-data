@@ -3,7 +3,7 @@ package com.am.marketdata.redis.service;
 import com.am.marketdata.common.model.TimeFrame;
 import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
 import com.am.marketdata.redis.cache.StockRedisCache;
-import com.am.common.investment.model.historical.OHLCVTPoint;
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class StockCacheService {
     /**
      * Cache intraday bars for a symbol
      */
-    public boolean cacheIntradayBars(String symbol, String interval, List<OHLCVTPoint> bars) {
+    public boolean cacheIntradayBars(String symbol, String interval, List<OHLCV> bars) {
         // Create StockBars object for the symbol service
         String dateStr = LocalDate.now().format(DATE_FORMATTER);
         StockBars stockBars = StockBars.builder()
@@ -51,7 +51,7 @@ public class StockCacheService {
     /**
      * Cache a historical bar for a symbol and date
      */
-    public boolean cacheHistoricalBar(String symbol, String date, OHLCVTPoint bar, TimeFrame timeFrame) {
+    public boolean cacheHistoricalBar(String symbol, String date, OHLCV bar, TimeFrame timeFrame) {
         // Create StockBars object for the historical service
         StockBars stockBars = StockBars.builder()
                 .symbol(symbol)
@@ -150,7 +150,7 @@ public class StockCacheService {
      * @param date The date for which to calculate bars
      * @return Map of interval to success status
      */
-    public Map<String, Boolean> processAndCacheRawPriceData(String symbol, List<OHLCVTPoint> rawPrices, LocalDate date) {
+    public Map<String, Boolean> processAndCacheRawPriceData(String symbol, List<OHLCV> rawPrices, LocalDate date) {
         if (rawPrices == null || rawPrices.isEmpty()) {
             log.warn("No raw price data provided for symbol: {}", symbol);
             return Map.of();
@@ -161,7 +161,7 @@ public class StockCacheService {
         try {
             // Process and cache intraday bars
             for (String interval : INTRADAY_INTERVALS) {
-                List<OHLCVTPoint> bars = barCalculator.calculateBars(rawPrices, interval, date);
+                List<OHLCV> bars = barCalculator.calculateBars(rawPrices, interval, date);
                 if (!bars.isEmpty()) {
                     // Create StockBars object for the symbol service
                     StockBars stockBars = StockBars.builder()
@@ -178,7 +178,7 @@ public class StockCacheService {
             }
             
             // Process and cache daily bar
-            // List<OHLCVTPoint> dailyBars = barCalculator.calculateBars(rawPrices, INTERVAL_1_DAY, date);
+            // List<OHLCV> dailyBars = barCalculator.calculateBars(rawPrices, INTERVAL_1_DAY, date);
             // if (!dailyBars.isEmpty()) {
             //     // Create StockBars object for the historical service
             //     StockBars stockBars = StockBars.builder()
@@ -208,13 +208,13 @@ public class StockCacheService {
      * @return Map of symbol to interval results
      */
     public Map<String, Map<String, Boolean>> processAndCacheMultiSymbolData(
-            Map<String, List<OHLCVTPoint>> symbolPrices, LocalDate date) {
+            Map<String, List<OHLCV>> symbolPrices, LocalDate date) {
         
         Map<String, Map<String, Boolean>> result = new HashMap<>();
         
-        for (Map.Entry<String, List<OHLCVTPoint>> entry : symbolPrices.entrySet()) {
+        for (Map.Entry<String, List<OHLCV>> entry : symbolPrices.entrySet()) {
             String symbol = entry.getKey();
-            List<OHLCVTPoint> prices = entry.getValue();
+            List<OHLCV> prices = entry.getValue();
             
             Map<String, Boolean> symbolResult = processAndCacheRawPriceData(symbol, prices, date);
             result.put(symbol, symbolResult);
@@ -222,27 +222,16 @@ public class StockCacheService {
         
         return result;
     }
-    
-    
-    public OHLCVTPoint createPricePoint(LocalDateTime timestamp, double price, long volume) {
-        return OHLCVTPoint.builder()
-                .time(timestamp)
-                .open(price)
-                .high(price)
-                .low(price)
-                .close(price)
-                .volume(volume)
-                .build();
-    }
 
-    public OHLCVTPoint createPricePoint(LocalDateTime timestamp, double open, double high, double low, double close, long volume) {
-        return OHLCVTPoint.builder()
+    public static OHLCV createPricePoint(LocalDateTime timestamp, double open, double high, double low, double close, long volume, Double lastPrice) {
+        return OHLCV.builder()
                 .time(timestamp)
                 .open(open)
                 .high(high)
                 .low(low)
                 .close(close)
                 .volume(volume)
+                .lastPrice(lastPrice)
                 .build();
     }
 }
