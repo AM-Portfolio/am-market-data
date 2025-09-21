@@ -98,5 +98,10 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.myportfolio</groupId>
+            <artifactId>jwt-login</artifactId>
+            <version>${jwt-login.version}</version>
+        </dependency>
     </dependencies>
 </project>

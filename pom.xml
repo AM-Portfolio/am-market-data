@@ -36,6 +36,7 @@
         <kong-unirest.version>3.14.5</kong-unirest.version>
         <investment-model.version>1.6.21-SNAPSHOT</investment-model.version>
         <investment-service.version>1.6.21-SNAPSHOT</investment-service.version>
+        <jwt-login.version>1.0.1</jwt-login.version>
     </properties>
 
     <dependencyManagement>
@@ -66,6 +67,12 @@
             <id>github-am-common</id>
             <name>GitHub AM Common Data Model Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/AM-Portfolio/am-common-data-parent</url>
+        </repository>
+
+        <repository>
+            <id>github-jwt-login</id>
+            <name>GitHub JWT Login Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/AM-Portfolio/jwt-login</url>
         </repository>
     </repositories>
 
