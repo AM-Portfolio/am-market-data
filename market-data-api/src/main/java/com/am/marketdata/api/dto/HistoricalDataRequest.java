@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.Map;
 
 import com.am.marketdata.common.model.TimeFrame;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Request DTO for historical data API
@@ -16,6 +17,7 @@ import com.am.marketdata.common.model.TimeFrame;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HistoricalDataRequest {
     
     private String symbols;
@@ -24,7 +26,8 @@ public class HistoricalDataRequest {
     
     private String to;
     
-    private TimeFrame interval;
+    @Builder.Default
+    private String interval=TimeFrame.DAY.getApiValue();
     
     private boolean continuous;
     

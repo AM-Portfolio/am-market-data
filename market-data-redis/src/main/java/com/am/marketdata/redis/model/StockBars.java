@@ -1,7 +1,5 @@
 package com.am.marketdata.redis.model;
 
-import com.am.common.investment.model.historical.OHLCVTPoint;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,5 +19,5 @@ public class StockBars {
     private String interval;
     private String startDate;
     private String endDate;
-    private List<OHLCVTPoint> bars;
+    private List<OHLCV> bars;
 }

@@ -1,6 +1,7 @@
 package com.am.marketdata.service.util;
 
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 import com.marketdata.common.MarketDataProvider;
 
 import com.am.marketdata.service.MarketDataPersistenceService;
@@ -47,12 +48,12 @@ public class MarketDataRetrievalUtil {
     public Map<String, OHLCQuote> retrieveFromCache(
             MarketDataPersistenceService persistenceService,
             List<String> tradingSymbols,
-            Set<String> remainingSymbols) {
+            Set<String> remainingSymbols,TimeFrame timeFrame) {
         
         log.info("[DATA_SOURCE] Attempting to fetch OHLC data from cache for {} symbols", 
                 remainingSymbols.size());
         
-        Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, false);
+        Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, timeFrame,  false);
         
         if (cachedData != null && !cachedData.isEmpty()) {
             log.info("[DATA_SOURCE] Found {} OHLC quotes in cache", cachedData.size());
@@ -78,7 +79,8 @@ public class MarketDataRetrievalUtil {
      */
     public Map<String, OHLCQuote> retrieveFromDatabase(
             MarketDataPersistenceService persistenceService,
-            Set<String> remainingSymbols) {
+            Set<String> remainingSymbols,
+            TimeFrame timeFrame) {
         
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
@@ -90,7 +92,7 @@ public class MarketDataRetrievalUtil {
         List<String> remainingSymbolsList = new ArrayList<>(remainingSymbols);
         
         // Force refresh is true here because we want to bypass cache and go directly to database
-        Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, true);
+        Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, timeFrame, true);
         
         if (dbData != null && !dbData.isEmpty()) {
             log.info("[DATA_SOURCE] Found {} OHLC quotes in database", dbData.size());

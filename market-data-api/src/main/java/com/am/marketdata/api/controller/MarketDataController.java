@@ -12,22 +12,36 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import com.am.marketdata.api.dto.HistoricalDataRequest;
+import com.am.marketdata.api.model.OHLCRequest;
+import com.am.marketdata.api.model.QuotesRequest;
+import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
+import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.service.MarketDataService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.am.marketdata.api.dto.HistoricalDataRequest;
-import com.am.marketdata.api.model.OHLCRequest;
-import com.am.marketdata.api.service.InvestmentInstrumentService;
-import com.am.marketdata.service.MarketDataService;
-
 /**
  * REST API controller for market data operations
+ * Provides endpoints for fetching various types of market data including quotes, OHLC, historical data,
+ * option chains, mutual fund details, and more
  */
 @RestController
 @RequestMapping("/api/v1/market-data")
+@Tag(name = "Market Data", description = "APIs for retrieving various types of market data including quotes, historical data, option chains, and more")
 public class MarketDataController {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataController.class);
@@ -47,9 +61,15 @@ public class MarketDataController {
 
     /**
      * Get login URL for authentication
-     * @return Login URL
+     * @return Login URL for broker authentication
      */
-    @GetMapping("/auth/login-url")
+    @GetMapping(value = "/auth/login-url", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get login URL for broker authentication",
+            description = "Returns a URL that can be used to authenticate with the broker's login page")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login URL generated successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, String>> getLoginUrl() {
         try {
             Map<String, String> response = marketDataService.getLoginUrl();
@@ -62,10 +82,19 @@ public class MarketDataController {
 
     /**
      * Generate session from request token
-     * @param requestToken Request token
+     * @param requestToken Request token from broker authentication
+     * @param requestTokenAlt Alternative request token parameter name
+     * @param status Authentication status
      * @return Session information
      */
-    @GetMapping("/auth/session")
+    @GetMapping(value = "/auth/session", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Generate session from request token",
+            description = "Creates a new authenticated session using the request token obtained from broker login")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Session generated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request token or authentication failed"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Object> generateSession(
             @RequestParam(value = "request_token", required = false) String requestToken,
             @RequestParam(value = "requestToken", required = false) String requestTokenAlt,
@@ -101,41 +130,102 @@ public class MarketDataController {
     }
 
     /**
-     * Get quotes for symbols
+     * Get quotes for symbols with timeframe support
      * @param symbols Comma-separated list of symbols
+     * @param timeFrameStr The timeframe for quotes (e.g., 5m, 15m, 1H, 1D)
+     * @param forceRefresh Whether to force refresh from provider
      * @return Map of symbol to quote data with metadata
      */
-    @GetMapping("/quotes")
+    @GetMapping(value = "/quotes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get quotes for multiple symbols",
+            description = "Retrieves latest quotes for multiple symbols with support for different timeframes")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Quotes retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getQuotes(
             @RequestParam("symbols") String symbols,
+            @RequestParam(name = "timeFrame", defaultValue = "5m") String timeFrameStr,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for quotes for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
+            log.info("Controller received request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                symbols, timeFrameStr, forceRefresh);
+            
+            // Parse symbols and timeframe
             Set<String> symbolList = parseSymbols(symbols);
+            TimeFrame timeFrame = TimeFrame.fromApiValue(timeFrameStr);
             
             // Use cache service instead of direct service call
-            Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(symbolList, forceRefresh);
+            Map<String, Object> quotesResponse = marketDataCacheService.getQuotes(symbolList, false, timeFrame, forceRefresh);
             
             // Check if there was an error
-            if (quotesMap.containsKey("ERROR")) {
+            if (quotesResponse.containsKey("ERROR")) {
                 Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", quotesMap.get("ERROR").get("error"));
-                errorResponse.put("message", quotesMap.get("ERROR").get("message"));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> errorDetails = (Map<String, Object>) quotesResponse.get("ERROR");
+                errorResponse.put("error", errorDetails.get("error"));
+                errorResponse.put("message", errorDetails.get("message"));
                 return ResponseEntity.internalServerError().body(errorResponse);
             }
             
-            // Convert to the response format expected by clients
-            Map<String, Object> response = new HashMap<>();
-            response.put("quotes", quotesMap);
-            response.put("count", quotesMap.size());
-            response.put("timestamp", new Date());
-            response.put("cached", !forceRefresh);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {                                                                                                                                                                        
-            log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
+            return ResponseEntity.ok(quotesResponse);
+        } catch (IllegalArgumentException e) {
+            // Handle invalid timeframe
+            log.error("Invalid timeFrame parameter: {}", timeFrameStr, e);
             Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to fetch quotes");
+            errorResponse.put("error", "INVALID_PARAMETER");
+            errorResponse.put("message", "Invalid timeFrame parameter: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "INTERNAL_ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /**
+     * Get quotes for symbols with timeframe support (POST version)
+     * @param request The quotes request containing symbols and timeframe
+     * @return Map of symbol to quote data with metadata
+     */
+    @PostMapping(value = "/quotes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get quotes for multiple symbols (POST)",
+            description = "Retrieves latest quotes for multiple symbols with support for different timeframes using POST request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Quotes retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> getQuotesPost(@RequestBody QuotesRequest request) {
+        try {
+            log.info("Controller received POST request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}", 
+                request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
+            
+            // Parse symbols
+            Set<String> symbolList = parseSymbols(request.getSymbols());
+            
+            // Use cache service instead of direct service call
+            Map<String, Object> quotesResponse = marketDataCacheService.getQuotes(
+                symbolList, request.isIndexSymbol(), TimeFrame.fromApiValue(request.getTimeFrame()), request.isForceRefresh());
+            
+            // Check if there was an error
+            if (quotesResponse.containsKey("ERROR")) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> errorDetails = (Map<String, Object>) quotesResponse.get("ERROR");
+                errorResponse.put("error", errorDetails.get("error"));
+                errorResponse.put("message", errorDetails.get("message"));
+                return ResponseEntity.internalServerError().body(errorResponse);
+            }
+            
+            return ResponseEntity.ok(quotesResponse);
+        } catch (Exception e) {
+            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "INTERNAL_ERROR");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
@@ -146,7 +236,14 @@ public class MarketDataController {
      * @param request Request body containing symbols and options
      * @return Map of symbol to OHLC data with cache status
      */
-    @PostMapping("/ohlc")
+    @PostMapping(value = "/ohlc", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get OHLC data for multiple symbols",
+            description = "Retrieves Open-High-Low-Close data for multiple symbols with support for different timeframes")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "OHLC data retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
             log.info("Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}", 
@@ -155,7 +252,7 @@ public class MarketDataController {
             
             // Use cache service instead of direct service call
             Map<String, Object> response = marketDataCacheService.getOHLC(
-                symbolList, request.isIndexSymbol(), request.getTimeFrame(), request.isForceRefresh());
+                symbolList, request.isIndexSymbol(), TimeFrame.fromApiValue(request.getTimeFrame()), request.isForceRefresh());
             
             // Check if there was an error
             if (response.containsKey("error")) {
@@ -183,10 +280,17 @@ public class MarketDataController {
      * @param request Request body containing symbols, date range, and other parameters
      * @return Historical data with metadata
      */
-    @PostMapping("/historical-data")
+    @PostMapping(value = "/historical-data", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get historical market data",
+            description = "Retrieves historical price and volume data for one or more instruments with filtering options")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Historical data retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
         log.info("Controller received POST request for historical data for symbols: {} from {} to {}, interval: {}, filterType: {}, forceRefresh: {}", 
-                request.getSymbols(), request.getFrom(), request.getTo(), request.getInterval(), request.getFilterType(), request.isForceRefresh());
+                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()), request.getFilterType(), request.isForceRefresh());
         
         try {
             // Delegate all processing to the service
@@ -214,10 +318,21 @@ public class MarketDataController {
     }
 
     /**
-     * Get all available symbols
-     * @return List of symbols
+     * Get all available symbols with pagination and filtering
+     * @param page Page number for pagination
+     * @param size Page size for pagination
+     * @param symbol Symbol filter
+     * @param type Instrument type filter
+     * @param exchange Exchange filter
+     * @return List of symbols with pagination metadata
      */
-    @GetMapping("/symbols")
+    @GetMapping(value = "/symbols", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Search for available trading symbols",
+            description = "Search for available trading symbols with pagination and filtering options")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Symbols retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> searchSymbols(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -251,7 +366,13 @@ public class MarketDataController {
      * @param exchange Exchange name
      * @return List of symbols for the exchange
      */
-    @GetMapping("/symbols/{exchange}")
+    @GetMapping(value = "/symbols/{exchange}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get symbols for a specific exchange",
+            description = "Retrieves all available trading symbols for a specific exchange")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Symbols retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<List<Object>> getSymbolsForExchange(@PathVariable String exchange) {
         try {
             List<Object> symbols = marketDataService.getSymbolsForExchange(exchange);
@@ -266,7 +387,13 @@ public class MarketDataController {
      * Logout and invalidate session
      * @return Success status
      */
-    @PostMapping("/auth/logout")
+    @PostMapping(value = "/auth/logout", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Logout and invalidate session",
+            description = "Invalidates the current broker session and clears authentication tokens")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logout successful"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> logout() {
         try {
             Map<String, Object> response = marketDataService.logout();
@@ -282,9 +409,17 @@ public class MarketDataController {
      * 
      * @param underlyingSymbol Symbol of the underlying instrument
      * @param expiryDate Optional expiry date (yyyy-MM-dd)
+     * @param forceRefresh Whether to force refresh from provider
      * @return Option chain data with calls and puts
      */
-    @GetMapping("/option-chain")
+    @GetMapping(value = "/option-chain", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get option chain data",
+            description = "Retrieves option chain data including calls and puts for a given underlying instrument")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Option chain data retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getOptionChain(
             @RequestParam("symbol") String underlyingSymbol,
             @RequestParam(required = false) String expiryDate,
@@ -332,9 +467,16 @@ public class MarketDataController {
      * Get mutual fund details including NAV, returns, etc.
      * 
      * @param schemeCode Mutual fund scheme code
+     * @param forceRefresh Whether to force refresh from provider
      * @return Mutual fund details
      */
-    @GetMapping("/mutual-fund/{schemeCode}")
+    @GetMapping(value = "/mutual-fund/{schemeCode}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get mutual fund details",
+            description = "Retrieves detailed information about a mutual fund including NAV, returns, and other metrics")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Mutual fund details retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getMutualFundDetails(
             @PathVariable String schemeCode,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
@@ -371,9 +513,17 @@ public class MarketDataController {
      * @param schemeCode Mutual fund scheme code
      * @param from Start date (yyyy-MM-dd)
      * @param to End date (yyyy-MM-dd)
+     * @param forceRefresh Whether to force refresh from provider
      * @return NAV history data
      */
-    @GetMapping("/mutual-fund/{schemeCode}/history")
+    @GetMapping(value = "/mutual-fund/{schemeCode}/history", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get mutual fund NAV history",
+            description = "Retrieves historical Net Asset Value (NAV) data for a mutual fund over a specified date range")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "NAV history retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid date format or request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getMutualFundNavHistory(
             @PathVariable String schemeCode,
             @RequestParam("from") String from,
@@ -422,9 +572,17 @@ public class MarketDataController {
      * Get live prices for all symbols or filtered by symbol IDs
      * 
      * @param symbols Optional comma-separated list of trading symbols to filter by
+     * @param indexSymbol Whether the symbols are index symbols
+     * @param forceRefresh Whether to force refresh from provider
      * @return Map containing prices, count, timestamp and processing time
      */
-    @GetMapping("/live-prices")
+    @GetMapping(value = "/live-prices", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get live market prices",
+            description = "Retrieves real-time market prices for specified symbols or all available symbols")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Live prices retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Map<String, Object>> getLivePrices(
             @RequestParam(name = "symbols", required = false) String symbols,
             @RequestParam(name = "isIndexSymbol", required = false) boolean indexSymbol,

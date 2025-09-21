@@ -167,7 +167,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
     }
     
     /**
-     * Save historical data to persistence asynchronously
+     * Save historical data to persistence asynchronously (both database and cache)
      *
      * @param data The data to save
      */
@@ -181,9 +181,32 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             for (Map.Entry<String, HistoricalData> entry : data.entrySet()) {
                 persistenceService.saveHistoricalData(entry.getKey(), interval, entry.getValue());
             }
-            log.debug("Initiated async save of historical data for {} symbols", data.size());
+            log.debug("Initiated async save of historical data for {} symbols to database and cache", data.size());
         } catch (Exception e) {
             log.error("Error initiating async save of historical data: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Update only the cache with the provided historical data, without saving to database
+     *
+     * @param data The data to update in the cache
+     */
+    @Override
+    protected void updateCacheOnly(Map<String, HistoricalData> data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        
+        try {
+            for (Map.Entry<String, HistoricalData> entry : data.entrySet()) {
+                // Use the MarketDataCacheService directly to update only the cache
+                persistenceService.getMarketDataCacheService().cacheHistoricalData(
+                    entry.getKey(), interval, entry.getValue());
+            }
+            log.debug("Updated cache with historical data for {} symbols", data.size());
+        } catch (Exception e) {
+            log.error("Error updating cache with historical data: {}", e.getMessage(), e);
         }
     }
     

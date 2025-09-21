@@ -9,7 +9,6 @@ import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.KiteModelMapper;
-import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.service.util.DataSourceType;
 import com.am.marketdata.service.util.HistoricalDataRetriever;
@@ -80,7 +79,6 @@ public class MarketDataService  {
     }
     
 
-    @Override
     public Map<String, String> getLoginUrl() {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -101,7 +99,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public Object generateSession(String requestToken) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -120,7 +117,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public Map<String, Object> getQuotes(String[] symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -137,7 +133,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -155,7 +150,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, TimeFrame interval, boolean continuous, Map<String, Object> additionalParams) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -191,7 +185,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public List<Instrument> getAllSymbols() {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -234,7 +227,6 @@ public class MarketDataService  {
         }
     }
     
-    @Override
     public List<Instrument> getSymbolPagination(int page, int size, String symbol, String type, String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -275,7 +267,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public List<Object> getSymbolsForExchange(String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -294,7 +285,6 @@ public class MarketDataService  {
         }
     }
 
-    @Override
     public Map<String, Object> logout() {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
@@ -380,7 +370,6 @@ public class MarketDataService  {
         return prices;
     }
     
-    @Override
     public List<EquityPrice> getLivePrices(List<String> tradingSymbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {

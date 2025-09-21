@@ -1,7 +1,7 @@
 package com.am.marketdata.redis.service;
 
 import com.am.marketdata.redis.cache.StockRedisCache;
-import com.am.common.investment.model.historical.OHLCVTPoint;
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.util.BarCalculatorUtil;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class StockCacheSymbolService {
     /**
      * Cache intraday bars for a symbol with individual parameters
      */
-    public boolean cacheIntradayBars(String symbol, String interval, String date, List<OHLCVTPoint> bars) {
+    public boolean cacheIntradayBars(String symbol, String interval, String date, List<OHLCV> bars) {
         StockBars stockBars = StockBars.builder()
                 .symbol(symbol)
                 .interval(interval)
@@ -109,7 +109,7 @@ public class StockCacheSymbolService {
     /**
      * Process intraday bars for a symbol and interval
      */
-    public boolean processIntradayBars(String symbol, String interval, List<OHLCVTPoint> rawPrices, LocalDate date) {
+    public boolean processIntradayBars(String symbol, String interval, List<OHLCV> rawPrices, LocalDate date) {
         if (rawPrices == null || rawPrices.isEmpty()) {
             log.warn("No raw price data provided for symbol: {} and interval: {}", symbol, interval);
             return false;
@@ -119,18 +119,18 @@ public class StockCacheSymbolService {
             BarCalculatorUtil.validateInterval(interval);
             
             // Sort prices by timestamp
-            rawPrices.sort(Comparator.comparing(OHLCVTPoint::getTime));
+            rawPrices.sort(Comparator.comparing(OHLCV::getTime));
             
             // Group prices by interval
             int minutes = BarCalculatorUtil.INTERVAL_MINUTES.get(interval);
-            Map<LocalDateTime, List<OHLCVTPoint>> groupedPrices = 
+            Map<LocalDateTime, List<OHLCV>> groupedPrices = 
                     BarCalculatorUtil.groupPricesByInterval(rawPrices, minutes, date);
             
             // Create bars for each interval
-            List<OHLCVTPoint> bars = new ArrayList<>();
-            for (Map.Entry<LocalDateTime, List<OHLCVTPoint>> entry : groupedPrices.entrySet()) {
+            List<OHLCV> bars = new ArrayList<>();
+            for (Map.Entry<LocalDateTime, List<OHLCV>> entry : groupedPrices.entrySet()) {
                 LocalDateTime barTime = entry.getKey();
-                List<OHLCVTPoint> barPrices = entry.getValue();
+                List<OHLCV> barPrices = entry.getValue();
                 
                 if (!barPrices.isEmpty()) {
                     bars.add(BarCalculatorUtil.createBar(barPrices, barTime));

@@ -1,6 +1,7 @@
 package com.am.marketdata.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.common.model.OHLCQuote;
 import org.springframework.stereotype.Component;
 
@@ -80,10 +81,8 @@ public class OHLCMapper {
         
         return EquityPrice.builder()
             .symbol(cleanSymbol)
-            .open(ohlcQuote.getOhlc().getOpen())
-            .high(ohlcQuote.getOhlc().getHigh())
-            .low(ohlcQuote.getOhlc().getLow())
-            .close(ohlcQuote.getOhlc().getClose())
+            .lastPrice(ohlcQuote.getLastPrice())
+            .ohlcv(OHLCVTPoint.builder().open(ohlcQuote.getOhlc().getOpen()).high(ohlcQuote.getOhlc().getHigh()).low(ohlcQuote.getOhlc().getLow()).close(ohlcQuote.getOhlc().getClose()).build())
             .time(ZonedDateTime.now().toInstant())
             .exchange("NSE")
             .build();

@@ -1,6 +1,9 @@
 package com.am.marketdata.redis.cache;
 
-import com.am.common.investment.model.historical.OHLCVTPoint;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.HISTORICAL_INTERVALS;
+import static com.am.marketdata.common.constants.TimeIntervalConstants.INTRADAY_INTERVALS;
+
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,6 +21,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+
 /**
  * Redis-based cache for stock price data, supporting both intraday and historical data.
  * Implements key design, TTL strategy, and helper functions for managing stock price data.
@@ -31,9 +35,6 @@ public class StockRedisCache {
 
     private final ObjectMapper redisObjectMapper;
 
-    // Valid intervals
-    private static final Set<String> VALID_INTRADAY_INTERVALS = Set.of("5m", "10m", "15m", "30m", "1H", "4H");
-    private static final Set<String> HISTORICAL_INTERVAL = Set.of("1D", "1W", "1M", "1Y");
     @Value("${redis.cache.ttl.historical:86400}") // Default: 24 hours
     private long historicalTtlSeconds;
     
@@ -82,7 +83,7 @@ public class StockRedisCache {
      * @param bars     List of OHLCV bars
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCVTPoint> bars) {
+    public boolean saveIntradayBars(String symbol, String interval, String date, List<OHLCV> bars) {
         validateInterval(interval);
         validateDate(date);
         
@@ -125,7 +126,7 @@ public class StockRedisCache {
             // For each StockBars object, we need to save each bar individually
             // as they might represent different dates
             String symbol = stockBars.getSymbol();
-            List<OHLCVTPoint> bars = stockBars.getBars();
+            List<OHLCV> bars = stockBars.getBars();
             
             if (bars == null || bars.isEmpty()) {
                 log.warn("Empty bars list for symbol: {}", symbol);
@@ -137,7 +138,7 @@ public class StockRedisCache {
             String startDate = stockBars.getStartDate();
             String endDate = stockBars.getEndDate() != null ? stockBars.getEndDate() : startDate;
             
-            for (OHLCVTPoint bar : bars) {
+            for (OHLCV bar : bars) {
                 // Format the date from the bar's timestamp
                 String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
                 if (!saveHistoricalBar(symbol, barDate, bar, stockBars.getInterval())) {
@@ -157,7 +158,7 @@ public class StockRedisCache {
      * @param bar    OHLCV bar for the day
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveHistoricalBar(String symbol, String date, OHLCVTPoint bar, String interval) {
+    public boolean saveHistoricalBar(String symbol, String date, OHLCV bar, String interval) {
         validateDate(date);
         
         String key = generateKey(HISTORICAL_PREFIX, symbol, interval, date);
@@ -193,7 +194,7 @@ public class StockRedisCache {
         validateInterval(interval);
         validateDate(date);
         
-        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         String key = generateKey(prefix, symbol, interval, date);
         
         try {
@@ -204,9 +205,9 @@ public class StockRedisCache {
             }
             
             // Reconstruct StockBars from stored bar data
-            if (HISTORICAL_INTERVAL.contains(interval)) {
-                // For historical data, we stored a single OHLCVTPoint
-                OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
+            if (HISTORICAL_INTERVALS.contains(interval)) {
+                // For historical data, we stored a single OHLCV
+                OHLCV bar = redisObjectMapper.readValue(json, OHLCV.class);
                 return StockBars.builder()
                         .symbol(symbol)
                         .interval(interval)
@@ -215,9 +216,9 @@ public class StockRedisCache {
                         .bars(Collections.singletonList(bar))
                         .build();
             } else {
-                // For intraday data, we stored a List<OHLCVTPoint>
-                List<OHLCVTPoint> bars = redisObjectMapper.readValue(json, 
-                        new TypeReference<List<OHLCVTPoint>>() {});
+                // For intraday data, we stored a List<OHLCV>
+                List<OHLCV> bars = redisObjectMapper.readValue(json, 
+                        new TypeReference<List<OHLCV>>() {});
                 return StockBars.builder()
                         .symbol(symbol)
                         .interval(interval)
@@ -274,7 +275,7 @@ public class StockRedisCache {
             return Collections.emptyMap();
         }
         
-        String prefix = HISTORICAL_INTERVAL.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        String prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
         List<String> keys = new ArrayList<>(symbols.size());
         
         // Generate all keys to fetch
@@ -299,9 +300,9 @@ public class StockRedisCache {
                     String symbol = symbols.get(i);
                     
                     // Reconstruct StockBars from stored bar data
-                    if (HISTORICAL_INTERVAL.equals(interval)) {
-                        // For historical data, we stored a single OHLCVTPoint
-                        OHLCVTPoint bar = redisObjectMapper.readValue(json, OHLCVTPoint.class);
+                    if (HISTORICAL_INTERVALS.contains(interval)) {
+                        // For historical data, we stored a single OHLCV
+                        OHLCV bar = redisObjectMapper.readValue(json, OHLCV.class);
                         StockBars stockBars = StockBars.builder()
                                 .symbol(symbol)
                                 .interval(interval)
@@ -311,9 +312,9 @@ public class StockRedisCache {
                                 .build();
                         result.put(symbol, stockBars);
                     } else {
-                        // For intraday data, we stored a List<OHLCVTPoint>
-                        List<OHLCVTPoint> bars = redisObjectMapper.readValue(json, 
-                                new TypeReference<List<OHLCVTPoint>>() {});
+                        // For intraday data, we stored a List<OHLCV>
+                        List<OHLCV> bars = redisObjectMapper.readValue(json, 
+                                new TypeReference<List<OHLCV>>() {});
                         StockBars stockBars = StockBars.builder()
                                 .symbol(symbol)
                                 .interval(interval)
@@ -428,10 +429,19 @@ public class StockRedisCache {
      * @throws IllegalArgumentException if interval is invalid
      */
     private void validateInterval(String interval) {
-        if (!VALID_INTRADAY_INTERVALS.contains(interval) && !HISTORICAL_INTERVAL.contains(interval)) {
+        // Convert to uppercase for case-insensitive comparison
+        String normalizedInterval = interval.toUpperCase();
+        
+        // Check if the normalized interval matches any valid interval (case-insensitive)
+        boolean isValid = INTRADAY_INTERVALS.stream()
+                .anyMatch(valid -> valid.equalsIgnoreCase(normalizedInterval)) ||
+                HISTORICAL_INTERVALS.stream()
+                .anyMatch(valid -> valid.equalsIgnoreCase(normalizedInterval));
+                
+        if (!isValid) {
             throw new IllegalArgumentException("Invalid interval: " + interval + 
-                    ". Must be one of: " + String.join(", ", VALID_INTRADAY_INTERVALS) + 
-                    " or " + HISTORICAL_INTERVAL);
+                    ". Must be one of: " + String.join(", ", INTRADAY_INTERVALS) + 
+                    " or " + HISTORICAL_INTERVALS);
         }
     }
 

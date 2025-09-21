@@ -6,7 +6,6 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.EquityService;
 import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.marketdata.mapper.OHLCMapper;
-import com.am.marketdata.service.MarketDataCacheService;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
@@ -55,8 +54,16 @@ public class MarketDataPersistenceService {
         this.ohlcMapper = ohlcMapper;
         this.taskExecutor = taskExecutor;
     }
+    
+    /**
+     * Get the market data cache service
+     * 
+     * @return The market data cache service
+     */
+    public MarketDataCacheService getMarketDataCacheService() {
+        return marketDataCacheService;
+    }
 
-    @Override
     public CompletableFuture<Void> saveOHLCData(Map<String, OHLCQuote> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {
             log.warn("No OHLC data to save");
@@ -81,7 +88,6 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    @Override
     public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData) {
         if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
             log.warn("No historical data to save for symbol: {}", symbol);
@@ -105,7 +111,6 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    @Override
     public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh) {
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             return Collections.emptyMap();
@@ -147,9 +152,12 @@ public class MarketDataPersistenceService {
                 if (!equityPrices.isEmpty()) {
                     // Convert equity prices to OHLCQuote format
                     for (EquityPrice price : equityPrices) {
+                        if (price.getLastPrice() == null) {
+                            continue;
+                        }
                         OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
-                        String symbol = "NSE:" + price.getSymbol();
-                        result.put(symbol, quote);
+                        //String symbol = "NSE:" + price.getSymbol();
+                        result.put(price.getSymbol(), quote);
                         
                         // Remove found symbols from the remaining set
                         remainingSymbols.remove(price.getSymbol());
@@ -212,13 +220,13 @@ public class MarketDataPersistenceService {
      */
     private OHLCQuote createOHLCQuoteFromEquityPrice(EquityPrice price) {
         OHLCQuote quote = new OHLCQuote();
-        quote.setLastPrice(price.getClose());
+        quote.setLastPrice(price.getLastPrice());
         
         OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
-        ohlc.setOpen(price.getOpen());
-        ohlc.setHigh(price.getHigh());
-        ohlc.setLow(price.getLow());
-        ohlc.setClose(price.getClose());
+        ohlc.setOpen(price.getOhlcv().getOpen());
+        ohlc.setHigh(price.getOhlcv().getHigh());
+        ohlc.setLow(price.getOhlcv().getLow());
+        ohlc.setClose(price.getOhlcv().getClose());
         
         quote.setOhlc(ohlc);
         
@@ -230,7 +238,6 @@ public class MarketDataPersistenceService {
         return quote;
     }
     
-    @Override
     public HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate) {
         if (symbol == null || symbol.isEmpty() || interval == null) {
             return null;

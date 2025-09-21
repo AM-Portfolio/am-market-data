@@ -2,7 +2,7 @@ package com.am.marketdata.redis.service;
 
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.redis.cache.StockRedisCache;
-import com.am.common.investment.model.historical.OHLCVTPoint;
+import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.util.BarCalculatorUtil;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class StockCacheHistoricalService {
     /**
      * Cache historical bar for a symbol with individual parameters
      */
-    public boolean cacheHistoricalBar(String symbol, String date, OHLCVTPoint bar) {
+    public boolean cacheHistoricalBar(String symbol, String date, OHLCV bar) {
         StockBars stockBars = StockBars.builder()
                 .symbol(symbol)
                 .interval("1d")
@@ -97,7 +97,7 @@ public class StockCacheHistoricalService {
     /**
      * Process and cache daily bar data
      */
-    public boolean processDailyBar(String symbol, List<OHLCVTPoint> rawPrices, LocalDate date) {
+    public boolean processDailyBar(String symbol, List<OHLCV> rawPrices, LocalDate date) {
         if (rawPrices == null || rawPrices.isEmpty()) {
             log.warn("No raw price data provided for symbol: {}", symbol);
             return false;
@@ -105,10 +105,10 @@ public class StockCacheHistoricalService {
         
         try {
             // Sort prices by timestamp
-            rawPrices.sort(java.util.Comparator.comparing(OHLCVTPoint::getTime));
+            rawPrices.sort(java.util.Comparator.comparing(OHLCV::getTime));
             
             // Create a daily bar
-            OHLCVTPoint dailyBar = BarCalculatorUtil.createBar(rawPrices, date.atStartOfDay());
+            OHLCV dailyBar = BarCalculatorUtil.createBar(rawPrices, date.atStartOfDay());
             if (dailyBar != null) {
                 String dateStr = BarCalculatorUtil.formatDate(date);
                 boolean success = stockRedisCache.saveHistoricalBar(symbol, dateStr, dailyBar, TimeFrame.DAY.getApiValue());
