@@ -1,8 +1,19 @@
+# Kafka Configuration
+KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+KAFKA_SASL_MECHANISM: PLAIN
+KAFKA_SASL_JAAS_CONFIG:
+
 # Application-specific Kafka properties
 app:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    
+    enabled: true
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security-protocol: ${KAFKA_SECURITY_PROTOCOL}
+      sasl-mechanism: ${KAFKA_SASL_MECHANISM}
+      sasl-jaas-config: ${KAFKA_SASL_JAAS_CONFIG}
+
     # Topic configuration
     topics:
       stock-price: ${STOKUPATE_TOPIC_NAME:am-stock-price-update}

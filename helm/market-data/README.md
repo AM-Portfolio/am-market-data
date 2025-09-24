@@ -142,6 +142,6 @@ kubectl logs -f deployment/market-data -n market-data
 
 3. Check service health:
 ```bash
-kubectl port-forward svc/market-data 8084:8084 -n market-data
-curl http://localhost:8084/actuator/health
+kubectl port-forward svc/market-data 8080:8080 -n market-data
+curl http://localhost:8080/actuator/health
 ```

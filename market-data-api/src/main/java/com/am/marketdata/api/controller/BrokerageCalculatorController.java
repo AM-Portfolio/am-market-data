@@ -11,8 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import lombok.extern.slf4j.Slf4j;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +25,11 @@ import java.util.concurrent.CompletableFuture;
 /**
  * REST controller for brokerage and tax calculation
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/brokerage")
 @Tag(name = "Brokerage Calculator", description = "API for calculating brokerage, taxes, and other charges for stock trades")
 public class BrokerageCalculatorController {
+    private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorController.class);
 
     private final BrokerageCalculatorApiService brokerageCalculatorApiService;
 

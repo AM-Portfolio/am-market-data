@@ -207,47 +207,6 @@ public class ZerodhaApiService {
                 initialize();
             }
             
-            // First try to refresh the token if we have a refresh token
-            // if (refreshToken != null && !refreshToken.isEmpty()) {
-            //     try {
-            //         log.info("Attempting to renew access token using refresh token");
-                    
-            //         // Validate API key and secret
-            //         if (apiKey == null || apiKey.isEmpty()) {
-            //             throw new IllegalStateException("API key is not configured");
-            //         }
-                    
-            //         if (apiSecret == null || apiSecret.isEmpty()) {
-            //             throw new IllegalStateException("API secret is not configured");
-            //         }
-                    
-            //         // Try to renew the token
-            //         TokenSet tokenSet = kiteConnect.renewAccessToken(refreshToken, apiSecret);
-                    
-            //         if (tokenSet != null && tokenSet.accessToken != null) {
-            //             log.info("Successfully renewed access token: {}", 
-            //                     tokenSet.accessToken.substring(0, Math.min(5, tokenSet.accessToken.length())) + "...");
-                        
-            //             // Save the new tokens
-            //             setAccessToken(tokenSet.accessToken);
-            //             this.refreshToken = tokenSet.refreshToken;
-                        
-            //             // Record metrics
-            //             sample.stop(meterRegistry.timer("market-data.zerodha.api.token.refresh.time"));
-            //             meterRegistry.counter("market-data.zerodha.api.token.refresh.success").increment();
-                        
-            //             // Create a User object to return
-            //             User user = new User();
-            //             user.accessToken = tokenSet.accessToken;
-            //             user.refreshToken = tokenSet.refreshToken;
-            //             return user;
-            //         }
-            //     } catch (Exception e) {
-            //         log.warn("Failed to renew access token using refresh token: {}", e.getMessage());
-            //         meterRegistry.counter("market-data.zerodha.api.token.refresh.failure").increment();
-            //         // Continue to regular session generation
-            //     }
-            // }
             
             // If refresh token is not available or refresh failed, generate a new session
             // Validate parameters
@@ -342,8 +301,10 @@ public class ZerodhaApiService {
     public Map<String, Quote> getQuotes(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
-            Map<String, Quote> quotes = kiteConnect.getQuote(instrumentIdsArray);
+            // Prefix all symbols with NSE: if not already prefixed
+            String[] prefixedSymbols = prefixSymbolsWithNSE(symbols);
+            
+            Map<String, Quote> quotes = kiteConnect.getQuote(prefixedSymbols);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.quotes.time"));
             meterRegistry.counter("market-data.zerodha.api.quotes.success").increment();
             return convertInstrumentMaptoSymbolMap(quotes);
@@ -363,11 +324,13 @@ public class ZerodhaApiService {
     public Map<String, OHLCQuote> getOHLC(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
-            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(instrumentIdsArray);
+            // Prefix all symbols with NSE: if not already prefixed
+            String[] prefixedSymbols = prefixSymbolsWithNSE(symbols);
+            
+            Map<String, OHLCQuote> ohlc = kiteConnect.getOHLC(prefixedSymbols);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ohlc.time"));
             meterRegistry.counter("market-data.zerodha.api.ohlc.success").increment();
-            return convertInstrumentMaptoSymbolMap(ohlc);
+            return ohlc;
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ohlc.error", "error_type", getErrorType(e)).increment();
             log.error("Failed to get OHLC for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
@@ -380,15 +343,16 @@ public class ZerodhaApiService {
      * @param instruments Array of instruments in format [exchange:tradingsymbol] (e.g., ["NSE:INFY", "BSE:SBIN"])
      * @return Map of instrument to LTP object
      */
-    //@Retry(name = "marketDataZerodhaApi")
     public Map<String, LTPQuote> getLTP(String[] symbols) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String[] instrumentIdsArray = convertSymbolsToInstrumentIds(symbols);
-            Map<String, LTPQuote> ltp = kiteConnect.getLTP(instrumentIdsArray);
+            // Prefix all symbols with NSE: if not already prefixed
+            String[] prefixedSymbols = prefixSymbolsWithNSE(symbols);
+            
+            Map<String, LTPQuote> ltp = kiteConnect.getLTP(prefixedSymbols);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.ltp.time"));
             meterRegistry.counter("market-data.zerodha.api.ltp.success").increment();
-            return convertInstrumentMaptoSymbolMap(ltp);
+            return ltp;
         } catch (KiteException | IOException e) {
             meterRegistry.counter("market-data.zerodha.api.ltp.error", "error_type", getErrorType(e)).increment();
             log.error("Failed to get LTP for instruments {}: {}", Arrays.toString(symbols), e.getMessage(), e);
@@ -407,11 +371,11 @@ public class ZerodhaApiService {
      * @return Historical data object
      */
     //@Retry(name = "marketDataZerodhaApi")
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, String interval, boolean continuous, boolean oi) {
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous, boolean oi) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             // Convert interval to TimeFrame for proper mapping
-            String zerodhaInterval = TimeFrame.toZerodhaValue(interval);
+            String zerodhaInterval = interval.getZerodhaValue();
             String[] instrumentIdsArray = convertSymbolsToInstrumentIds(new String[] { symbol });
             HistoricalData historicalData = kiteConnect.getHistoricalData(from, to, instrumentIdsArray[0], zerodhaInterval, continuous, oi);
             sample.stop(meterRegistry.timer("market-data.zerodha.api.historical.time"));
@@ -713,10 +677,27 @@ public class ZerodhaApiService {
     }
 
     /**
-     * Get error type for metrics
-     * @param e Throwable
-     * @return Error type string
+     * Prefix all symbols with NSE: if not already prefixed
+     * 
+     * @param symbols Array of symbols to prefix
+     * @return Array of symbols with NSE: prefix
      */
+    private String[] prefixSymbolsWithNSE(String[] symbols) {
+        if (symbols == null || symbols.length == 0) {
+            return new String[0];
+        }
+        
+        return Arrays.stream(symbols)
+                .map(symbol -> {
+                    // Only add prefix if it doesn't already have one
+                    if (symbol != null && !symbol.contains(":")) {
+                        return "NSE:" + symbol;
+                    }
+                    return symbol;
+                })
+                .toArray(String[]::new);
+    }
+    
     private String getErrorType(Throwable e) {
         if (e instanceof KiteException) {
             KiteException ke = (KiteException) e;

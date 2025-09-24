@@ -1,83 +1,113 @@
 package com.am.marketdata.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
-import com.am.common.investment.model.equity.Instrument;
-import com.zerodhatech.models.OHLCQuote;
-import lombok.extern.slf4j.Slf4j;
+import com.am.common.investment.model.historical.OHLCVTPoint;
+import com.am.marketdata.common.model.OHLCQuote;
 import org.springframework.stereotype.Component;
 
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Mapper for converting OHLC data to EquityPrice objects
+ * Mapper class to convert between OHLCQuote and EquityPrice objects
  */
-@Slf4j
 @Component
 public class OHLCMapper {
 
     /**
-     * Convert OHLC data to EquityPrice objects
+     * Convert a Zerodha OHLCQuote to our service OHLCQuote model
      *
-     * @param ohlcData Map of trading symbol to OHLC quote
-     * @param instrumentMap Map of trading symbol to Instrument
+     * @param zerodhaQuote The Zerodha OHLCQuote object
+     * @return Service layer OHLCQuote object
+     */
+    public OHLCQuote toServiceOHLCQuote(com.zerodhatech.models.OHLCQuote zerodhaQuote) {
+        if (zerodhaQuote == null) {
+            return null;
+        }
+        
+        OHLCQuote ohlcQuote = new OHLCQuote();
+        ohlcQuote.setLastPrice(zerodhaQuote.lastPrice);
+        
+        // Create and set the nested OHLC object
+        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        if (zerodhaQuote.ohlc != null) {
+            ohlc.setOpen(zerodhaQuote.ohlc.open);
+            ohlc.setHigh(zerodhaQuote.ohlc.high);
+            ohlc.setLow(zerodhaQuote.ohlc.low);
+            ohlc.setClose(zerodhaQuote.ohlc.close);
+        }
+        ohlcQuote.setOhlc(ohlc);
+        
+        return ohlcQuote;
+    }
+    
+    /**
+     * Convert a map of Zerodha OHLCQuotes to a map of service OHLCQuotes
+     *
+     * @param zerodhaOhlcMap Map of symbol to Zerodha OHLCQuote
+     * @return Map of symbol to service OHLCQuote
+     */
+    public Map<String, OHLCQuote> toServiceOHLCQuoteMap(Map<String, com.zerodhatech.models.OHLCQuote> zerodhaOhlcMap) {
+        if (zerodhaOhlcMap == null || zerodhaOhlcMap.isEmpty()) {
+            return new HashMap<>();
+        }
+        
+        Map<String, OHLCQuote> result = new HashMap<>(zerodhaOhlcMap.size());
+        
+        for (Map.Entry<String, com.zerodhatech.models.OHLCQuote> entry : zerodhaOhlcMap.entrySet()) {
+            result.put(entry.getKey(), toServiceOHLCQuote(entry.getValue()));
+        }
+        
+        return result;
+    }
+
+    /**
+     * Convert an OHLCQuote to an EquityPrice object
+     *
+     * @param symbol The trading symbol
+     * @param ohlcQuote The OHLCQuote object
+     * @return EquityPrice object
+     */
+    public EquityPrice toEquityPrice(String symbol, OHLCQuote ohlcQuote) {
+        if (ohlcQuote == null || ohlcQuote.getOhlc() == null) {
+            return null;
+        }
+        
+        // Clean symbol (remove exchange prefix if present)
+        String cleanSymbol = symbol.replace("NSE:", "");
+        
+        return EquityPrice.builder()
+            .symbol(cleanSymbol)
+            .lastPrice(ohlcQuote.getLastPrice())
+            .ohlcv(OHLCVTPoint.builder().open(ohlcQuote.getOhlc().getOpen()).high(ohlcQuote.getOhlc().getHigh()).low(ohlcQuote.getOhlc().getLow()).close(ohlcQuote.getOhlc().getClose()).build())
+            .time(ZonedDateTime.now().toInstant())
+            .exchange("NSE")
+            .build();
+    }
+    
+    /**
+     * Convert a map of OHLCQuotes to a list of EquityPrice objects
+     *
+     * @param ohlcData Map of symbol to OHLCQuote
      * @return List of EquityPrice objects
      */
-    public List<EquityPrice> toEquityPrices(Map<String, OHLCQuote> ohlcData, Map<String, Instrument> instrumentMap) {
-        List<EquityPrice> equityPrices = new ArrayList<>();
-        
+    public List<EquityPrice> toEquityPriceList(Map<String, OHLCQuote> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {
-            log.warn("No OHLC data to map");
-            return equityPrices;
+            return new ArrayList<>();
         }
+        
+        List<EquityPrice> prices = new ArrayList<>(ohlcData.size());
         
         for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
-            String symbol = entry.getKey();
-            OHLCQuote quote = entry.getValue();
-            
-            Instrument instrument = instrumentMap.get(symbol);
-            if (instrument == null) {
-                log.debug("No instrument found for symbol: {}", symbol);
-                continue;
-            }
-            
-            try {
-                // Create and populate EquityPrice object
-                EquityPrice price = new EquityPrice();
-                mapInstrumentFields(price, instrument);
-                mapOhlcFields(price, quote);
-                equityPrices.add(price);
-            } catch (Exception e) {
-                log.error("Error mapping OHLC data for symbol {}: {}", symbol, e.getMessage(), e);
+            EquityPrice price = toEquityPrice(entry.getKey(), entry.getValue());
+            if (price != null) {
+                prices.add(price);
             }
         }
         
-        log.info("Mapped {} OHLC quotes to equity prices", equityPrices.size());
-        return equityPrices;
-    }
-    
-    /**
-     * Maps instrument fields to the equity price object
-     * 
-     * @param price The equity price object to populate
-     * @param instrument The instrument data
-     */
-    private void mapInstrumentFields(EquityPrice price, Instrument instrument) {
-       price.setSymbol(instrument.getTradingSymbol());
-       price.setIsin(instrument.getIsin());
-    }
-    
-    /**
-     * Maps OHLC fields to the equity price object
-     * 
-     * @param price The equity price object to populate
-     * @param quote The OHLC quote data
-     */
-    private void mapOhlcFields(EquityPrice price, OHLCQuote quote) {
-        price.setOpen(quote.ohlc.open);
-        price.setHigh(quote.ohlc.high);
-        price.setLow(quote.ohlc.low);
-        price.setClose(quote.ohlc.close);
+        return prices;
     }
 }

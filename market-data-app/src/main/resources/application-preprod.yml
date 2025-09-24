@@ -53,17 +53,35 @@ spring:
       request.timeout.ms: 30000
       max.block.ms: 60000
 
-# # InfluxDB Configuration for Pre-production
-# influx:
-#   url: ${INFLUXDB_URL}
-#   token: ${INFLUXDB_TOKEN}
-#   org: ${INFLUXDB_ORG}
-#   bucket: ${INFLUXDB_BUCKET}
-#   # Pre-production specific InfluxDB settings
-#   connection-timeout: 10000
-#   write-timeout: 10000
-#   read-timeout: 10000
-#   gzip-enabled: true
+# Pre-production specific app settings
+app:
+  cookie:
+    validator:
+      expiry-threshold-minutes: 8  # Balanced refresh for pre-production
+    cache:
+      expiration-minutes: 45       # Medium cache time for pre-production
+  retry:
+    max-attempts: 3                # Standard retries in pre-production
+    base-delay-ms: 1000            # Standard delay between retries
+  thread-pool:
+    size: 4                        # Medium thread pool for pre-prod environments
+  validation:
+    max-age-minutes: 12            # Standard validation in pre-production
+
+# Pre-production specific scheduler settings
+scheduler:
+  cookie:
+    enabled: false
+    refresh: "0 */30 * * * *"      # Cookie refresh every 30 minutes
+  indices:
+    enabled: false
+    fetch: "0 */2 * * * *"         # Standard indices fetch every 2 minutes
+  stock-indices:
+    enabled: false
+    retry:
+      interval-minutes: 10         # Medium retry interval
+      max-retries: 10              # Medium max retries
+      cron: "0 */10 * * * *"       # Every 10 minutes
 
 # Market Data Processing Configuration for Pre-production
 market-data:
@@ -111,69 +129,9 @@ zerodha:
     retry-count: 3
     retry-delay-ms: 1000
 
-# Actuator Configuration for Pre-production
-# management:
-#   endpoints:
-#     web:
-#       exposure:
-#         include: health,info,metrics,prometheus
-#       base-path: /actuator
-#   endpoint:
-#     health:
-#       show-details: always
-#       group:
-#         readiness:
-#           include: mongo,redis,kafka,diskSpace
-#         liveness:
-#           include: ping,diskSpace
-#       probes:
-#         enabled: true
-#   metrics:
-#     tags:
-#       application: market-data-preprod
-#       environment: preprod
-#     export:
-#       prometheus:
-#         enabled: true
-#   info:
-#     env:
-#       enabled: true
-#     java:
-#       enabled: true
-#     build:
-#       enabled: true
-
-# Logging Configuration for Pre-production
-logging:
-  level:
-    root: INFO
-    '[com.am.marketdata]': INFO
-    '[com.am.marketdata.scheduler]': INFO
-    '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.external.api]': INFO
-    '[org.springframework.data.mongodb]': WARN
-    '[org.springframework.kafka]': WARN
-    '[org.apache.kafka]': WARN
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
-    file: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
-  file:
-    name: logs/market-data-preprod.log
-    max-size: 10MB
-    max-history: 7
-
-# Feature Flags for Pre-production
-feature:
-  stock-data-scheduler: true
-  nse-scraper-scheduler: true
-  parallel-processing: true
-  cache-enabled: true
-  metrics-enabled: true
-  validation-enabled: true
-
 # Server Configuration for Pre-production
 server:
-  port: 8084
+  port: 8080
   shutdown: graceful
   tomcat:
     max-threads: 200

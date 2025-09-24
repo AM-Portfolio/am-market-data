@@ -3,6 +3,7 @@ version: '3.8'
 
 services:
   market-data-service:
+    container_name: market-data-service
     build:
       context: .
       dockerfile: Dockerfile
@@ -18,11 +19,18 @@ services:
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       
+      # MongoDB Configuration
+      - MONGODB_URL=${MONGODB_URL}
+      - MONGODB_DATABASE=${MONGODB_DATABASE}
+      - MONGODB_USERNAME=${MONGODB_USERNAME}
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+      - MONGODB_AUTHENTICATION_DATABASE=admin
+      
       # InfluxDB Configuration
-      - SPRING_INFLUXDB_URL=${INFLUXDB_URL}:8086
-      - SPRING_INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - SPRING_INFLUXDB_ORG=${INFLUXDB_ORG}
-      - SPRING_INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
       
       # Kafka Configuration
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
@@ -33,6 +41,11 @@ services:
       - APP_KAFKA_STOCK_PRICE_TOPIC=${STOKUPATE_TOPIC_NAME}
       - APP_KAFKA_NSE_INDICES_TOPIC=${NSE_INDICES_TOPIC_NAME}
       - APP_KAFKA_NSE_ETF_TOPIC=${NSE_ETF_TOPIC_NAME}
+
+      # Redis Configuration
+      - REDIS_HOSTNAME=${REDIS_HOSTNAME}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PORT=${REDIS_PORT}
       
       # Retry Configuration
       - APP_RETRY_MAX_ATTEMPTS=${MARKET_DATA_MAX_RETRIES}
@@ -51,7 +64,7 @@ services:
       - UPSTOX_AUTH_SECRET_KEY=${UPSTOX_SECRET_KEY}
       - UPSTOX_AUTH_ACCESS_TOKEN=${UPSTOX_ACCESS_TOKEN}
       - UPSTOX_AUTH_BASE_URL=https://api.upstox.com/v2
-      - UPSTOX_AUTH_REDIRECT_URI=http://localhost:8080
+      - UPSTOX_AUTH_REDIRECT_URI=http://localhost:8081
       - UPSTOX_AUTH_TOKEN_REFRESH_INTERVAL=3600000
       - UPSTOX_INTERVAL=I1
     entrypoint: ["/bin/sh", "-c"]
@@ -69,10 +82,11 @@ services:
         echo "=== Starting Market Data Service ==="
         java -jar app.jar
     ports:
-      - "8084:8084"
-    network_mode: "host"
+      - "8092:8081"
+    networks:
+      - market-data-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 3s
       retries: ${MARKET_DATA_MAX_RETRIES}
@@ -82,3 +96,7 @@ volumes:
   postgres_data:
   influxdb_data:
   grafana_data:
+
+networks:
+  market-data-network:
+    driver: bridge
