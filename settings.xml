@@ -14,5 +14,10 @@
             <username>${env.GITHUB_PACKAGES_USERNAME}</username>
             <password>${env.GITHUB_PACKAGES_TOKEN}</password>
         </server>
+        <server>
+            <id>github-login-management-system</id>
+            <username>${env.GITHUB_PACKAGES_USERNAME}</username>
+            <password>${env.GITHUB_PACKAGES_TOKEN}</password>
+        </server>
     </servers>
 </settings>
