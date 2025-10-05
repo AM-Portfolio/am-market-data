@@ -55,6 +55,8 @@ UPSTOX_CODE: rNLu2Q
 spring:
   application:
     name: market-data-service
+  main:
+    allow-circular-references: true
   data:
     redis:
       host: ${REDIS_HOSTNAME}
@@ -97,6 +99,9 @@ spring:
 # Logging Configuration
 logging:
   level:
+    com.modernportfolio: DEBUG
+    org.springframework.security: DEBUG
+    com.am.marketdata.api.filter: DEBUG
     root: INFO
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': DEBUG
@@ -104,7 +109,6 @@ logging:
     '[com.am.marketdata.external.api]': DEBUG
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
-
 upstox:
   interval: I1
   auth:
@@ -152,3 +156,7 @@ management:
       enabled: true
     mongo:
       enabled: false
+
+# JWT Configuration for am-market-data
+jwt:
+  secret: g4ASf2sEJk08Y3GoiHKdF0F78E2Vj34S+KmN1IJdF2ncxEh0bxyT1XQEPYTc7SQvqO+3wd9MC8X7S6nG0Rb0TQ==

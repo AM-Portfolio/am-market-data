@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
@@ -22,6 +23,7 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 import com.am.marketdata.config.MetricsConfig;
+import com.modernportfolio.autoconfigure.JwtValidationAutoConfiguration;
 
 @SpringBootApplication(exclude = {
     DataSourceAutoConfiguration.class,
@@ -31,7 +33,7 @@ import com.am.marketdata.config.MetricsConfig;
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
 //@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
-@Import({InfluxDBConfig.class, MetricsConfig.class})
+@Import({InfluxDBConfig.class, MetricsConfig.class, JwtValidationAutoConfiguration.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.external.api"),
