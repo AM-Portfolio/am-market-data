@@ -98,5 +98,10 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.modernportfolio</groupId>
+            <artifactId>jwt-auth-starter</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 </project>

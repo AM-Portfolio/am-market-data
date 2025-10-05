@@ -67,6 +67,12 @@
             <name>GitHub AM Common Data Model Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/AM-Portfolio/am-common-data-parent</url>
         </repository>
+
+        <repository>
+            <id>github-login-management-system</id>
+            <name>GitHub JWT Login Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/AM-Portfolio/login-management-system</url>
+        </repository>
     </repositories>
 
     <build>
