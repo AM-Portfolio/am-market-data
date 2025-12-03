@@ -169,3 +169,6 @@ management:
 
     influxdb:
       enabled: true
+
+jwt:
+  secret: ${JWT_SECRET}
