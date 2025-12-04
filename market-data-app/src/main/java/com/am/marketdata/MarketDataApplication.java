@@ -5,7 +5,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
@@ -24,9 +23,9 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 import com.am.marketdata.config.MetricsConfig;
 
 @SpringBootApplication(exclude = {
-    DataSourceAutoConfiguration.class,
-    HibernateJpaAutoConfiguration.class
+    DataSourceAutoConfiguration.class
 })
+@EnableConfigurationProperties
 // @EnableConfigurationProperties({ISINConfig.class, NSEIndicesConfig.class})
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
@@ -50,17 +49,19 @@ import com.am.marketdata.config.MetricsConfig;
     @ComponentScan("com.marketdata"),
     @ComponentScan("com.marketdata.common"),
     @ComponentScan("com.marketdata.service"),
-    @ComponentScan("com.marketdata.config")
+    @ComponentScan("com.marketdata.config"),
+    @ComponentScan("com.myportfolio.jwtlogin")
 })
-// @EnableJpaRepositories(
-//     basePackages = {
-//         "com.am.marketdata.repository",
-//         "com.am.common.amcommondata.domain",
-//         "com.am.common.amcommondata.domain.asset",
-//         "com.am.common.amcommondata.repository.portfolio",
-//         "com.am.common.amcommondata.repository.asset"
-//     }
-// )
+@EnableJpaRepositories(
+    basePackages = {
+        "com.am.marketdata.repository",
+        "com.am.common.amcommondata.domain",
+        "com.am.common.amcommondata.domain.asset",
+        "com.am.common.amcommondata.repository.portfolio",
+        "com.am.common.amcommondata.repository.asset",
+        "com.myportfolio.jwtlogin.repository"
+    }
+)
 @EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
 @EnableRetry
 @EnableScheduling
@@ -68,6 +69,9 @@ public class MarketDataApplication {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataApplication.class);
     
     public static void main(String[] args) {
+        // Enable bean definition overriding to handle duplicate beans
+        System.setProperty("spring.main.allow-bean-definition-overriding", "true");
+        
         // Log environment variables to debug what values are being used
         logger.info("=== ENVIRONMENT VARIABLES DEBUG ====");
         
