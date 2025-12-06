@@ -4,8 +4,7 @@
 # POSTGRES_URL: jdbc:postgresql://localhost:5456
 # POSTGRES_DATABASE: portfolio
 
-#mongo
-MONGODB_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+#mongoDB Configuration
 MONGODB_DATABASE: market_data
 MONGODB_USERNAME: ssd2658
 MONGODB_PASSWORD: ssd2658 
@@ -61,7 +60,7 @@ spring:
       password: ${REDIS_PASSWORD}
       port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGODB_URL}
+      uri: ${MONGODB_URL:mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin}
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
@@ -134,7 +133,7 @@ scraper:
 
 # Server Configuration
 server:
-  port: 8080
+  port: 8040
 
 scheduler:
   cookie:
@@ -172,3 +171,8 @@ management:
 
 jwt:
   secret: ${JWT_SECRET:internal-service-super-secret-key-32chars-minimum-change-in-prod}
+
+
+  # Security Configuration
+security:
+  enabled: ${SECURITY_ENABLED:false}  # false for development, true for production

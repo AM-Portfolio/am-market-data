@@ -89,9 +89,9 @@ services:
     ports:
       - "8092:8080"
     networks:
-      - market-data-network
+      - am-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
       interval: 30s
       timeout: 3s
       retries: ${MARKET_DATA_MAX_RETRIES}
@@ -103,5 +103,5 @@ volumes:
   grafana_data:
 
 networks:
-  market-data-network:
-    driver: bridge
+  am-network:
+    external: true
