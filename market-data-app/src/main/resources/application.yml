@@ -11,9 +11,9 @@ MONGODB_USERNAME: ssd2658
 MONGODB_PASSWORD: ssd2658 
 
 # InfluxDB Configuration
-INFLUXDB_TOKEN: ssd2658admin123456789
+INFLUXDB_TOKEN: my-super-secret-auth-token
 INFLUXDB_ORG: am-portfolio
-INFLUXDB_BUCKET: market_data
+INFLUXDB_BUCKET: market-data
 INFLUXDB_URL: http://localhost:8086
 
 
@@ -65,7 +65,19 @@ spring:
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
+
+      
       authentication-database: admin
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   
   # InfluxDB Configuration
   influx:
@@ -85,15 +97,11 @@ spring:
       - classpath:application-kafka.yml
       - classpath:application-zerodha.yml
 
-  # jpa:
-  #   hibernate:
-  #     ddl-auto: update
-  #   properties:
-  #     hibernate:
-  #       dialect: org.hibernate.dialect.PostgreSQLDialect
-  #       format_sql: true
-  #   show-sql: true
-
+market-data:
+  cache:
+    enabled: true
+    price-ttl-minutes: ${MARKET_DATA_CACHE_PRICE_TTL_MINUTES:15}
+    history-ttl-minutes: ${MARKET_HISTORY_DATA_CACHE_HISTORY_TTL_MINUTES:15}
 # Logging Configuration
 logging:
   level:
@@ -102,8 +110,9 @@ logging:
     '[com.am.marketdata.scheduler]': DEBUG
     '[com.am.marketdata.service]': INFO
     '[com.am.marketdata.external.api]': DEBUG
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
+    '[com.am.common.investment.service]': DEBUG
+  # pattern:
+  #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
 upstox:
   interval: I1
@@ -119,15 +128,19 @@ upstox:
     token-refresh-interval: 3600000
     scope: orders feed portfolio
 
-stock-data-scheduler: false
-nse-scraper-scheduler: true
 scraper:
   urls:
     - https://www.nseindia.com/
 
 # Server Configuration
 server:
-  port: 8080
+  port: 8092
+
+scheduler:
+  cookie:
+    enabled: false
+  stock-indices:
+    enabled: false
 
 # Management/Actuator Configuration
 management:
@@ -143,12 +156,19 @@ management:
       validate-group-membership: false
       group:
         readiness:
-          include: diskSpace
-          exclude: mongodb,redis,kafka
+          include: diskSpace,mongodb,redis,kafka,influx
   health:
     livenessstate:
       enabled: true
     readinessstate:
       enabled: true
-    mongo:
-      enabled: false
+    mongodb:
+      enabled: true
+    redis:
+      enabled: true
+
+    influxdb:
+      enabled: true
+
+jwt:
+  secret: ${JWT_SECRET}

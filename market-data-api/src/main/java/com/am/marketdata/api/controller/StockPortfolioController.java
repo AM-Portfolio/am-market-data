@@ -2,6 +2,7 @@
 
 // import java.util.Optional;
 
+// import org.springframework.http.MediaType;
 // import org.springframework.http.ResponseEntity;
 // import org.springframework.validation.annotation.Validated;
 // import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +30,13 @@
 // import lombok.extern.slf4j.Slf4j;
 
 // /**
-//  * Controller for handling board of directors related endpoints
+//  * REST controller for stock financial and corporate information
+//  * Provides endpoints for retrieving various financial statements, board of directors,
+//  * quarterly results, and dividend information for stocks
 //  */
 // @RestController
 // @RequestMapping("/api/v1/stocks")
-// @Tag(name = "Board of Directors", description = "APIs for managing board of directors information")
+// @Tag(name = "Stock Portfolio", description = "APIs for retrieving stock financial statements, board of directors, and other corporate information")
 // @Slf4j
 // @Validated
 // @RequiredArgsConstructor
@@ -41,11 +44,18 @@
     
 //     private final StockPerformaceService stockFinancialPerformaceService;
 
-//     @GetMapping("/{symbol}/board-of-directors")
-//     @Operation(summary = "Get board of directors for a stock")
+//     /**
+//      * Get board of directors information for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Board of directors information
+//      */
+//     @GetMapping(value = "/{symbol}/board-of-directors", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get board of directors for a stock",
+//             description = "Retrieves the current board of directors information for a specified stock including names, positions, and tenure")
 //     @ApiResponses(value = {
 //         @ApiResponse(responseCode = "200", description = "Successfully retrieved board of directors", 
-//             content = @Content(schema = @Schema(implementation = BoardOfDirectors.class))),
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = BoardOfDirectors.class))),
 //         @ApiResponse(responseCode = "404", description = "No board of directors found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
@@ -67,12 +77,19 @@
 //     }
 
 
-//     @GetMapping("/{symbol}/quaterly-financials")
-//     @Operation(summary = "Get quaterly financials for a stock")
+//     /**
+//      * Get quarterly financial results for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Quarterly financial results
+//      */
+//     @GetMapping(value = "/{symbol}/quaterly-financials", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get quarterly financials for a stock",
+//             description = "Retrieves the quarterly financial results for a specified stock including revenue, profit, EPS, and other key metrics")
 //     @ApiResponses(value = {
-//         @ApiResponse(responseCode = "200", description = "Successfully retrieved quaterly financials", 
-//             content = @Content(schema = @Schema(implementation = QuaterlyResult.class))),
-//         @ApiResponse(responseCode = "404", description = "No quaterly financials found for the symbol"),
+//         @ApiResponse(responseCode = "200", description = "Successfully retrieved quarterly financials", 
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = QuaterlyResult.class))),
+//         @ApiResponse(responseCode = "404", description = "No quarterly financials found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
 //     public ResponseEntity<QuaterlyResult> getQuaterlyFinancials(
@@ -93,11 +110,18 @@
 //     }
 
     
-//     @GetMapping("/{symbol}/balance-sheet")
-//     @Operation(summary = "Get balance sheet for a stock")
+//     /**
+//      * Get balance sheet for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Balance sheet information
+//      */
+//     @GetMapping(value = "/{symbol}/balance-sheet", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get balance sheet for a stock",
+//             description = "Retrieves the latest balance sheet for a specified stock including assets, liabilities, and equity information")
 //     @ApiResponses(value = {
 //         @ApiResponse(responseCode = "200", description = "Successfully retrieved balance sheet", 
-//             content = @Content(schema = @Schema(implementation = StockBalanceSheet.class))),
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockBalanceSheet.class))),
 //         @ApiResponse(responseCode = "404", description = "No balance sheet found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
@@ -118,12 +142,19 @@
 //         return ResponseEntity.ok(balanceSheet.get());
 //     }
 
-//     @GetMapping("/{symbol}/profit-and-loss")
-//     @Operation(summary = "Get profit and loss for a stock")
+//     /**
+//      * Get profit and loss statement for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Profit and loss statement
+//      */
+//     @GetMapping(value = "/{symbol}/profit-and-loss", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get profit and loss statement for a stock",
+//             description = "Retrieves the latest profit and loss statement for a specified stock including revenue, expenses, and net profit")
 //     @ApiResponses(value = {
-//         @ApiResponse(responseCode = "200", description = "Successfully retrieved profit and loss", 
-//             content = @Content(schema = @Schema(implementation = StockProfitAndLoss.class))),
-//         @ApiResponse(responseCode = "404", description = "No profit and loss found for the symbol"),
+//         @ApiResponse(responseCode = "200", description = "Successfully retrieved profit and loss statement", 
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockProfitAndLoss.class))),
+//         @ApiResponse(responseCode = "404", description = "No profit and loss statement found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
 //     public ResponseEntity<StockProfitAndLoss> getProfitAndLoss(
@@ -143,12 +174,19 @@
 //         return ResponseEntity.ok(profitAndLoss.get());
 //     }
 
-//     @GetMapping("/{symbol}/cash-flow")
-//     @Operation(summary = "Get cash flow for a stock")
+//     /**
+//      * Get cash flow statement for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Cash flow statement
+//      */
+//     @GetMapping(value = "/{symbol}/cash-flow", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get cash flow statement for a stock",
+//             description = "Retrieves the latest cash flow statement for a specified stock including operating, investing, and financing activities")
 //     @ApiResponses(value = {
-//         @ApiResponse(responseCode = "200", description = "Successfully retrieved cash flow", 
-//             content = @Content(schema = @Schema(implementation = StockCashFlow.class))),
-//         @ApiResponse(responseCode = "404", description = "No cash flow found for the symbol"),
+//         @ApiResponse(responseCode = "200", description = "Successfully retrieved cash flow statement", 
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockCashFlow.class))),
+//         @ApiResponse(responseCode = "404", description = "No cash flow statement found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
 //     public ResponseEntity<StockCashFlow> getCashFlow(
@@ -168,12 +206,19 @@
 //         return ResponseEntity.ok(cashFlow.get());
 //     }
 
-//     @GetMapping("/{symbol}/factsheet-dividend")
-//     @Operation(summary = "Get factsheet dividend for a stock")
+//     /**
+//      * Get dividend information for a stock
+//      * 
+//      * @param symbol Stock trading symbol
+//      * @return Dividend factsheet information
+//      */
+//     @GetMapping(value = "/{symbol}/factsheet-dividend", produces = MediaType.APPLICATION_JSON_VALUE)
+//     @Operation(summary = "Get dividend information for a stock",
+//             description = "Retrieves dividend history and information for a specified stock including dividend amounts, dates, and yield")
 //     @ApiResponses(value = {
-//         @ApiResponse(responseCode = "200", description = "Successfully retrieved factsheet dividend", 
-//             content = @Content(schema = @Schema(implementation = StockFactSheetDividend.class))),
-//         @ApiResponse(responseCode = "404", description = "No factsheet dividend found for the symbol"),
+//         @ApiResponse(responseCode = "200", description = "Successfully retrieved dividend information", 
+//             content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockFactSheetDividend.class))),
+//         @ApiResponse(responseCode = "404", description = "No dividend information found for the symbol"),
 //         @ApiResponse(responseCode = "500", description = "Internal server error")
 //     })
 //     public ResponseEntity<StockFactSheetDividend> getFactsheetDividend(

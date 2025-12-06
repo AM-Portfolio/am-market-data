@@ -1,20 +1,16 @@
 package com.am.marketdata.processor.service.operation;
 
-import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.equity.financial.profitandloss.StockProfitAndLoss;
-import com.am.marketdata.common.model.events.BoardOfDirector;
 import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
+import com.am.marketdata.processor.exception.DataValidationException;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
-import com.am.marketdata.processor.service.mapper.StockBoardOfDirectorsMapper;
 import com.am.marketdata.processor.service.mapper.StockProfitLossFinanceMapper;
-import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +18,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -82,7 +77,7 @@ public class StockProfitAndLossDataOperation extends AbstractMarketDataOperation
             lastFetchedData = profitAndLossMapper.toStockProfitAndLoss(getIndexSymbol(), profitAndLoss);
             return lastFetchedData;
         } catch (Exception e) {
-            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock profit and loss data", e);
+            throw new DataValidationException(getIndexSymbol(), getDataTypeName(), maxRetries, "Failed to fetch stock profit and loss data", e);
         }
     }
     

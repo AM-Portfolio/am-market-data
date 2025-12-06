@@ -15,6 +15,12 @@ public class DataValidationException extends ProcessorException {
         this.dataType = dataType;
         this.validationError = validationError;
     }
+    
+    public DataValidationException(String dataSource, String dataType, int maxRetries, String errorMessage, Throwable cause) {
+        super(dataSource, ProcessorErrorType.VALIDATION_ERROR, String.format("Validation failed for %s: %s", dataType, errorMessage), cause);
+        this.dataType = dataType;
+        this.validationError = null;
+    }
 
     public String getDataType() {
         return dataType;

@@ -4,12 +4,12 @@ import com.am.common.investment.model.equity.financial.balancesheet.StockBalance
 import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponse;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
+import com.am.marketdata.processor.exception.DataValidationException;
 import com.am.marketdata.processor.service.common.AbstractMarketDataOperation;
 import com.am.marketdata.processor.service.common.DataFetcher;
 import com.am.marketdata.processor.service.common.DataProcessor;
 import com.am.marketdata.processor.service.common.DataValidator;
 import com.am.marketdata.processor.service.mapper.StockBalanceSheetFinanceMapper;
-import com.am.marketdata.scraper.exception.DataFetchException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.SneakyThrows;
@@ -78,7 +78,7 @@ public class StockBalanceSheetDataOperation extends AbstractMarketDataOperation<
             lastFetchedData = balanceSheetMapper.toBalanceSheet(getIndexSymbol(), balanceSheetResponse);
             return lastFetchedData;
         } catch (Exception e) {
-            throw new DataFetchException(getDataTypeName(), maxRetries, "Failed to fetch stock balance sheet data", e);
+            throw new DataValidationException(getIndexSymbol(), getDataTypeName(), maxRetries, "Failed to fetch stock balance sheet data", e);
         }
     }
     

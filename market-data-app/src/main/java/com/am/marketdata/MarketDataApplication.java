@@ -9,15 +9,16 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+//import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.retry.annotation.EnableRetry;
+//import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 //import com.am.marketdata.config.ISINConfig;
 //import com.am.marketdata.scraper.config.NSEIndicesConfig;
-import com.am.common.investment.persistence.config.InfluxDBConfig;
+//import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.external.api.config.ExternalApiAutoConfiguration;
+import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 import com.am.marketdata.config.MetricsConfig;
@@ -30,7 +31,7 @@ import com.am.marketdata.config.MetricsConfig;
 // @Import({ExternalApiAutoConfiguration.class, ProcessorModuleConfig.class, SchedulerAutoConfiguration.class})
 //@EnableConfigurationProperties({NSEIndicesConfig.class})
 //@Import({ExternalApiAutoConfiguration.class, InfluxDBConfig.class})
-@Import({InfluxDBConfig.class, MetricsConfig.class})
+@Import({MetricsConfig.class, InfluxDBConfig.class})
 @ComponentScans({
     @ComponentScan("com.am.marketdata"),
     @ComponentScan("com.am.marketdata.external.api"),
@@ -46,6 +47,7 @@ import com.am.marketdata.config.MetricsConfig;
     @ComponentScan("com.am.common.investment.persistence"),
     @ComponentScan("com.am.common.investment.persistence.config"),
     @ComponentScan("com.am.marketdata.processor"),
+    @ComponentScan("com.am.marketdata.processor.config"),
     @ComponentScan("com.marketdata"),
     @ComponentScan("com.marketdata.common"),
     @ComponentScan("com.marketdata.service"),
@@ -63,7 +65,7 @@ import com.am.marketdata.config.MetricsConfig;
     }
 )
 @EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
-@EnableRetry
+//@EnableRetry
 @EnableScheduling
 public class MarketDataApplication {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataApplication.class);
