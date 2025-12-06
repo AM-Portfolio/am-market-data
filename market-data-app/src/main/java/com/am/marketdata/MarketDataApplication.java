@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
 import org.springframework.context.annotation.Import;
-//import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 //import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -64,6 +64,7 @@ import com.am.marketdata.config.MetricsConfig;
         "com.myportfolio.jwtlogin.repository"
     }
 )
+
 @EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
 //@EnableRetry
 @EnableScheduling

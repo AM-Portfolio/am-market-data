@@ -57,6 +57,11 @@ services:
       
       # Validation Configuration
       - APP_VALIDATION_MAX_AGE_MINUTES=${MARKET_DATA_MAX_AGE_MINUTES}
+
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=HS256
+      - INTERNAL_JWT_SECRET=${INTERNAL_JWT_SECRET}
       
       # Upstox Configuration
       - UPSTOX_AUTH_CODE=${UPSTOX_CODE}
@@ -82,7 +87,7 @@ services:
         echo "=== Starting Market Data Service ==="
         java -jar app.jar
     ports:
-      - "8092:8081"
+      - "8092:8080"
     networks:
       - market-data-network
     healthcheck:

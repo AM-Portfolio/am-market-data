@@ -31,8 +31,6 @@ import java.util.concurrent.CompletableFuture;
 @Tag(name = "Brokerage Calculator", description = "API for calculating brokerage, taxes, and other charges for stock trades")
 public class BrokerageCalculatorController {
     private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorController.class);
-
-    private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorController.class);
     private final BrokerageCalculatorApiService brokerageCalculatorApiService;
 
     public BrokerageCalculatorController(BrokerageCalculatorApiService brokerageCalculatorApiService) {

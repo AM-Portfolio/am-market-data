@@ -38,7 +38,6 @@
         <investment-model.version>1.6.24-SNAPSHOT</investment-model.version>
         <investment-service.version>1.6.24-SNAPSHOT</investment-service.version>
         <spring-web.version>6.1.5</spring-web.version>
-        <jwt-login.version>1.0.3-SNAPSHOT</jwt-login.version>
     </properties>
 
     <dependencyManagement>
@@ -79,12 +78,6 @@
             <id>github-am-common</id>
             <name>GitHub AM Common Data Model Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/AM-Portfolio/am-common-data-parent</url>
-        </repository>
-
-        <repository>
-            <id>github</id>
-            <name>GitHub JWT Login Apache Maven Packages</name>
-            <url>https://maven.pkg.github.com/AM-Portfolio/jwt-login</url>
         </repository>
     </repositories>
 
