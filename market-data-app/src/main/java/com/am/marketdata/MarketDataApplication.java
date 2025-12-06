@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 //import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -51,20 +50,8 @@ import com.am.marketdata.config.MetricsConfig;
     @ComponentScan("com.marketdata"),
     @ComponentScan("com.marketdata.common"),
     @ComponentScan("com.marketdata.service"),
-    @ComponentScan("com.marketdata.config"),
-    @ComponentScan("com.myportfolio.jwtlogin")
+    @ComponentScan("com.marketdata.config")
 })
-@EnableJpaRepositories(
-    basePackages = {
-        "com.am.marketdata.repository",
-        "com.am.common.amcommondata.domain",
-        "com.am.common.amcommondata.domain.asset",
-        "com.am.common.amcommondata.repository.portfolio",
-        "com.am.common.amcommondata.repository.asset",
-        "com.myportfolio.jwtlogin.repository"
-    }
-)
-
 @EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
 //@EnableRetry
 @EnableScheduling
@@ -72,9 +59,6 @@ public class MarketDataApplication {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataApplication.class);
     
     public static void main(String[] args) {
-        // Enable bean definition overriding to handle duplicate beans
-        System.setProperty("spring.main.allow-bean-definition-overriding", "true");
-        
         // Log environment variables to debug what values are being used
         logger.info("=== ENVIRONMENT VARIABLES DEBUG ====");
         
