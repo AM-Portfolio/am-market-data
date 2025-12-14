@@ -19,27 +19,27 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HistoricalDataRequest {
-    
+
     private String symbols;
-    
+
     private String from;
-    
+
     private String to;
-    
+
     @Builder.Default
-    private String interval=TimeFrame.DAY.getApiValue();
-    
+    private String interval = TimeFrame.DAY.getApiValue();
+
     private boolean continuous;
-    
+
     private String instrumentType;
-    
+
     private boolean forceRefresh;
-    
+
     @Builder.Default
     private String filterType = "ALL";
 
     @Builder.Default
     private int filterFrequency = 1;
-    
+
     private Map<String, Object> additionalParams;
 }

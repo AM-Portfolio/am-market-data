@@ -19,8 +19,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service for managing stock price data in Redis cache.
- * Provides higher-level operations and additional functionality on top of the StockRedisCache.
- * Delegates to specialized services for historical data, symbol-specific operations, and bar calculation.
+ * Provides higher-level operations and additional functionality on top of the
+ * StockRedisCache.
+ * Delegates to specialized services for historical data, symbol-specific
+ * operations, and bar calculation.
  */
 @Slf4j
 @Service
@@ -118,36 +120,35 @@ public class StockCacheService {
         historicalService.resetCacheStats();
         symbolService.resetCacheStats();
     }
-    
+
     /**
      * Get bars for multiple symbols with cache statistics tracking
      */
     public Map<String, StockBars> getMultiSymbolBarsWithStats(List<String> symbols, String interval, String date) {
         return symbolService.getMultiSymbolBarsWithStats(symbols, interval, date);
     }
-    
+
     /**
      * Get today's bars for multiple symbols
      */
     public Map<String, StockBars> getTodayMultiSymbolBars(List<String> symbols, String interval) {
         return symbolService.getTodayMultiSymbolBars(symbols, interval);
     }
-    
+
     /**
      * Get historical bars for multiple symbols within a date range
      */
-    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate, String endDate, String interval) {
+    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate,
+            String endDate, String interval) {
         return historicalService.getHistoricalBarsWithStats(symbols, startDate, endDate, interval);
     }
 
-
-    
     /**
      * Process raw price data into interval-based bars and cache them
      * 
-     * @param symbol The stock symbol
+     * @param symbol    The stock symbol
      * @param rawPrices List of raw price points with timestamp, price, and volume
-     * @param date The date for which to calculate bars
+     * @param date      The date for which to calculate bars
      * @return Map of interval to success status
      */
     public Map<String, Boolean> processAndCacheRawPriceData(String symbol, List<OHLCV> rawPrices, LocalDate date) {
@@ -155,9 +156,9 @@ public class StockCacheService {
             log.warn("No raw price data provided for symbol: {}", symbol);
             return Map.of();
         }
-        
+
         Map<String, Boolean> result = new HashMap<>();
-        
+
         try {
             // Process and cache intraday bars
             for (String interval : INTRADAY_INTERVALS) {
@@ -172,58 +173,63 @@ public class StockCacheService {
                             .build();
                     boolean success = symbolService.cacheIntradayBars(List.of(stockBars));
                     result.put(interval, success);
-                    log.debug("Processed and cached {} {} bars for {} on {} with Redis key 'stock:intraday:{}:{}:{}'", 
-                        bars.size(), interval, symbol, date, symbol.toUpperCase(), interval, date.format(DATE_FORMATTER));
+                    log.debug("Processed and cached {} {} bars for {} on {} with Redis key 'stock:intraday:{}:{}:{}'",
+                            bars.size(), interval, symbol, date, symbol.toUpperCase(), interval,
+                            date.format(DATE_FORMATTER));
                 }
             }
-            
+
             // Process and cache daily bar
-            // List<OHLCV> dailyBars = barCalculator.calculateBars(rawPrices, INTERVAL_1_DAY, date);
+            // List<OHLCV> dailyBars = barCalculator.calculateBars(rawPrices,
+            // INTERVAL_1_DAY, date);
             // if (!dailyBars.isEmpty()) {
-            //     // Create StockBars object for the historical service
-            //     StockBars stockBars = StockBars.builder()
-            //             .symbol(symbol)
-            //             .interval(INTERVAL_1_DAY)
-            //             .startDate(date.format(DATE_FORMATTER))
-            //             .bars(List.of(dailyBars.get(0)))
-            //             .build();
-            //     boolean success = historicalService.cacheHistoricalBar(List.of(stockBars));
-            //     result.put(INTERVAL_1_DAY, success);
-            //     log.debug("Processed and cached daily bar for {} on {} with Redis key 'stock:historical:{}:{}:{}'", 
-            //         symbol, date, symbol.toUpperCase(), INTERVAL_1_DAY, date.format(DATE_FORMATTER));
+            // // Create StockBars object for the historical service
+            // StockBars stockBars = StockBars.builder()
+            // .symbol(symbol)
+            // .interval(INTERVAL_1_DAY)
+            // .startDate(date.format(DATE_FORMATTER))
+            // .bars(List.of(dailyBars.get(0)))
+            // .build();
+            // boolean success = historicalService.cacheHistoricalBar(List.of(stockBars));
+            // result.put(INTERVAL_1_DAY, success);
+            // log.debug("Processed and cached daily bar for {} on {} with Redis key
+            // 'stock:historical:{}:{}:{}'",
+            // symbol, date, symbol.toUpperCase(), INTERVAL_1_DAY,
+            // date.format(DATE_FORMATTER));
             // }
-            
+
         } catch (Exception e) {
             log.error("Error processing raw price data for {}: {}", symbol, e.getMessage());
         }
-        
+
         return result;
     }
-    
+
     /**
      * Process raw price data for multiple symbols and cache them
      * 
      * @param symbolPrices Map of symbol to raw price points
-     * @param date The date for which to calculate bars
+     * @param date         The date for which to calculate bars
      * @return Map of symbol to interval results
      */
     public Map<String, Map<String, Boolean>> processAndCacheMultiSymbolData(
             Map<String, List<OHLCV>> symbolPrices, LocalDate date) {
-        
+
         Map<String, Map<String, Boolean>> result = new HashMap<>();
-        
+
         for (Map.Entry<String, List<OHLCV>> entry : symbolPrices.entrySet()) {
             String symbol = entry.getKey();
             List<OHLCV> prices = entry.getValue();
-            
+
             Map<String, Boolean> symbolResult = processAndCacheRawPriceData(symbol, prices, date);
             result.put(symbol, symbolResult);
         }
-        
+
         return result;
     }
 
-    public static OHLCV createPricePoint(LocalDateTime timestamp, double open, double high, double low, double close, long volume, Double lastPrice) {
+    public static OHLCV createPricePoint(LocalDateTime timestamp, double open, double high, double low, double close,
+            long volume, Double lastPrice) {
         return OHLCV.builder()
                 .time(timestamp)
                 .open(open)
@@ -233,5 +239,13 @@ public class StockCacheService {
                 .volume(volume)
                 .lastPrice(lastPrice)
                 .build();
+    }
+
+    public void setActiveProvider(String providerName) {
+        stockRedisCache.setActiveProvider(providerName);
+    }
+
+    public String getActiveProvider() {
+        return stockRedisCache.getActiveProvider();
     }
 }

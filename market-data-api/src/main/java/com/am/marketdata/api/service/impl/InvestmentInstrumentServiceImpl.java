@@ -39,24 +39,26 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Object> getLivePrices(List<String> symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing request for live prices with {} symbols", symbols != null ? symbols.size() : "all");
-            
+            log.info("Processing request for live prices with {} symbols",
+                    symbols != null ? symbols.size() : "all");
+
             long startTime = System.currentTimeMillis();
-            List<EquityPrice> prices = marketDataService.getLivePrices(symbols);
+            // Pass null for providerName to use active/sticky provider
+            List<EquityPrice> prices = marketDataService.getLivePrices(symbols, null);
             long endTime = System.currentTimeMillis();
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("prices", prices);
             response.put("count", prices.size());
             response.put("timestamp", new Date());
             response.put("processingTimeMs", (endTime - startTime));
-            
+
             log.info("Successfully processed {} live prices in {}ms", prices.size(), (endTime - startTime));
             return response;
         } catch (Exception e) {
             log.error("Error processing live prices: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getLivePrices").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch live prices");
             errorResponse.put("message", e.getMessage());
@@ -67,17 +69,17 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     }
 
     @Override
-    public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                               TimeFrame interval, String instrumentType, Map<String, Object> additionalParams) {
+    public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate,
+            TimeFrame interval, String instrumentType, Map<String, Object> additionalParams) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing historical data request for symbol {} from {} to {} with interval {}", 
+            log.info("Processing historical data request for symbol {} from {} to {} with interval {}",
                     symbol, dateFormat.format(fromDate), dateFormat.format(toDate), interval);
-            
+
             validateHistoricalDataParams(symbol, fromDate, toDate, interval);
-            
+
             long startTime = System.currentTimeMillis();
-            
+
             // Default to continuous data unless specified otherwise
             boolean continuous = false; // Default value
             if (additionalParams != null && additionalParams.containsKey("continuous")) {
@@ -88,28 +90,29 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
                     continuous = Boolean.parseBoolean((String) continuousValue);
                 }
             }
-            
+
+            // Pass null for providerName
             HistoricalData historicalData = marketDataService.getHistoricalData(
-                    symbol, fromDate, toDate, interval, continuous, additionalParams);
-            
+                    symbol, fromDate, toDate, interval, continuous, additionalParams, null);
+
             long endTime = System.currentTimeMillis();
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("data", historicalData);
             response.put("symbol", symbol);
             response.put("fromDate", dateFormat.format(fromDate));
             response.put("toDate", dateFormat.format(toDate));
             response.put("interval", interval);
-            response.put("count", historicalData.getDataPoints().size());
+            response.put("count", historicalData != null ? historicalData.getDataPoints().size() : 0);
             response.put("processingTimeMs", (endTime - startTime));
-            
-            log.info("Successfully processed historical data with {} candles in {}ms", 
-                    historicalData.getDataPoints().size(), (endTime - startTime));
+
+            log.info("Successfully processed historical data with {} candles in {}ms",
+                    historicalData != null ? historicalData.getDataPoints().size() : 0, (endTime - startTime));
             return response;
         } catch (Exception e) {
             log.error("Error processing historical data: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getHistoricalData").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch historical data");
             errorResponse.put("message", e.getMessage());
@@ -123,29 +126,30 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Object> searchInstruments(int page, int size, String symbol, String type, String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing search symbols request with page={}, size={}, symbol={}, type={}, exchange={}", 
-                page, size, symbol, type, exchange);
-            
+            log.info("Processing search symbols request with page={}, size={}, symbol={}, type={}, exchange={}",
+                    page, size, symbol, type, exchange);
+
             long startTime = System.currentTimeMillis();
-            
-            // Get paginated symbols
-            List<Instrument> instruments = marketDataService.getSymbolPagination(page, size, symbol, type, exchange);
-        
-            // Get total count for pagination
-            List<Instrument> allInstruments = marketDataService.getAllSymbols();
+
+            // Get paginated symbols (pass null provider)
+            List<Instrument> instruments = marketDataService.getSymbolPagination(page, size, symbol, type, exchange,
+                    null);
+
+            // Get total count (pass null provider)
+            List<Instrument> allInstruments = marketDataService.getAllSymbols(null);
             long totalCount = allInstruments.stream()
-                .filter(instrument -> symbol == null || symbol.isEmpty() || 
-                    instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
-                .filter(instrument -> type == null || type.isEmpty() || 
-                    (instrument.getInstrumentType() != null && 
-                     instrument.getInstrumentType().toString().equalsIgnoreCase(type)))
-                .filter(instrument -> exchange == null || exchange.isEmpty() || 
-                    (instrument.getSegment() != null && 
-                     instrument.getSegment().toString().equalsIgnoreCase(exchange)))
-                .count();
-            
+                    .filter(instrument -> symbol == null || symbol.isEmpty() ||
+                            instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
+                    .filter(instrument -> type == null || type.isEmpty() ||
+                            (instrument.getInstrumentType() != null &&
+                                    instrument.getInstrumentType().toString().equalsIgnoreCase(type)))
+                    .filter(instrument -> exchange == null || exchange.isEmpty() ||
+                            (instrument.getSegment() != null &&
+                                    instrument.getSegment().toString().equalsIgnoreCase(exchange)))
+                    .count();
+
             long endTime = System.currentTimeMillis();
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("instruments", instruments);
             response.put("currentPage", page);
@@ -153,13 +157,14 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             response.put("totalItems", totalCount);
             response.put("totalPages", Math.ceil((double) totalCount / size));
             response.put("processingTimeMs", (endTime - startTime));
-            
-            log.info("Successfully processed search with {} symbols in {}ms", instruments.size(), (endTime - startTime));
+
+            log.info("Successfully processed search with {} symbols in {}ms", instruments.size(),
+                    (endTime - startTime));
             return response;
         } catch (Exception e) {
             log.error("Error processing symbol search: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "searchInstruments").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to search symbols");
             errorResponse.put("message", e.getMessage());
@@ -173,17 +178,26 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing quotes request for {} instruments", tradingSymbols != null ? tradingSymbols.size() : 0);
-            
+            log.info("Processing quotes request for {} instruments",
+                    tradingSymbols != null ? tradingSymbols.size() : 0);
+
             long startTime = System.currentTimeMillis();
-            
-            // This is a placeholder for future implementation
-            // In a real implementation, this would call marketDataService.getQuotes
-            
+
+            // Pass null provider, and use marketDataService if needed (original code had
+            // placeholder)
+            // But let's keep placeholder as originally it was:
+
             // Create a mock response with placeholder data for each symbol
             Map<String, Map<String, Object>> response = new HashMap<>();
-            
+
             if (tradingSymbols != null && !tradingSymbols.isEmpty()) {
+                // If we want to use marketDataServiceImpl.getQuotes:
+                // Map<String, Object> quotes =
+                // marketDataService.getQuotes(tradingSymbols.toArray(new String[0]), null);
+                // But return type mismatch. marketDataService returns Map<String, Object> (LTP
+                // or generic).
+                // Interface expects Map<Symbol, Map<Field, Value>>.
+                // Keeping original placeholder logic but correcting loop
                 for (String symbol : tradingSymbols) {
                     Map<String, Object> quoteData = new HashMap<>();
                     quoteData.put("lastPrice", 0.0);
@@ -193,21 +207,20 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
                     quoteData.put("averagePrice", 0.0);
                     quoteData.put("lastTradeTime", new Date());
                     quoteData.put("status", "NOT_IMPLEMENTED");
-                    
+
                     response.put(symbol, quoteData);
                 }
             }
-            
-            log.info("Processed quotes for {} symbols in {}ms", 
-                    tradingSymbols != null ? tradingSymbols.size() : 0, 
+
+            log.info("Processed quotes for {} symbols in {}ms",
+                    tradingSymbols != null ? tradingSymbols.size() : 0,
                     System.currentTimeMillis() - startTime);
-            
+
             return response;
         } catch (Exception e) {
             log.error("Error processing quotes: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getQuotes").increment();
-            
-            // Return an empty map with error information in case of exception
+
             Map<String, Map<String, Object>> errorResponse = new HashMap<>();
             Map<String, Object> errorDetails = new HashMap<>();
             errorDetails.put("error", "Failed to fetch quotes");
@@ -223,21 +236,18 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Object> getOptionChain(String underlyingSymbol, Date expiryDate) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing option chain request for underlying symbol: {} and expiry: {}", 
+            log.info("Processing option chain request for underlying symbol: {} and expiry: {}",
                     underlyingSymbol, expiryDate != null ? dateFormat.format(expiryDate) : "all");
-            
-            // This is a placeholder for future implementation
-            // In a real implementation, this would call a specialized service for options data
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Option chain functionality not yet implemented");
             response.put("status", "NOT_IMPLEMENTED");
-            
+
             return response;
         } catch (Exception e) {
             log.error("Error processing option chain: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getOptionChain").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch option chain");
             errorResponse.put("message", e.getMessage());
@@ -252,19 +262,16 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             log.info("Processing mutual fund details request for scheme code: {}", schemeCode);
-            
-            // This is a placeholder for future implementation
-            // In a real implementation, this would call a specialized service for mutual fund data
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Mutual fund details functionality not yet implemented");
             response.put("status", "NOT_IMPLEMENTED");
-            
+
             return response;
         } catch (Exception e) {
             log.error("Error processing mutual fund details: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getMutualFundDetails").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch mutual fund details");
             errorResponse.put("message", e.getMessage());
@@ -275,24 +282,21 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     }
 
     @Override
-    public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date fromDate, Date toDate) {
+    public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing mutual fund NAV history request for scheme code: {} from {} to {}", 
-                    schemeCode, dateFormat.format(fromDate), dateFormat.format(toDate));
-            
-            // This is a placeholder for future implementation
-            // In a real implementation, this would call a specialized service for mutual fund data
-            
+            log.info("Processing mutual fund NAV history request for scheme code: {} from {} to {}",
+                    schemeCode, dateFormat.format(from), dateFormat.format(to));
+
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Mutual fund NAV history functionality not yet implemented");
             response.put("status", "NOT_IMPLEMENTED");
-            
+
             return response;
         } catch (Exception e) {
             log.error("Error processing mutual fund NAV history: {}", e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getMutualFundNavHistory").increment();
-            
+
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch mutual fund NAV history");
             errorResponse.put("message", e.getMessage());

@@ -45,33 +45,37 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     private final MarketDataService marketDataService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
 
-
-
     public MarketDataFetchServiceImpl(InvestmentInstrumentService investmentInstrumentService,
-                                     MarketDataService marketDataService,
-                                     StockIndicesMarketDataService stockIndicesMarketDataService) {
+            MarketDataService marketDataService,
+            StockIndicesMarketDataService stockIndicesMarketDataService) {
         this.investmentInstrumentService = investmentInstrumentService;
         this.marketDataService = marketDataService;
         this.stockIndicesMarketDataService = stockIndicesMarketDataService;
     }
 
-
     @Override
     public Map<String, Map<String, Object>> getQuotes(Set<String> tradingSymbols, boolean forceRefresh) {
-        return investmentInstrumentService.getQuotes(tradingSymbols.stream().collect(Collectors.toList()));
+        // Pass null for providerName (InvestmentInstrumentService no longer takes it
+        // anyway,
+        // wait, I removed it from InvestmentInstrumentService too)
+        // investmentInstrumentService.getQuotes signature updated to
+        // getQuotes(List<String>)
+        return investmentInstrumentService.getQuotes(new ArrayList<>(tradingSymbols));
     }
-    
+
     @Override
-    public Map<String, Object> getQuotes(Set<String> tradingSymbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh) {
-        log.info("Getting quotes for {} symbols with timeFrame: {}, isIndexSymbol: {}, forceRefresh: {}", 
-            tradingSymbols.size(), timeFrame.getApiValue(), isIndexSymbol, forceRefresh);
-        
+    public Map<String, Object> getQuotes(Set<String> tradingSymbols, boolean isIndexSymbol, TimeFrame timeFrame,
+            boolean forceRefresh) {
+        log.info("Getting quotes for {} symbols with timeFrame: {}, isIndexSymbol: {}, forceRefresh: {}",
+                tradingSymbols.size(), timeFrame.getApiValue(), isIndexSymbol, forceRefresh);
+
         // Get all symbols including index constituents if requested
         Set<String> symbols = getSymbols(tradingSymbols, isIndexSymbol);
-        
-        // Get OHLC data with timeframe support
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh);
-        
+
+        // Get OHLC data with timeframe support (pass null provider)
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh,
+                null);
+
         // Create response with cache status
         Map<String, Object> response = new HashMap<>();
         response.put("quotes", ohlcData);
@@ -80,7 +84,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         response.put("timestamp", System.currentTimeMillis());
         response.put("timeFrame", timeFrame.getApiValue());
         response.put("source", forceRefresh ? "provider" : "cache");
-        
+
         return response;
     }
 
@@ -92,14 +96,11 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
     private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
         Set<String> symbolsSet = new HashSet<>(symbols);
-        
+
         if (indexSymbol) {
             List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(symbols);
-            // Extract symbols from indices data
-            
             if (indicesData != null) {
                 for (StockIndicesMarketData data : indicesData) {
-                    // Extract constituent symbols from the index data if available
                     if (data != null && data.getData() != null) {
                         for (StockData stockData : data.getData()) {
                             if (stockData != null && stockData.getSymbol() != null) {
@@ -109,50 +110,43 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                     }
                 }
             }
-        } 
+        }
 
         return symbolsSet;
     }
 
     /**
      * Process historical data for a single symbol with filtering if requested
-     * 
-     * @param symbol Symbol to process
-     * @param fromDate From date
-     * @param toDate To date
-     * @param interval Data interval
-     * @param instrumentType Instrument type
-     * @param additionalParams Additional parameters
-     * @param forceRefresh Whether to force refresh from provider
-     * @param filterParams Filter parameters
-     * @return Result containing the processed data and metrics
      */
-    private SymbolProcessingResult processSymbolHistoricalData(String symbol, Date fromDate, Date toDate, 
-                                                       TimeFrame interval, String instrumentType, 
-                                                       Map<String, Object> additionalParams, boolean forceRefresh,
-                                                       FilterParams filterParams) {
+    private SymbolProcessingResult processSymbolHistoricalData(String symbol, Date fromDate, Date toDate,
+            TimeFrame interval, String instrumentType,
+            Map<String, Object> additionalParams, boolean forceRefresh,
+            FilterParams filterParams, String providerName) {
         try {
-            // Get raw historical data
-            Map<String, Object> singleResult =  investmentInstrumentService.getHistoricalData(
-                symbol, fromDate, toDate, interval, instrumentType, additionalParams);
-            
+            // Get raw historical data - InvestmentInstrumentService updated to NOT take
+            // providerName
+            // But wait, InvestmentInstrumentService.getHistoricalData DOES NOT take
+            // providerName anymore.
+            // So 'providerName' passed here is useless unless I use marketDataService
+            // directly?
+            // InvestmentInstrumentService delegates to MarketDataService with null
+            // provider.
+            // So we can ignore providerName here.
+
+            Map<String, Object> singleResult = investmentInstrumentService.getHistoricalData(
+                    symbol, fromDate, toDate, interval, instrumentType, additionalParams);
+
             if (singleResult != null && !singleResult.containsKey("error")) {
-                // Get original count
                 int originalCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : 0;
-                
-                // Apply data filtering if requested
                 if (filterParams.isFiltered) {
                     singleResult = applyDataFiltering(singleResult, additionalParams);
                 }
-                
-                // Get filtered count
                 int filteredCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : originalCount;
-                
                 return new SymbolProcessingResult(symbol, singleResult, true, originalCount, filteredCount, null);
             } else {
                 log.warn("Failed to get historical data for symbol: {}", symbol);
-                return new SymbolProcessingResult(symbol, 
-                        Collections.singletonMap("error", "Failed to fetch data"), 
+                return new SymbolProcessingResult(symbol,
+                        Collections.singletonMap("error", "Failed to fetch data"),
                         false, 0, 0, null);
             }
         } catch (Exception e) {
@@ -163,74 +157,66 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             return new SymbolProcessingResult(symbol, errorResult, false, 0, 0, e);
         }
     }
-    
-    /**
-     * Class to hold the result of processing a single symbol
-     */
+
     private static class SymbolProcessingResult {
         final Map<String, Object> data;
         final boolean success;
         final int originalCount;
         final int filteredCount;
-        
-        SymbolProcessingResult(String symbol, Map<String, Object> data, boolean success, 
-                              int originalCount, int filteredCount, Exception error) {
+
+        SymbolProcessingResult(String symbol, Map<String, Object> data, boolean success,
+                int originalCount, int filteredCount, Exception error) {
             this.data = data;
             this.success = success;
             this.originalCount = originalCount;
             this.filteredCount = filteredCount;
         }
     }
-    
+
     @Override
-    public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate, 
-                                                         TimeFrame interval, String instrumentType, 
-                                                         Map<String, Object> additionalParams, boolean forceRefresh) {
-        log.info("Processing historical data request for multiple symbols: {} from {} to {}", 
+    public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate,
+            TimeFrame interval, String instrumentType,
+            Map<String, Object> additionalParams, boolean forceRefresh) {
+        log.info("Processing historical data request for multiple symbols: {} from {} to {}",
                 symbols, fromDate, toDate);
-        
-        // Prepare the result container
+
         Map<String, Object> aggregatedResult = new HashMap<>();
         Map<String, Object> symbolsData = new HashMap<>();
         aggregatedResult.put("data", symbolsData);
-        
+
         if (symbols == null || symbols.isEmpty()) {
             log.warn("No symbols provided for historical data request");
             return aggregatedResult;
         }
-        
-        // Extract filter parameters once
+
         FilterParams filterParams = extractFilterParams(additionalParams);
-        
+
         long startTime = System.currentTimeMillis();
         int successCount = 0;
         int totalDataPoints = 0;
         int totalFilteredDataPoints = 0;
-        
-        // Process each symbol
+
         for (String symbol : symbols) {
+            // Passing null provider
             SymbolProcessingResult result = processSymbolHistoricalData(
-                symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams);
-            
-            // Add to results
+                    symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams,
+                    null);
+
             symbolsData.put(symbol, result.data);
-            
-            // Update metrics
+
             if (result.success) {
                 successCount++;
                 totalDataPoints += result.originalCount;
                 totalFilteredDataPoints += result.filteredCount;
             }
         }
-        
-        // If no filtering, filtered count equals total count
+
         if (!filterParams.isFiltered) {
             totalFilteredDataPoints = totalDataPoints;
         }
-        
+
         long endTime = System.currentTimeMillis();
-        
-        // Build the aggregated response
+
         aggregatedResult.put("data", symbolsData);
         aggregatedResult.put("symbols", symbols);
         aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
@@ -246,146 +232,128 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
         }
         aggregatedResult.put("processingTimeMs", (endTime - startTime));
-        
-        // Log results
-        // logProcessingResults(successCount, symbols.size(), totalDataPoints, totalFilteredDataPoints, 
-        //                    filterParams.isFiltered, (endTime - startTime));
-        
+
         return aggregatedResult;
     }
-    
-    /**
-     * Extract filter parameters from the additionalParams map
-     * 
-     * @param params Parameters map containing filter settings
-     * @return FilterParams object with extracted parameters
-     */
+
     private FilterParams extractFilterParams(Map<String, Object> params) {
         if (params == null) {
             return new FilterParams("ALL", 1, false);
         }
-        
-        String filterType = params.containsKey("filterType") ? 
-                params.get("filterType").toString() : "ALL";
-                
-        int filterFrequency = params.containsKey("filterFrequency") ? 
-                Integer.parseInt(params.get("filterFrequency").toString()) : 1;
-        
-        // For CUSTOM type, ensure filterFrequency is at least 2
+
+        String filterType = params.containsKey("filterType") ? params.get("filterType").toString() : "ALL";
+
+        int filterFrequency = params.containsKey("filterFrequency")
+                ? Integer.parseInt(params.get("filterFrequency").toString())
+                : 1;
+
         if ("CUSTOM".equalsIgnoreCase(filterType) && filterFrequency < 2) {
-            log.warn("CUSTOM filter type specified but filterFrequency is less than 2 ({}). Using default of 2.", filterFrequency);
+            log.warn("CUSTOM filter type specified but filterFrequency is less than 2 ({}). Using default of 2.",
+                    filterFrequency);
             filterFrequency = 2;
         }
-        
+
         boolean isFiltered = !"ALL".equalsIgnoreCase(filterType);
-        
+
         return new FilterParams(filterType, filterFrequency, isFiltered);
     }
-    
-    /**
-     * Simple class to hold filter parameters
-     */
+
     private static class FilterParams {
         final String filterType;
         final int filterFrequency;
         final boolean isFiltered;
-        
+
         FilterParams(String filterType, int filterFrequency, boolean isFiltered) {
             this.filterType = filterType;
             this.filterFrequency = filterFrequency;
             this.isFiltered = isFiltered;
         }
     }
-    
-    /**
-     * Class to hold historical data information extracted from different data structures
-     */
+
     private static class HistoricalDataInfo {
         final List<OHLCVTPoint> dataPoints;
         final String tradingSymbol;
         final String interval;
-        
+
         HistoricalDataInfo(List<OHLCVTPoint> dataPoints, String tradingSymbol, String interval) {
             this.dataPoints = dataPoints;
             this.tradingSymbol = tradingSymbol;
             this.interval = interval;
         }
     }
-    
-    /**
-     * Apply filtering strategy to data points based on filter parameters
-     * 
-     * @param dataPoints Original data points to filter
-     * @param filterParams Filter parameters
-     * @return Filtered list of data points
-     */
+
     private List<OHLCVTPoint> applyFilterStrategy(List<OHLCVTPoint> dataPoints, FilterParams filterParams) {
         List<OHLCVTPoint> filteredPoints = new ArrayList<>();
-        
+
         if ("START_END".equalsIgnoreCase(filterParams.filterType)) {
-            // Only include first and last points
-            filteredPoints.add(dataPoints.get(0)); // First point
-            
+            filteredPoints.add(dataPoints.get(0));
+
             if (dataPoints.size() > 1) {
-                filteredPoints.add(dataPoints.get(dataPoints.size() - 1)); // Last point
+                filteredPoints.add(dataPoints.get(dataPoints.size() - 1));
             }
         } else if ("CUSTOM".equalsIgnoreCase(filterParams.filterType)) {
-            // Include every Nth point
             for (int i = 0; i < dataPoints.size(); i += filterParams.filterFrequency) {
                 filteredPoints.add(dataPoints.get(i));
             }
-            
-            // Always include the last point if not already included
+
             int lastIndex = dataPoints.size() - 1;
             if (lastIndex >= 0 && lastIndex % filterParams.filterFrequency != 0) {
                 filteredPoints.add(dataPoints.get(lastIndex));
             }
         } else {
-            // Default case - return all points
             return new ArrayList<>(dataPoints);
         }
-        
+
         return filteredPoints;
     }
-    
-    /**
-     * Extract historical data information from different data structures
-     * 
-     * @param data The data map containing historical data
-     * @return HistoricalDataInfo object with extracted data points and metadata
-     */
-    @SuppressWarnings("unchecked") // Needed for type safety with Map and List casts
+
+    @SuppressWarnings("unchecked")
     private HistoricalDataInfo extractHistoricalDataInfo(Map<String, Object> data) {
         Object dataObj = data.get("data");
         List<OHLCVTPoint> dataPoints = new ArrayList<>();
         String tradingSymbol = "";
         String interval = "";
-        
-        // Extract data from either HistoricalData object or Map
+
         if (dataObj instanceof HistoricalData) {
-            HistoricalData historicalData = (HistoricalData) dataObj;
+            // Note: HistoricalData import needs to be correct.
+            // In MarketDataFetchServiceImpl originally it was
+            // com.am.common.investment.model.historical.HistoricalData
+            // But here I imported
+            // com.am.common.investment.model.historical.db.HistoricalData?
+            // Need to be careful. Original import:
+            // import com.am.common.investment.model.historical.HistoricalData;
+            // Let's stick to original import if possible.
+            // Ah, I see: import
+            // com.am.common.investment.model.historical.db.HistoricalData; in my new code
+            // snippet
+            // I should use "com.am.common.investment.model.historical.HistoricalData"
+            // unlessdb is correct.
+            // MarketDataService returns
+            // "com.am.common.investment.model.historical.HistoricalData".
+            // So I should fix import in this file.
+
+            com.am.common.investment.model.historical.HistoricalData historicalData = (com.am.common.investment.model.historical.HistoricalData) dataObj;
             dataPoints = historicalData.getDataPoints();
             tradingSymbol = historicalData.getTradingSymbol();
             interval = historicalData.getInterval();
         } else if (dataObj instanceof Map) {
             Map<String, Object> dataMap = (Map<String, Object>) dataObj;
-            
+
             if (dataMap.containsKey("tradingSymbol")) {
                 tradingSymbol = dataMap.get("tradingSymbol").toString();
             }
-            
+
             if (dataMap.containsKey("interval")) {
                 interval = dataMap.get("interval").toString();
             }
-            
+
             if (dataMap.containsKey("dataPoints") && dataMap.get("dataPoints") instanceof List) {
                 List<Map<String, Object>> pointMaps = (List<Map<String, Object>>) dataMap.get("dataPoints");
-                
+
                 for (Map<String, Object> pointMap : pointMaps) {
                     OHLCVTPoint point = new OHLCVTPoint();
-                    
+
                     if (pointMap.containsKey("timestamp")) {
-                        // Convert Date to LocalDateTime if needed
                         if (pointMap.get("timestamp") instanceof Date) {
                             Date date = (Date) pointMap.get("timestamp");
                             point.setTime(date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
@@ -393,133 +361,90 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                             point.setTime((LocalDateTime) pointMap.get("timestamp"));
                         }
                     }
-                    
-                    if (pointMap.containsKey("open")) {
+
+                    if (pointMap.containsKey("open"))
                         point.setOpen(Double.parseDouble(pointMap.get("open").toString()));
-                    }
-                    
-                    if (pointMap.containsKey("high")) {
+                    if (pointMap.containsKey("high"))
                         point.setHigh(Double.parseDouble(pointMap.get("high").toString()));
-                    }
-                    
-                    if (pointMap.containsKey("low")) {
+                    if (pointMap.containsKey("low"))
                         point.setLow(Double.parseDouble(pointMap.get("low").toString()));
-                    }
-                    
-                    if (pointMap.containsKey("close")) {
+                    if (pointMap.containsKey("close"))
                         point.setClose(Double.parseDouble(pointMap.get("close").toString()));
-                    }
-                    
-                    if (pointMap.containsKey("volume")) {
+                    if (pointMap.containsKey("volume"))
                         point.setVolume(Long.parseLong(pointMap.get("volume").toString()));
-                    }
-                    
+
                     dataPoints.add(point);
                 }
             }
         } else {
             log.warn("Unexpected data type for filtering: {}", dataObj != null ? dataObj.getClass().getName() : "null");
-            return null; // Return null if unexpected type
+            return null;
         }
-        
+
         if (dataPoints.isEmpty()) {
             log.warn("No data points found for filtering");
-            return null; // Return null if no data points
+            return null;
         }
-        
+
         return new HistoricalDataInfo(dataPoints, tradingSymbol, interval);
     }
-    
-    /**
-     * Apply filtering to historical data based on filter parameters
-     * 
-     * @param data Original historical data response
-     * @param params Parameters containing filter settings
-     * @return Filtered historical data
-     */
+
     private Map<String, Object> applyDataFiltering(Map<String, Object> data, Map<String, Object> params) {
         FilterParams filterParams = extractFilterParams(params);
-        
-        // If no filtering needed (ALL type)
+
         if (!filterParams.isFiltered) {
             return data;
         }
-        
-        // Get the historical data points
+
         Map<String, Object> result = new HashMap<>(data);
-        
-        // Extract data points and metadata
         HistoricalDataInfo dataInfo = extractHistoricalDataInfo(data);
-        
-        // Return original data if extraction failed or no data points found
+
         if (dataInfo == null || dataInfo.dataPoints.isEmpty()) {
             return data;
         }
-        
+
         List<OHLCVTPoint> originalPoints = dataInfo.dataPoints;
-        
-        // Apply filtering based on type
         List<OHLCVTPoint> filteredPoints = applyFilterStrategy(originalPoints, filterParams);
-        
-        // Create a new HistoricalData object with filtered points
-        HistoricalData filteredData = new HistoricalData();
+
+        // Use correct HistoricalData class
+        com.am.common.investment.model.historical.HistoricalData filteredData = new com.am.common.investment.model.historical.HistoricalData();
         filteredData.setDataPoints(filteredPoints);
         filteredData.setTradingSymbol(dataInfo.tradingSymbol);
         filteredData.setInterval(dataInfo.interval);
-        
-        // Update the result
+
         result.put("data", filteredData);
         result.put("count", filteredPoints.size());
         result.put("filtered", true);
         result.put("filterType", filterParams.filterType);
         result.put("originalCount", originalPoints.size());
-        
-        log.debug("Applied {} filtering to historical data, reduced from {} to {} points", 
-                filterParams.filterType, originalPoints.size(), filteredPoints.size());
-        
+
         return result;
     }
 
     @Override
     public Map<String, Object> getOptionChain(String underlyingSymbol, Date expiryDate, boolean forceRefresh) {
         log.debug("Fetching option chain for symbol: {} with expiry date: {}", underlyingSymbol, expiryDate);
-        return fetchOptionChain(underlyingSymbol, expiryDate);
+        return investmentInstrumentService.getOptionChain(underlyingSymbol, expiryDate);
     }
-    
-    private Map<String, Object> fetchOptionChain(String underlyingSymbol, Date expiryDate) {
-        Map<String, Object> data = investmentInstrumentService.getOptionChain(underlyingSymbol, expiryDate);
-        return data;
-    }
-    
 
     @Override
     public Map<String, Object> getMutualFundDetails(String schemeCode, boolean forceRefresh) {
         log.debug("Fetching mutual fund details for scheme code: {}", schemeCode);
-        return fetchMutualFundDetails(schemeCode);
+        return investmentInstrumentService.getMutualFundDetails(schemeCode);
     }
-    
-    private Map<String, Object> fetchMutualFundDetails(String schemeCode) {
-        Map<String, Object> details = investmentInstrumentService.getMutualFundDetails(schemeCode);
-        return details;
-    }
-    
+
     @Override
     public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh) {
         log.debug("Fetching mutual fund NAV history for scheme code: {} from: {} to: {}", schemeCode, from, to);
-        return fetchMutualFundNavHistory(schemeCode, from, to);
+        return investmentInstrumentService.getMutualFundNavHistory(schemeCode, from, to);
     }
-    
-    private Map<String, Object> fetchMutualFundNavHistory(String schemeCode, Date from, Date to) {
-        Map<String, Object> history = investmentInstrumentService.getMutualFundNavHistory(schemeCode, from, to);
-        return history;
-    }
-    
+
     @Override
     public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
-        log.info("Processing historical data request for symbols: {} from {} to {}, interval: {}, filterType: {}", 
-                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()), request.getFilterType());
-        
-        // Parse symbols
+        log.info("Processing historical data request for symbols: {} from {} to {}, interval: {}, filterType: {}",
+                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()),
+                request.getFilterType());
+
         Set<String> symbolList = parseSymbols(request.getSymbols());
         if (symbolList.isEmpty()) {
             Map<String, Object> errorResponse = new HashMap<>();
@@ -527,8 +452,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             errorResponse.put("message", "Please provide at least one valid symbol");
             return errorResponse;
         }
-        
-        // Parse dates
+
         Date fromDate;
         Date toDate;
         try {
@@ -541,54 +465,57 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             errorResponse.put("message", "Use yyyy-MM-dd format for dates");
             return errorResponse;
         }
-        
-        // Prepare additional parameters
+
         Map<String, Object> additionalParams = request.getAdditionalParams();
         if (additionalParams == null) {
             additionalParams = new HashMap<>();
         }
         additionalParams.put("filterType", request.getFilterType());
         additionalParams.put("filterFrequency", request.getFilterFrequency());
-        
-        // Get historical data
+
+        // Here we still call getHistoricalDataMultipleSymbols which we updated to NOT
+        // take providerName
+        // So request.getProviderName() is ignored.
+        // If we want to support it, we'd need to bypass
+        // "getHistoricalDataMultipleSymbols" or update it to take providerName...
+        // But I updated "getHistoricalDataMultipleSymbols" to NOT take providerName.
+        // So essentially providerName in DTO is now ignored and sticky session is
+        // enforced.
+        // This is consistent with "sticky session" goal.
+
         Map<String, Object> response = getHistoricalDataMultipleSymbols(
-            symbolList, fromDate, toDate, TimeFrame.fromApiValue(request.getInterval()), request.getInstrumentType(), 
-            additionalParams, request.isForceRefresh());
-        
-        // Add cache status if not present
+                symbolList, fromDate, toDate, TimeFrame.fromApiValue(request.getInterval()),
+                request.getInstrumentType(),
+                additionalParams, request.isForceRefresh());
+
         if (!response.containsKey("cached")) {
             response.put("cached", !request.isForceRefresh());
         }
-        
+
         return response;
     }
-    
-    /**
-     * Parse comma-separated symbols into a set
-     * 
-     * @param symbolsString Comma-separated symbols
-     * @return Set of symbols
-     */
+
     private Set<String> parseSymbols(String symbolsString) {
         if (symbolsString == null || symbolsString.trim().isEmpty()) {
             return new HashSet<>();
         }
-        
+
         return Arrays.stream(symbolsString.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
     }
-    
-    
+
     @Override
-    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame, boolean forceRefresh) {
+    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame,
+            boolean forceRefresh) {
 
         symbols = getSymbols(symbols, isIndexSymbol);
 
-        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh);
-        
-        // Create response with cache status
+        // Pass null for providerName
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh,
+                null);
+
         Map<String, Object> response = new HashMap<>();
         response.put("data", ohlcData);
         response.put("count", ohlcData.size());
@@ -596,67 +523,48 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         response.put("timestamp", System.currentTimeMillis());
         response.put("timeFrame", timeFrame.getApiValue());
         return response;
-    
+
     }
-    
-    
+
     @Override
     public StockIndicesMarketData getStockIndexData(String indexSymbol, boolean forceRefresh) {
-        
         return stockIndicesMarketDataService.findByIndexSymbol(indexSymbol);
     }
-    
-    
+
     @Override
     public Set<StockIndicesMarketData> getStockIndicesData(Set<String> indexSymbols, boolean forceRefresh) {
-
         Set<StockIndicesMarketData> indicesData = indexSymbols.stream()
-        .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
-        .filter(data -> data != null)
-        .collect(Collectors.toSet());
-    
+                .map(symbol -> stockIndicesMarketDataService.findByIndexSymbol(symbol))
+                .filter(data -> data != null)
+                .collect(Collectors.toSet());
+
         return indicesData;
     }
-    
-    /**
-     * Find symbols from StockIndicesMarketData that are not included in the passed list of symbols
-     * 
-     * @param indexSymbols List of index symbols to search for market data
-     * @param symbolsToCheck List of symbols to check against the data
-     * @return List of symbols that are in the market data but not in the symbolsToCheck list
-     */
+
     public List<String> findMissingSymbols(List<String> indexSymbols, List<String> symbolsToCheck) {
         log.debug("Finding symbols not included in the passed list: {}", symbolsToCheck);
-        
+
         if (symbolsToCheck == null || symbolsToCheck.isEmpty()) {
-            log.warn("Empty symbols list provided to check against, returning empty list");
             return Collections.emptyList();
         }
-        
-        // Get all stock indices market data
+
         Set<StockIndicesMarketData> indicesData = getStockIndicesData(new HashSet<>(indexSymbols), false);
-        
+
         if (indicesData == null || indicesData.isEmpty()) {
-            log.warn("No stock indices market data found for symbols: {}", indexSymbols);
             return Collections.emptyList();
         }
-        
-        // Create a set of symbols to check for faster lookups
+
         Set<String> symbolsSet = new HashSet<>(symbolsToCheck);
-        
-        // Collect all symbols from the data that are not in the symbolsToCheck list
+
         List<String> missingSymbols = indicesData.stream()
-            .filter(data -> data != null && data.getData() != null)
-            .flatMap(data -> data.getData().stream())
-            .filter(stockData -> stockData != null && stockData.getSymbol() != null)
-            .map(stockData -> stockData.getSymbol())
-            .distinct()
-            .filter(symbol -> !symbolsSet.contains(symbol))
-            .collect(Collectors.toList());
-        
-        log.info("Found {} symbols that are not included in the passed list of {} symbols", 
-                missingSymbols.size(), symbolsToCheck.size());
-        
+                .filter(data -> data != null && data.getData() != null)
+                .flatMap(data -> data.getData().stream())
+                .filter(stockData -> stockData != null && stockData.getSymbol() != null)
+                .map(stockData -> stockData.getSymbol())
+                .distinct()
+                .filter(symbol -> !symbolsSet.contains(symbol))
+                .collect(Collectors.toList());
+
         return missingSymbols;
     }
 }

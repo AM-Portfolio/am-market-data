@@ -16,20 +16,20 @@ import lombok.AllArgsConstructor;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OHLCRequest {
     private String symbols;
-    
+
     @JsonProperty("isIndexSymbol")
     private boolean indexSymbol = false;
 
     @JsonProperty("timeFrame")
     private String timeFrame = TimeFrame.FIVE_MINUTE.getApiValue();
-    
+
     @JsonProperty("refresh")
     private boolean forceRefresh = false;
-    
+
     public boolean isIndexSymbol() {
         return indexSymbol;
     }
-    
+
     public void setIndexSymbol(boolean indexSymbol) {
         this.indexSymbol = indexSymbol;
     }
