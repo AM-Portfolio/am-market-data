@@ -36,9 +36,10 @@ public class UpstoxApiConfig {
     }
 
     @Bean(name = "upstoxMarketDataProvider")
-    public UpstoxMarketDataProvider upstoxMarketDataProvider(UpstoxApiService upstoxApiService) {
+    public UpstoxMarketDataProvider upstoxMarketDataProvider(UpstoxApiService upstoxApiService,
+            com.am.common.investment.service.StockIndicesMarketDataService stockIndicesMarketDataService) {
         log.info("Creating Upstox market data provider");
-        return new UpstoxMarketDataProvider(upstoxApiService);
+        return new UpstoxMarketDataProvider(upstoxApiService, stockIndicesMarketDataService);
     }
 
     @Bean(name = "marketDataUpstoxRetryRegistry")
