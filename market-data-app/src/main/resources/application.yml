@@ -133,7 +133,7 @@ scraper:
 
 # Server Configuration
 server:
-  port: 8040
+  port: 8047
 
 scheduler:
   cookie:
@@ -175,4 +175,4 @@ jwt:
 
   # Security Configuration
 security:
-  enabled: ${SECURITY_ENABLED:false}  # false for development, true for production
+  enabled: ${SECURITY_ENABLED:false}  # Disabled by default for development. Set SECURITY_ENABLED=true in production.
