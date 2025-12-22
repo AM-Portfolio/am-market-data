@@ -71,7 +71,7 @@ public class UpStockClient {
                 .map(symbol -> symbol.replace(":", "|"))
                 .collect(Collectors.joining(","));
         log.info("Formatted symbols: {}", formattedSymbols);
-        return "NSE_EQ|" + formattedSymbols;
+        return formattedSymbols;
     }
 
     private void logRequest(String method, String url, Object params) {

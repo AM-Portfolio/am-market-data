@@ -2,7 +2,7 @@ package com.marketdata.service.upstox;
 
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
-import com.am.common.investment.service.StockIndicesMarketDataService;
+import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.upstock.model.HistoricalDataResponse;
@@ -28,44 +28,48 @@ import java.util.stream.Collectors;
 public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     private final UpstoxApiService upstoxApiService;
-    private final StockIndicesMarketDataService stockIndicesMarketDataService;
+    private final com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService;
 
     public UpstoxMarketDataProvider(UpstoxApiService upstoxApiService,
-            StockIndicesMarketDataService stockIndicesMarketDataService) {
+            com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService) {
         this.upstoxApiService = upstoxApiService;
-        this.stockIndicesMarketDataService = stockIndicesMarketDataService;
-    }
-
-    private Map<String, String> getStockIndexData() {
-        log.info("Fetching stock index data for NIFTY 50");
-        var stockIndexData = stockIndicesMarketDataService.findByIndexSymbol("NIFTY 50");
-        if (stockIndexData != null && stockIndexData.getData() != null) {
-            log.info("Found {} entries in NIFTY 50", stockIndexData.getData().size());
-            Map<String, String> map = stockIndexData.getData().stream()
-                    .filter(data -> data.getSymbol() != null && data.getIsin() != null)
-                    .collect(java.util.stream.Collectors.toMap(
-                            data -> data.getSymbol(),
-                            data -> data.getIsin(),
-                            (existing, replacement) -> existing));
-            log.info("Mapped {} symbols to ISINs", map.size());
-            return map;
-        }
-        log.warn("Stock index data is null or empty for NIFTY 50");
-        return new HashMap<>();
+        this.upstoxInstrumentService = upstoxInstrumentService;
     }
 
     private List<String> getStockISINs(List<String> stockSymbols) {
-        log.info("Resolving ISINs for {} symbols: {}", stockSymbols.size(), stockSymbols);
-        Map<String, String> stockIndexMap = getStockIndexData();
+        log.info("Resolving Instrument Keys for {} symbols: {}", stockSymbols.size(), stockSymbols);
+
+        com.am.marketdata.service.dto.InstrumentSearchCriteria criteria = new com.am.marketdata.service.dto.InstrumentSearchCriteria();
+        criteria.setTradingSymbols(stockSymbols);
+        criteria.setProvider("UPSTOX");
+
+        List<com.am.marketdata.service.model.UpstoxInstrument> instruments = upstoxInstrumentService
+                .searchInstruments(criteria);
+
+        // Map symbol -> instrumentKey
+        // We need to match the input symbols to the result instruments.
+        // Assuming tradingSymbol matches the input stockSymbol.
+
+        Map<String, String> symbolToKeyMap = instruments.stream()
+                .collect(Collectors.toMap(
+                        inst -> inst.getTradingSymbol(),
+                        inst -> inst.getInstrumentKey(),
+                        (existing, replacement) -> existing));
+
         return stockSymbols.stream()
                 .map(symbol -> {
-                    String isin = stockIndexMap.get(symbol);
-                    if (isin == null) {
-                        log.warn("ISIN not found for symbol: {}", symbol);
+                    String key = symbolToKeyMap.get(symbol);
+                    // if (key == null) {
+                    // // Fallback logic removed as per user request to strictly filter out missing
+                    // keys
+                    // }
+
+                    if (key == null) {
+                        log.warn("Instrument Key not found for symbol: {}", symbol);
                     } else {
-                        log.debug("Resolved {} -> {}", symbol, isin);
+                        log.debug("Resolved {} -> {}", symbol, key);
                     }
-                    return isin;
+                    return key;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
