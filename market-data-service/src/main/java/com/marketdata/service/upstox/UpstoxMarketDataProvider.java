@@ -37,21 +37,37 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     }
 
     private Map<String, String> getStockIndexData() {
-        var stockIndexData = stockIndicesMarketDataService.findByIndexSymbol("NIFTY 500");
+        log.info("Fetching stock index data for NIFTY 50");
+        var stockIndexData = stockIndicesMarketDataService.findByIndexSymbol("NIFTY 50");
         if (stockIndexData != null && stockIndexData.getData() != null) {
-            return stockIndexData.getData().stream()
+            log.info("Found {} entries in NIFTY 50", stockIndexData.getData().size());
+            Map<String, String> map = stockIndexData.getData().stream()
                     .filter(data -> data.getSymbol() != null && data.getIsin() != null)
                     .collect(java.util.stream.Collectors.toMap(
                             data -> data.getSymbol(),
                             data -> data.getIsin(),
                             (existing, replacement) -> existing));
+            log.info("Mapped {} symbols to ISINs", map.size());
+            return map;
         }
+        log.warn("Stock index data is null or empty for NIFTY 50");
         return new HashMap<>();
     }
 
     private List<String> getStockISINs(List<String> stockSymbols) {
+        log.info("Resolving ISINs for {} symbols: {}", stockSymbols.size(), stockSymbols);
+        Map<String, String> stockIndexMap = getStockIndexData();
         return stockSymbols.stream()
-                .map(symbol -> getStockIndexData().get(symbol))
+                .map(symbol -> {
+                    String isin = stockIndexMap.get(symbol);
+                    if (isin == null) {
+                        log.warn("ISIN not found for symbol: {}", symbol);
+                    } else {
+                        log.debug("Resolved {} -> {}", symbol, isin);
+                    }
+                    return isin;
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -91,7 +107,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             List<String> isins = getStockISINs(symbols);
             // Upstox requires interval for OHLC. Defaulting to 1 day as it's common for
             // general OHLC quote
-            OHLCResponse response = upstoxApiService.getOhlc(isins, "1d");
+            OHLCResponse response = upstoxApiService.getOhlc(isins, "I1");
             Map<String, OHLCQuote> result = new HashMap<>();
 
             if (response != null && response.getData() != null) {

@@ -32,7 +32,10 @@ import com.am.marketdata.config.MetricsConfig;
         @ComponentScan("com.am.marketdata"),
         @ComponentScan("com.marketdata")
 })
-@EnableMongoRepositories(basePackages = "com.am.common.investment.persistence.repository")
+@EnableMongoRepositories(basePackages = {
+        "com.am.common.investment.persistence.repository",
+        "com.am.marketdata.service.repo"
+})
 // @EnableRetry
 @EnableScheduling
 public class MarketDataApplication {

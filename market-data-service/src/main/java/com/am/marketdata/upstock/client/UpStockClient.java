@@ -47,9 +47,9 @@ public class UpStockClient {
 
         try {
             var request = Unirest.get(url)
-                .header("Authorization", "Bearer " + upstoxConfig.getAccessToken())
-                .header("Api-Version", "2.0")
-                .header("Content-Type", "application/json");
+                    .header("Authorization", "Bearer " + upstoxConfig.getAccessToken())
+                    .header("Api-Version", "2.0")
+                    .header("Content-Type", "application/json");
 
             // Add query parameters if present
             for (int i = 0; i < queryParams.length; i += 2) {
@@ -58,7 +58,7 @@ public class UpStockClient {
 
             HttpResponse<T> response = request.asObject(responseType);
             log.info("Request successful. Status: {}", response.getStatus());
-            //logResponse(response);
+            // logResponse(response);
             return response.getBody();
         } catch (Exception e) {
             log.error("Failed to execute GET request. URL: {}, Error: {}", url, e.getMessage(), e);
@@ -67,33 +67,36 @@ public class UpStockClient {
     }
 
     private String formatSymbols(List<String> symbols) {
-        return symbols.stream()
-            .map(symbol -> symbol.replace(":", "|"))
-            .collect(Collectors.joining(","));
+        String formattedSymbols = symbols.stream()
+                .map(symbol -> symbol.replace(":", "|"))
+                .collect(Collectors.joining(","));
+        log.info("Formatted symbols: {}", formattedSymbols);
+        return "NSE_EQ|" + formattedSymbols;
     }
 
     private void logRequest(String method, String url, Object params) {
         StringBuilder curl = new StringBuilder()
-            .append("curl -X ").append(method)
-            .append(" '").append(url);
+                .append("curl -X ").append(method)
+                .append(" '").append(url);
 
         if (params != null) {
             if (params instanceof String[]) {
                 String[] queryParams = (String[]) params;
                 curl.append("?");
                 for (int i = 0; i < queryParams.length; i += 2) {
-                    if (i > 0) curl.append("&");
+                    if (i > 0)
+                        curl.append("&");
                     curl.append(queryParams[i]).append("=").append(queryParams[i + 1]);
                 }
             } else {
                 curl.append("' -d '").append(params);
             }
         }
-        
+
         curl.append("'")
-            .append(" -H 'Authorization: Bearer ").append(upstoxConfig.getAccessToken()).append("'")
-            .append(" -H 'Api-Version: 2.0'")
-            .append(" -H 'Content-Type: application/json'");
+                .append(" -H 'Authorization: Bearer ").append(upstoxConfig.getAccessToken()).append("'")
+                .append(" -H 'Api-Version: 2.0'")
+                .append(" -H 'Content-Type: application/json'");
 
         log.info("API Request: {}", curl.toString());
     }
@@ -101,7 +104,7 @@ public class UpStockClient {
     private <T> void logResponse(HttpResponse<T> response) {
         log.info("Response Status: {}", response.getStatus());
         log.info("Response Headers: {}", response.getHeaders());
-        //log.info("Raw Response Body: {}", response.getRawBody());
+        // log.info("Raw Response Body: {}", response.getRawBody());
         log.info("Parsed Response Body: {}", response.getBody());
         if (response.getBody() instanceof OHLCResponse) {
             OHLCResponse ohlcResponse = (OHLCResponse) response.getBody();
@@ -112,4 +115,4 @@ public class UpStockClient {
             }
         }
     }
-} 
+}
