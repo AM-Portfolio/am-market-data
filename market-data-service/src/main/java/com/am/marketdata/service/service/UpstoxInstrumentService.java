@@ -126,6 +126,10 @@ public class UpstoxInstrumentService implements InstrumentDataProvider {
             criteriaList
                     .add(org.springframework.data.mongodb.core.query.Criteria.where("weekly").is(criteria.getWeekly()));
         }
+        if (criteria.getIsins() != null && !criteria.getIsins().isEmpty()) {
+            criteriaList
+                    .add(org.springframework.data.mongodb.core.query.Criteria.where("isin").in(criteria.getIsins()));
+        }
 
         // 2. Apply Search Queries ("Gym balls" + Semantic)
         if (criteria.getQueries() != null && !criteria.getQueries().isEmpty()) {
@@ -150,13 +154,18 @@ public class UpstoxInstrumentService implements InstrumentDataProvider {
             }
 
             // Combine with OR
-            criteriaList.add(new org.springframework.data.mongodb.core.query.Criteria()
-                    .orOperator(orCriteria.toArray(new org.springframework.data.mongodb.core.query.Criteria[0])));
+            if (!orCriteria.isEmpty()) {
+                criteriaList.add(new org.springframework.data.mongodb.core.query.Criteria()
+                        .orOperator(orCriteria.toArray(new org.springframework.data.mongodb.core.query.Criteria[0])));
+            }
         }
 
         if (!criteriaList.isEmpty()) {
             query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria()
                     .andOperator(criteriaList.toArray(new org.springframework.data.mongodb.core.query.Criteria[0])));
+        } else {
+            // Default limit if no filter is provided to avoid fetching all records
+            query.limit(100);
         }
 
         return mongoTemplate.find(query, UpstoxInstrument.class);
