@@ -163,6 +163,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         final boolean success;
         final int originalCount;
         final int filteredCount;
+        final Exception error;
 
         SymbolProcessingResult(String symbol, Map<String, Object> data, boolean success,
                 int originalCount, int filteredCount, Exception error) {
@@ -170,6 +171,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             this.success = success;
             this.originalCount = originalCount;
             this.filteredCount = filteredCount;
+            this.error = error;
         }
     }
 
@@ -202,12 +204,35 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                     symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams,
                     null);
 
-            symbolsData.put(symbol, result.data);
+            if (result.success && result.data != null) {
+                // Extract points from the nested structure if possible
+                Object dataObj = result.data.get("data");
+                if (dataObj instanceof HistoricalData) {
+                    HistoricalData hd = (HistoricalData) dataObj;
 
-            if (result.success) {
+                    Map<String, Object> successData = new HashMap<>();
+                    successData.put("status", "success");
+                    successData.put("dataPoints", hd.getDataPoints());
+                    symbolsData.put(symbol, successData);
+                } else {
+                    // Fallback
+                    symbolsData.put(symbol, result.data);
+                }
+
                 successCount++;
                 totalDataPoints += result.originalCount;
                 totalFilteredDataPoints += result.filteredCount;
+            } else {
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("status", "error");
+                if (result.data != null && result.data.containsKey("error")) {
+                    errorData.put("message", result.data.get("error"));
+                } else if (result.error != null) {
+                    errorData.put("message", result.error.getMessage());
+                } else {
+                    errorData.put("message", "Unknown error");
+                }
+                symbolsData.put(symbol, errorData);
             }
         }
 
