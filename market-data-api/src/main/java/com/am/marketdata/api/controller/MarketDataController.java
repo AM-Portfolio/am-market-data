@@ -251,8 +251,9 @@ public class MarketDataController {
     })
     public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
-            log.info("Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}",
-                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
+            log.info(
+                    "Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}, indexSymbol: {}",
+                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh(), request.isIndexSymbol());
             Set<String> symbolList = parseSymbols(request.getSymbols());
 
             // Use cache service instead of direct service call
