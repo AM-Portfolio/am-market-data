@@ -4,330 +4,433 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Market Data Stream Tester</title>
+    <title>Market Data Streamer</title>
     <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --accent: #f59e0b;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background: white;
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 350px 1fr;
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         h1,
+        h2,
+        h3 {
+            margin: 0 0 15px 0;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+        }
+
         h2 {
-            color: #333;
+            font-size: 1.25rem;
         }
 
-        .card {
-            background: #fff;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-
+        /* Form Elements */
         .form-group {
             margin-bottom: 15px;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
         }
 
         input[type="text"],
-        select {
+        select,
+        textarea {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s;
             box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 10px;
         }
 
         button {
-            padding: 10px 15px;
-            background-color: #007bff;
-            color: white;
+            flex: 1;
+            padding: 10px 16px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-weight: 500;
             cursor: pointer;
-            font-size: 14px;
+            transition: all 0.2s;
+            font-size: 0.95rem;
         }
 
-        button:hover {
-            background-color: #0056b3;
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
         }
 
-        button.secondary {
-            background-color: #6c757d;
+        .btn-primary:hover {
+            background: var(--primary-hover);
         }
 
-        button.secondary:hover {
-            background-color: #545b62;
+        .btn-secondary {
+            background: #64748b;
+            color: white;
         }
 
-        button.danger {
-            background-color: #dc3545;
+        .btn-secondary:hover {
+            background: #475569;
         }
 
-        button.danger:hover {
-            background-color: #c82333;
+        .btn-danger {
+            background: var(--danger);
+            color: white;
         }
 
-        #status {
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 4px;
-            font-weight: bold;
+        .btn-danger:hover {
+            background: #b91c1c;
         }
 
-        .status-disconnected {
-            background-color: #ffeeba;
-            color: #856404;
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-color);
+        }
+
+        /* Checkbox wrapper */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .checkbox-wrapper label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-wrapper input {
+            cursor: pointer;
+        }
+
+        /* Status Indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
         .status-connected {
-            background-color: #d4edda;
-            color: #155724;
+            background: #dcfce7;
+            color: #166534;
         }
 
-        .status-error {
-            background-color: #f8d7da;
-            color: #721c24;
+        .status-disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
+            font-size: 0.9rem;
         }
 
         th {
-            background-color: #f8f9fa;
+            background: #f1f5f9;
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
         }
 
-        .up {
-            color: green;
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
         }
 
-        .down {
-            color: red;
+        tr:last-child td {
+            border-bottom: none;
         }
 
-        pre {
-            background: #f8f9fa;
-            padding: 10px;
-            border: 1px solid #ddd;
-            overflow-x: auto;
+        .row-animate {
+            animation: highlight 1.5s ease-out;
+        }
+
+        @keyframes highlight {
+            0% {
+                background-color: rgba(37, 99, 235, 0.1);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        /* Utilities */
+        .text-green {
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .text-red {
+            color: var(--danger);
+            font-weight: 500;
+        }
+
+        .mono-font {
+            font-family: 'SF Mono', 'Roboto Mono', monospace;
+        }
+
+        .filters {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        #filterInput {
+            width: 300px;
+            margin-bottom: 0;
+        }
+
+        .log-container {
             max-height: 200px;
+            overflow-y: auto;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>Market Data Stream Tester</h1>
 
+    <div
+        style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <h1>⚡ Market Data Streamer</h1>
+            <span id="connectionStatus" class="status-badge status-disconnected">Disconnected</span>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);" id="clock">--:--:--</div>
+    </div>
+
+    <div class="container">
+        <!-- Configuration Panel -->
         <div class="card">
-            <h2>1. Authentication</h2>
+            <h2>Configuration</h2>
+
             <div class="form-group">
-                <label for="provider">Provider</label>
+                <label>Auth Provider</label>
                 <select id="provider">
                     <option value="UPSTOX">Upstox</option>
                     <option value="ZERODHA">Zerodha</option>
                 </select>
+                <div style="margin-top: 5px;">
+                    <button class="btn-outline" style="font-size:0.75rem; padding: 4px 8px;"
+                        onclick="getLoginUrl()">Login & Get Token</button>
+                    <div id="loginUrlResult" style="font-size: 0.75rem; margin-top: 5px; word-break: break-all;"></div>
+                </div>
             </div>
-            <div class="form-group">
-                <button onclick="getLoginUrl()">Get Login URL</button>
-            </div>
-            <div id="loginUrlResult" style="margin-top: 10px;"></div>
 
-            <div class="form-group" style="margin-top: 15px;">
-                <label for="accessToken">Access Token (Manual Input)</label>
-                <input type="text" id="accessToken" placeholder="Paste access token here if not using auto-flow">
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+            <div class="form-group">
+                <label>Exchange Segment</label>
+                <select id="exchange">
+                    <option value="NSE_EQ">NSE Equity (NSE_EQ)</option>
+                    <option value="BSE_EQ">BSE Equity (BSE_EQ)</option>
+                    <option value="NSE_FO">NSE F&O (NSE_FO)</option>
+                    <option value="MCX_FO">MCX (MCX_FO)</option>
+                    <option value="">None (Raw Symbol)</option>
+                </select>
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="autoPrefix" checked>
+                    <label for="autoPrefix">Auto-prefix Exchange?</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Symbols (Comma Separated)</label>
+                <textarea id="symbols" rows="4" placeholder="e.g. INFY, RELIANCE, TCS"></textarea>
+                <small style="color: var(--text-muted);">Enter symbols without exchange if Auto-prefix is on.</small>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="startStream()">Start Stream</button>
+                <button class="btn-danger" onclick="stopStream()">Stop</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <label>System Logs</label>
+                <div id="debugLog" class="log-container"></div>
             </div>
         </div>
 
+        <!-- Data Visualization Panel -->
         <div class="card">
-            <h2>2. WebSocket Connection</h2>
-            <div class="form-group">
-                <label for="wsUrl">WebSocket URL</label>
-                <input type="text" id="wsUrl" value="">
-                <small>Auto-detected: <span id="detectedUrl"></span></small>
+            <div class="filters">
+                <h2>Live Market Data Feed</h2>
+                <input type="text" id="filterInput" placeholder="Filter by Symbol (e.g. INFY)..."
+                    onkeyup="filterTable()">
             </div>
-            <div class="form-group">
-                <button onclick="connectWebSocket()">Connect</button>
-                <button class="danger" onclick="disconnectWebSocket()">Disconnect</button>
-            </div>
-            <div id="status" class="status-disconnected">Disconnected</div>
-        </div>
 
-        <div class="card">
-            <h2>3. Stream Control (Polling Simulation)</h2>
-            <div class="form-group">
-                <label for="symbols">Symbols (Comma Separated)</label>
-                <input type="text" id="symbols" value="NSE_EQ|INFY,NSE_EQ|RELIANCE,NSE_EQ|TCS">
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Symbol</th>
+                            <th>LTP</th>
+                            <th>Open</th>
+                            <th>High</th>
+                            <th>Low</th>
+                            <th>Close</th>
+                            <th>Prev Close</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data Rows Injected Here -->
+                    </tbody>
+                </table>
             </div>
-            <div class="form-group">
-                <button onclick="startStream()">Start Stream</button>
-                <button class="secondary" onclick="stopStream()">Stop Stream</button>
+            <div style="text-align: center; padding: 10px; color: var(--text-muted); font-size: 0.8rem;">
+                Showing last <span id="rowCount">0</span> updates
             </div>
-        </div>
-
-        <div class="card">
-            <h2>Live Data</h2>
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>LTP</th>
-                        <th>Open</th>
-                        <th>High</th>
-                        <th>Low</th>
-                        <th>Close</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data rows will await here -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="card">
-            <h2>Debug Log</h2>
-            <pre id="debugLog"></pre>
         </div>
     </div>
 
-    <script>
-        let socket = null;
+    <!-- Hidden WebSocket URL for logic -->
+    <input type="hidden" id="wsUrl">
 
-        // Auto-configure WebSocket URL
+    <script>
+        // --- State Management ---
+        let socket = null;
+        let isConnected = false;
+
+        // --- Initialization ---
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const defaultWsUrl = `${protocol}//${window.location.host}/ws/market-data-stream`;
         document.getElementById('wsUrl').value = defaultWsUrl;
-        document.getElementById('detectedUrl').innerText = defaultWsUrl;
 
-        function log(message) {
-            const debugLog = document.getElementById('debugLog');
-            const timestamp = new Date().toLocaleTimeString();
-            debugLog.innerText = `[${timestamp}] ${message}\n` + debugLog.innerText;
-        }
+        // Auto-connect WS on load
+        connectWebSocket();
 
-        async function getLoginUrl() {
-            const provider = document.getElementById('provider').value;
-            try {
-                const response = await fetch(`/api/v1/market-data/auth/login-url?provider=${provider}`);
-                const data = await response.json();
-                const resultDiv = document.getElementById('loginUrlResult');
-                if (response.ok) {
-                    // Try to find the URL in common keys
-                    const loginUrl = data.loginUrl || data.url || data.authUrl;
+        // --- Core Functions ---
 
-                    if (loginUrl) {
-                        resultDiv.innerHTML = `<a href="${loginUrl}" target="_blank">Click here to Login to ${provider}</a><br><small>URL: ${loginUrl}</small>`;
-                        log(`Generated Login URL for ${provider}`);
-                    } else {
-                        // If no specific key found, dump the JSON (maybe the map keys are dynamic?)
-                        resultDiv.innerHTML = `<span style="color:orange">Warning: Could not identify URL key. Response: ${JSON.stringify(data)}</span>`;
-                        log(`Login URL key missing in: ${JSON.stringify(data)}`);
+        function getSymbolsFromInput() {
+            const raw = document.getElementById('symbols').value;
+            const exchange = document.getElementById('exchange').value;
+            const autoPrefix = document.getElementById('autoPrefix').checked;
+
+            if (!raw.trim()) return [];
+
+            return raw.split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0)
+                .map(s => {
+                    if (autoPrefix && exchange && !s.includes('|')) {
+                        return `${exchange}|${s.toUpperCase()}`;
                     }
-                } else {
-                    resultDiv.innerHTML = `<span style="color:red">Error: ${JSON.stringify(data)}</span>`;
-                    log(`Error getting login URL: ${JSON.stringify(data)}`);
-                }
-            } catch (e) {
-                log(`Exception: ${e.message}`);
-                // Fallback for non-JSON response (simplifies debugging)
-                document.getElementById('loginUrlResult').innerHTML = `<span style="color:red">Exception: ${e.message}</span>`;
-            }
-        }
-
-        function connectWebSocket() {
-            if (socket) {
-                log("WebSocket already connected or connecting");
-                return;
-            }
-
-            const url = document.getElementById('wsUrl').value;
-            log(`Connecting to ${url}...`);
-
-            try {
-                socket = new WebSocket(url);
-
-                socket.onopen = function (e) {
-                    log("WebSocket Connection Established");
-                    document.getElementById('status').innerText = "Connected";
-                    document.getElementById('status').className = "status-connected";
-                };
-
-                socket.onmessage = function (event) {
-                    // log("Received Data: " + event.data);
-                    handleMessage(event.data);
-                };
-
-                socket.onclose = function (event) {
-                    if (event.wasClean) {
-                        log(`WebSocket closed cleanly, code=${event.code} reason=${event.reason}`);
-                    } else {
-                        log('WebSocket Connection Died');
-                    }
-                    updateStatusDisconnected();
-                    socket = null;
-                };
-
-                socket.onerror = function (error) {
-                    log(`WebSocket Error: ${error.message}`);
-                    document.getElementById('status').innerText = "Error";
-                    document.getElementById('status').className = "status-error";
-                };
-
-            } catch (e) {
-                log(`Connection Failed: ${e.message}`);
-                updateStatusDisconnected();
-            }
-        }
-
-        function disconnectWebSocket() {
-            if (socket) {
-                socket.close();
-                socket = null;
-                updateStatusDisconnected();
-                log("WebSocket Disconnected by user");
-            }
-        }
-
-        function updateStatusDisconnected() {
-            document.getElementById('status').innerText = "Disconnected";
-            document.getElementById('status').className = "status-disconnected";
+                    return s.toUpperCase();
+                });
         }
 
         async function startStream() {
             const provider = document.getElementById('provider').value;
-            const symbols = document.getElementById('symbols').value.split(',').map(s => s.trim());
+            const symbolsList = getSymbolsFromInput();
+
+            if (symbolsList.length === 0) {
+                log("Please enter at least one symbol.", "error");
+                return;
+            }
 
             const payload = {
-                instrumentKeys: symbols,
+                instrumentKeys: symbolsList,
                 mode: "FULL",
                 provider: provider
             };
+
+            log(`Starting stream for ${symbolsList.length} symbols: ${symbolsList.join(', ')}...`);
 
             try {
                 const response = await fetch('/api/v1/market-data/stream/connect', {
@@ -337,76 +440,181 @@
                 });
 
                 if (response.ok) {
-                    log(`Stream start request sent for ${symbols.length} symbols`);
+                    log("Stream Connect Request Sent: SC_OK", "success");
                 } else {
-                    log(`Error starting stream: ${await response.text()}`);
+                    log(`Stream Connect Failed: ${await response.text()}`, "error");
                 }
             } catch (e) {
-                log(`Exception starting stream: ${e.message}`);
+                log(`Network Error: ${e.message}`, "error");
             }
         }
 
         async function stopStream() {
             const provider = document.getElementById('provider').value;
             try {
-                const response = await fetch(`/api/v1/market-data/stream/disconnect?provider=${provider}`, { method: 'POST' });
-                if (response.ok) {
-                    log(`Stream stop request sent`);
+                await fetch(`/api/v1/market-data/stream/disconnect?provider=${provider}`, { method: 'POST' });
+                log("Stream Stop Request Sent", "info");
+            } catch (e) {
+                log(`Error stopping stream: ${e.message}`, "error");
+            }
+        }
+
+        async function getLoginUrl() {
+            const provider = document.getElementById('provider').value;
+            try {
+                const res = await fetch(`/api/v1/market-data/auth/login-url?provider=${provider}`);
+                const data = await res.json();
+                const url = data.loginUrl || data.url || data.authUrl;
+
+                const el = document.getElementById('loginUrlResult');
+                if (url) {
+                    el.innerHTML = `<a href="${url}" target="_blank" style="color: var(--primary-color);">Click to Login</a>`;
+                    log("Generated login URL", "success");
                 } else {
-                    log(`Error stopping stream: ${await response.text()}`);
+                    el.innerHTML = `<span style="color:red">No URL found in response</span>`;
                 }
             } catch (e) {
-                log(`Exception stopping stream: ${e.message}`);
+                log(`Auth Error: ${e.message}`, "error");
+            }
+        }
+
+        // --- WebSocket Logic ---
+
+        function connectWebSocket() {
+            if (socket) return;
+            const url = document.getElementById('wsUrl').value;
+
+            try {
+                socket = new WebSocket(url);
+                socket.onopen = () => updateStatus(true);
+                socket.onclose = () => { updateStatus(false); socket = null; setTimeout(connectWebSocket, 5000); }; // Auto-reconnect
+                socket.onerror = (e) => log("WebSocket Error", "error");
+                socket.onmessage = (event) => handleMessage(event.data);
+            } catch (e) {
+                log(`WS Connection Failed: ${e.message}`, "error");
+            }
+        }
+
+        function updateStatus(connected) {
+            isConnected = connected;
+            const badge = document.getElementById('connectionStatus');
+            if (connected) {
+                badge.innerText = "Connected";
+                badge.className = "status-badge status-connected";
+                log("WebSocket Connected", "success");
+            } else {
+                badge.innerText = "Disconnected";
+                badge.className = "status-badge status-disconnected";
+                log("WebSocket Disconnected", "error");
             }
         }
 
         function handleMessage(jsonStr) {
             try {
                 const update = JSON.parse(jsonStr);
-                // Expected format: { provider: "...", quotes: { "SYMBOL": { ohlc: {...}, lastPrice: ... } }, ... }
-
                 if (update.quotes) {
-                    updateTable(update.quotes);
+                    processQuotes(update.quotes);
                 } else {
-                    log("Received update without quotes: " + jsonStr);
+                    // log("Received non-quote message: " + jsonStr, "info");
                 }
-
             } catch (e) {
-                log("Error parsing message: " + e.message);
+                log("Parse Error: " + e.message, "error");
             }
         }
 
-        function updateTable(quotes) {
+        // --- UI Rendering ---
+
+        function processQuotes(quotes) {
             const tbody = document.querySelector('#dataTable tbody');
+            const symbolList = Object.keys(quotes);
 
-            for (const [symbol, data] of Object.entries(quotes)) {
-                let row = document.getElementById(`row-${symbol}`);
-                if (!row) {
-                    row = tbody.insertRow();
-                    row.id = `row-${symbol}`;
-                    row.innerHTML = `
-                        <td class="symbol">${symbol}</td>
-                        <td class="ltp">-</td>
-                        <td class="open">-</td>
-                        <td class="high">-</td>
-                        <td class="low">-</td>
-                        <td class="close">-</td>
-                        <td class="time">-</td>
-                    `;
+            // For each symbol in the update, PREPEND a row
+            // We want to keep the newest data at the top
+
+            for (const [key, data] of Object.entries(quotes)) {
+                // If user wants filtered view, check filter here? 
+                // We'll filter visually in filterTable(), but usually we just add all data 
+                // and let the filter hide rows.
+
+                const row = tbody.insertRow(0);
+                row.className = "row-animate";
+
+                // Determine symbol display (remove exchange if needed for cleaner look)
+                // The key might be "NSE_EQ|INFY" or just "INFY" (based on our backend fix).
+                const displaySymbol = key;
+
+                const ltp = data.lastPrice || 0;
+                const open = data.ohlc?.open || 0;
+                const high = data.ohlc?.high || 0;
+                const low = data.ohlc?.low || 0;
+                const close = data.ohlc?.close || 0;
+
+                // Calculate previous close approx? No, 'close' in OHLC is usually today's close or LTP?
+                // Actually in streaming, 'close' is often yesterday's close or session close.
+                // We'll just display fields.
+
+                row.innerHTML = `
+                    <td class="mono-font" style="font-size: 0.8rem; color: var(--text-muted);">${new Date().toLocaleTimeString()}</td>
+                    <td style="font-weight: 600;">${displaySymbol}</td>
+                    <td class="mono-font">${ltp.toFixed(2)}</td>
+                    <td class="mono-font">${open.toFixed(2)}</td>
+                    <td class="mono-font">${high.toFixed(2)}</td>
+                    <td class="mono-font">${low.toFixed(2)}</td>
+                    <td class="mono-font">${close.toFixed(2)}</td>
+                    <td class="mono-font">-</td>
+                `;
+            }
+
+            // Prune old rows (limit to 50 items visible history)
+            const MAX_ROWS = 50;
+            while (tbody.rows.length > MAX_ROWS) {
+                tbody.deleteRow(tbody.rows.length - 1);
+            }
+
+            document.getElementById('rowCount').innerText = Math.min(tbody.rows.length, MAX_ROWS);
+
+            // Re-apply filter if active
+            filterTable();
+        }
+
+        function filterTable() {
+            const input = document.getElementById('filterInput');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('dataTable');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) { // Start from 1 to skip header
+                const td = tr[i].getElementsByTagName('td')[1]; // Symbol column
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
                 }
-
-                if (data.lastPrice) row.querySelector('.ltp').innerText = data.lastPrice.toFixed(2);
-
-                if (data.ohlc) {
-                    row.querySelector('.open').innerText = data.ohlc.open.toFixed(2);
-                    row.querySelector('.high').innerText = data.ohlc.high.toFixed(2);
-                    row.querySelector('.low').innerText = data.ohlc.low.toFixed(2);
-                    row.querySelector('.close').innerText = data.ohlc.close.toFixed(2);
-                }
-
-                row.querySelector('.time').innerText = new Date().toLocaleTimeString();
             }
         }
+
+        function log(msg, type = 'info') {
+            const el = document.getElementById('debugLog');
+            const time = new Date().toLocaleTimeString();
+            let color = '#e2e8f0';
+            if (type === 'error') color = '#ef4444';
+            if (type === 'success') color = '#22c55e';
+
+            const entry = document.createElement('div');
+            entry.style.color = color;
+            entry.style.borderBottom = '1px solid #334155';
+            entry.style.padding = '4px 0';
+            entry.innerText = `[${time}] ${msg}`;
+
+            el.insertBefore(entry, el.firstChild);
+
+            // limit logs
+            if (el.children.length > 50) el.removeChild(el.lastChild);
+        }
+
     </script>
 </body>
 

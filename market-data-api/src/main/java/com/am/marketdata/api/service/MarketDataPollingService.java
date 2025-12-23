@@ -24,6 +24,9 @@ public class MarketDataPollingService {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
     private final Map<String, ScheduledFuture<?>> activeStreams = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Value("${market-data.stream.poll-interval-seconds:10}")
+    private int pollIntervalSeconds;
+
     public void connectStream(List<String> instrumentKeys, String modeStr, String provider) {
         log.info("Initiating stream simulation via polling for {} instruments. Provider: {}", instrumentKeys.size(),
                 provider);
@@ -64,10 +67,11 @@ public class MarketDataPollingService {
             }
         };
 
-        // Schedule task - every 1 second
-        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(pollingTask, 0, 1, TimeUnit.SECONDS);
+        // Schedule task - use configured interval
+        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(pollingTask, 0, pollIntervalSeconds,
+                TimeUnit.SECONDS);
         activeStreams.put(providerKey, future);
-        log.info("Polling stream started for provider: {}", providerKey);
+        log.info("Polling stream started for provider: {} with interval: {} seconds", providerKey, pollIntervalSeconds);
     }
 
     public void disconnectStream(String provider) {

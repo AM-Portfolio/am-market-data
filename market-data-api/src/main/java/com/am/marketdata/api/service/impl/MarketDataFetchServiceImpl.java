@@ -512,12 +512,17 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
         symbols = getSymbols(symbols, isIndexSymbol);
 
-        // Pass null for providerName
         Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(new ArrayList<>(symbols), timeFrame, forceRefresh,
                 null);
 
+        if (ohlcData != null) {
+            log.info("Fetched OHLC data for keys: {}", ohlcData.keySet());
+        } else {
+            log.warn("Fetched OHLC data is null");
+        }
+
         Map<String, Object> response = new HashMap<>();
-        response.put("data", ohlcData);
+        response.put("quotes", ohlcData);
         response.put("count", ohlcData.size());
         response.put("cached", !forceRefresh);
         response.put("timestamp", System.currentTimeMillis());

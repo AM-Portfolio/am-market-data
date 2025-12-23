@@ -108,7 +108,30 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     @Override
     public Map<String, OHLCQuote> getOHLC(List<String> symbols) {
         try {
-            List<String> isins = getStockISINs(symbols);
+            // Resolve symbols to keys and keep the mapping
+            com.am.marketdata.service.dto.InstrumentSearchCriteria criteria = new com.am.marketdata.service.dto.InstrumentSearchCriteria();
+            criteria.setTradingSymbols(symbols);
+            criteria.setProvider("UPSTOX");
+
+            List<com.am.marketdata.service.model.UpstoxInstrument> instruments = upstoxInstrumentService
+                    .searchInstruments(criteria);
+
+            // Map instrumentKey -> tradingSymbol (Reverse mapping for response)
+            Map<String, String> keyToSymbolMap = instruments.stream()
+                    .collect(Collectors.toMap(
+                            inst -> inst.getInstrumentKey(),
+                            inst -> inst.getTradingSymbol(),
+                            (existing, replacement) -> existing));
+
+            List<String> isins = instruments.stream()
+                    .map(com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey)
+                    .collect(Collectors.toList());
+
+            if (isins.isEmpty()) {
+                log.warn("No instrument keys resolved for symbols: {}", symbols);
+                return new HashMap<>();
+            }
+
             // Upstox requires interval for OHLC. Defaulting to 1 day as it's common for
             // general OHLC quote
             OHLCResponse response = upstoxApiService.getOhlc(isins, "I1");
@@ -116,11 +139,13 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             if (response != null && response.getData() != null) {
                 for (Map.Entry<String, OHLCResponse.OHLCData> entry : response.getData().entrySet()) {
-                    String symbol = entry.getKey();
+                    String instrumentKey = entry.getKey();
                     OHLCResponse.OHLCData data = entry.getValue();
 
+                    // Map back to symbol if possible, otherwise use key
+                    String symbol = keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
+
                     OHLCQuote quote = new OHLCQuote();
-                    // quote.setInstrumentToken(0L); // OHLCQuote does not support this
                     quote.setLastPrice(data.getLast_price() != null ? data.getLast_price() : 0.0);
 
                     if (data.getOhlc() != null) {
