@@ -11,6 +11,14 @@ public class MarketDataUpdate {
     private String symbol;
     private Double ltp;
     private Long timestamp;
-    private Map<String, com.am.marketdata.common.model.OHLCQuote> quotes;
+    private Map<String, QuoteChange> quotes;
     private Map<String, Object> additionalData; // Generic fallback
+
+    @Data
+    @Builder
+    public static class QuoteChange {
+        private Double lastPrice;
+        private Double change;
+        private Double changePercent;
+    }
 }

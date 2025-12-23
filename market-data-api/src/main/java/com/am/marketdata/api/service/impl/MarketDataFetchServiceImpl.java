@@ -507,7 +507,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     @Override
-    public Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame,
+    public Map<String, OHLCQuote> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame,
             boolean forceRefresh) {
 
         symbols = getSymbols(symbols, isIndexSymbol);
@@ -517,18 +517,11 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
         if (ohlcData != null) {
             log.info("Fetched OHLC data for keys: {}", ohlcData.keySet());
+            return ohlcData;
         } else {
             log.warn("Fetched OHLC data is null");
+            return new HashMap<>();
         }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("quotes", ohlcData);
-        response.put("count", ohlcData.size());
-        response.put("cached", !forceRefresh);
-        response.put("timestamp", System.currentTimeMillis());
-        response.put("timeFrame", timeFrame.getApiValue());
-        return response;
-
     }
 
     @Override

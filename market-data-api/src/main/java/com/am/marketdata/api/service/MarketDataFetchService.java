@@ -1,6 +1,7 @@
 package com.am.marketdata.api.service;
 
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
+import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 
 import java.util.Date;
@@ -106,7 +107,7 @@ public interface MarketDataFetchService {
          * @param forceRefresh  Whether to force a refresh from the source
          * @return Map of symbol to OHLC data with cache status
          */
-        Map<String, Object> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame,
+        Map<String, OHLCQuote> getOHLC(Set<String> symbols, boolean isIndexSymbol, TimeFrame timeFrame,
                         boolean forceRefresh);
 
         /**

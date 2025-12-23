@@ -17,6 +17,7 @@ import com.am.marketdata.api.model.OHLCRequest;
 import com.am.marketdata.api.model.QuotesRequest;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
+import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
 
@@ -257,19 +258,9 @@ public class MarketDataController {
             Set<String> symbolList = parseSymbols(request.getSymbols());
 
             // Use cache service instead of direct service call
-            Map<String, Object> response = marketDataCacheService.getOHLC(
+            Map<String, OHLCQuote> response = marketDataCacheService.getOHLC(
                     symbolList, request.isIndexSymbol(), TimeFrame.fromApiValue(request.getTimeFrame()),
                     request.isForceRefresh());
-
-            // Check if there was an error
-            if (response.containsKey("error")) {
-                return ResponseEntity.internalServerError().body(response);
-            }
-
-            // Add cache status to response if not already present
-            if (!response.containsKey("cached")) {
-                response.put("cached", !request.isForceRefresh());
-            }
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

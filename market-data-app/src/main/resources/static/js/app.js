@@ -164,22 +164,21 @@ function processQuotes(quotes) {
         // The key might be "NSE_EQ|INFY" or just "INFY" (based on our backend fix).
         const displaySymbol = key;
 
+        // "data" is now QuoteUpdate { lastPrice, change, changePercent }
         const ltp = data.lastPrice || 0;
-        const open = data.ohlc?.open || 0;
-        const high = data.ohlc?.high || 0;
-        const low = data.ohlc?.low || 0;
-        const close = data.ohlc?.close || 0;
-        const prevClose = data.previous_close || 0;
+        const change = data.change || 0;
+        const changePercent = data.changePercent || 0;
+
+        // Format change for display
+        const changeClass = change >= 0 ? 'text-success' : 'text-danger';
+        const changeSign = change >= 0 ? '+' : '';
+        const changeStr = `${changeSign}${change.toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)`;
 
         row.innerHTML = `
             <td class="mono-font" style="font-size: 0.8rem; color: var(--text-muted);">${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })}</td>
             <td style="font-weight: 600;">${displaySymbol}</td>
             <td class="mono-font">${ltp.toFixed(2)}</td>
-            <td class="mono-font">${open.toFixed(2)}</td>
-            <td class="mono-font">${high.toFixed(2)}</td>
-            <td class="mono-font">${low.toFixed(2)}</td>
-            <td class="mono-font">${close.toFixed(2)}</td>
-            <td class="mono-font">${prevClose.toFixed(2)}</td>
+            <td class="mono-font ${changeClass}">${changeStr}</td>
         `;
     }
 

@@ -44,19 +44,44 @@ public class MarketDataPollingService {
                 // Fetch latest daily data or appropriate timeframe
                 // ForceRefresh = true to get latest from provider
                 // Using TimeFrame.DAY as default snapshot
-                Map<String, Object> response = marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, true);
+                Map<String, OHLCQuote> response = marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, false);
 
-                if (response != null && response.containsKey("quotes")) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, OHLCQuote> quotes = (Map<String, OHLCQuote>) response.get("quotes");
+                if (response != null && !response.isEmpty()) {
+                    // response IS the quotes map
+                    Map<String, OHLCQuote> ohlcQuotes = response;
 
-                    if (quotes != null && !quotes.isEmpty()) {
+                    if (!ohlcQuotes.isEmpty()) {
+                        Map<String, com.am.marketdata.api.model.MarketDataUpdate.QuoteChange> quoteUpdates = new HashMap<>();
+
+                        for (Map.Entry<String, OHLCQuote> entry : ohlcQuotes.entrySet()) {
+                            String symbol = entry.getKey();
+                            OHLCQuote quote = entry.getValue();
+
+                            double lastPrice = quote.getLastPrice();
+                            double prevClose = quote.getPreviousClose();
+                            double change = 0.0;
+                            double changePercent = 0.0;
+
+                            if (prevClose > 0) {
+                                change = lastPrice - prevClose;
+                                changePercent = (change / prevClose) * 100;
+                            }
+
+                            com.am.marketdata.api.model.MarketDataUpdate.QuoteChange update = com.am.marketdata.api.model.MarketDataUpdate.QuoteChange
+                                    .builder()
+                                    .lastPrice(lastPrice)
+                                    .change(change)
+                                    .changePercent(changePercent)
+                                    .build();
+
+                            quoteUpdates.put(symbol, update);
+                        }
 
                         com.am.marketdata.api.model.MarketDataUpdate update = com.am.marketdata.api.model.MarketDataUpdate
                                 .builder()
                                 .provider(providerKey)
                                 .timestamp(System.currentTimeMillis())
-                                .quotes(quotes)
+                                .quotes(quoteUpdates)
                                 .build();
 
                         webSocketHandler.broadcast(update);
