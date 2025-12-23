@@ -8,7 +8,8 @@ import com.marketdata.common.MarketDataProvider;
 import com.upstox.api.GetMarketQuoteLastTradedPriceResponseV3;
 import com.upstox.api.MarketQuoteSymbolLtpV3;
 
-import com.zerodhatech.models.HistoricalData;
+import com.am.common.investment.model.historical.HistoricalData;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
 import lombok.extern.slf4j.Slf4j;
@@ -227,39 +228,71 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             String upstoxInterval = mapToUpstoxInterval(interval);
 
-            HistoricalDataResponse response = upstoxApiService.getHistoricalCandleData(symbol, upstoxInterval,
-                    fromDateStr, toDateStr);
+            // Resolve instrument key first as SDK works with keys
+            List<String> symbolsList = Collections.singletonList(symbol);
+            InstrumentContext context = resolveContext(symbolsList);
+            String instrumentKey = null;
+            if (!context.instrumentKeys.isEmpty()) {
+                instrumentKey = context.instrumentKeys.get(0);
+            } else {
+                log.warn("Could not resolve instrument key for historical data symbol: {}", symbol);
+            }
 
-            // Use Zerodha HistoricalData model
-            HistoricalData historicalData = new HistoricalData();
-            // Note: Zerodha HistoricalData might extend ArrayList<HistoricalData> or
-            // similar.
-            // We need to inspect it or assume standard fields.
-            // Since I cannot inspect it, I will assume it has methods to add data or is a
-            // list.
-            // If it is a list, I can add to it.
-            // If it has parse methods, I use them.
-            // Based on kiteconnect, HistoricalData extends ArrayList<HistoricalData>.
-            // And each item has open, high, low, close, volume, timeStamp keys.
+            HistoricalDataResponse response = null;
 
-            // However, compilation depends on matching class structure.
-            // If it extends ArrayList, `historicalData.add(...)` works.
-
-            if (response != null && response.getData() != null) {
-                historicalData.dataArrayList = new ArrayList<>();
-                for (HistoricalDataResponse.Candle candle : response.getData()) {
-                    HistoricalData point = new HistoricalData();
-                    // Assuming HistoricalData has these fields/setters or map-like 'put'
-                    // Standard KiteConnect: public String timeStamp; public double open; ...
-                    point.timeStamp = candle.getTimestamp(); // String expected
-                    point.open = candle.getOpen();
-                    point.high = candle.getHigh();
-                    point.low = candle.getLow();
-                    point.close = candle.getClose();
-                    point.volume = (long) candle.getVolume(); // long expected
-
-                    historicalData.dataArrayList.add(point);
+            // 1. Try SDK Service if key resolved
+            if (instrumentKey != null) {
+                try {
+                    log.debug("Fetching historical data via SDK for key: {}", instrumentKey);
+                    response = upstoxSdkService.getHistoricalCandleData(instrumentKey, "days", 1, toDateStr,
+                            fromDateStr);
+                } catch (Exception e) {
+                    log.warn("Failed to fetch historical data via SDK: {}", e.getMessage());
                 }
+            }
+
+            // 2. Fallback to API Service (uses symbol directly, or internal logic)
+            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                log.info("Falling back to API Service for historical data: {}", symbol);
+                response = upstoxApiService.getHistoricalCandleData(symbol, upstoxInterval, fromDateStr, toDateStr);
+            }
+
+            // Map to Common HistoricalData model
+            HistoricalData historicalData = new HistoricalData();
+            if (response != null && response.getData() != null) {
+                List<OHLCVTPoint> dataPoints = new ArrayList<>();
+                for (HistoricalDataResponse.Candle candle : response.getData()) {
+                    OHLCVTPoint point = new OHLCVTPoint();
+                    try {
+                        // Parse timestamp
+                        // Upstox sample: "2024-04-12T00:00:00+05:30"
+                        if (candle.getTimestamp() != null) {
+                            // Using Instant parser for ISO 8601 strings
+                            java.time.Instant instant = java.time.Instant
+                                    .parse(candle.getTimestamp().replace("+0530", "+05:30"));
+                            point.setTime(java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()));
+                        } else {
+                            point.setTime(java.time.LocalDateTime.now());
+                        }
+                    } catch (Exception e) {
+                        try {
+                            // Fallback date only
+                            java.time.LocalDate ld = java.time.LocalDate.parse(candle.getTimestamp());
+                            point.setTime(ld.atStartOfDay());
+                        } catch (Exception ex) {
+                            point.setTime(java.time.LocalDateTime.now());
+                        }
+                    }
+
+                    point.setOpen(candle.getOpen());
+                    point.setHigh(candle.getHigh());
+                    point.setLow(candle.getLow());
+                    point.setClose(candle.getClose());
+                    point.setVolume(candle.getVolume() != null ? candle.getVolume() : 0L);
+
+                    dataPoints.add(point);
+                }
+                historicalData.setDataPoints(dataPoints);
             }
 
             return historicalData;

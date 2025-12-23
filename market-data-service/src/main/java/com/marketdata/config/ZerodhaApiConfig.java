@@ -130,9 +130,9 @@ public class ZerodhaApiConfig {
      */
     @Bean(name = "zerodhaMarketDataProvider")
     public ZerodhaMarketDataProvider zerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService,
-            OHLCMapper ohlcMapper) {
+            OHLCMapper ohlcMapper, com.am.marketdata.mapper.HistoryDataMapper historyDataMapper) {
         log.info("Creating Zerodha market data provider");
-        return new ZerodhaMarketDataProvider(zerodhaApiService, ohlcMapper);
+        return new ZerodhaMarketDataProvider(zerodhaApiService, ohlcMapper, historyDataMapper);
     }
 
     /**

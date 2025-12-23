@@ -3,8 +3,12 @@ package com.marketdata.service.zerodha;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.OHLCMapper;
+import com.am.marketdata.mapper.HistoryDataMapper;
 import com.marketdata.common.MarketDataProvider;
-import com.zerodhatech.models.*;
+import com.am.common.investment.model.historical.HistoricalData;
+import com.zerodhatech.models.Instrument;
+import com.zerodhatech.models.LTPQuote;
+import com.zerodhatech.models.Quote;
 import com.zerodhatech.ticker.OnTicks;
 
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +34,13 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
 
     private final ZerodhaApiService zerodhaApiService;
     private final OHLCMapper ohlcMapper;
+    private final HistoryDataMapper historyDataMapper;
 
-    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, OHLCMapper ohlcMapper) {
+    public ZerodhaMarketDataProvider(ZerodhaApiService zerodhaApiService, OHLCMapper ohlcMapper,
+            HistoryDataMapper historyDataMapper) {
         this.zerodhaApiService = zerodhaApiService;
         this.ohlcMapper = ohlcMapper;
+        this.historyDataMapper = historyDataMapper;
         log.info("Initialized Zerodha market data provider");
     }
 
@@ -109,7 +116,17 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
         boolean oi = additionalParams != null && additionalParams.containsKey("oi")
                 ? (Boolean) additionalParams.get("oi")
                 : false;
-        return zerodhaApiService.getHistoricalData(symbol, from, to, interval, continuous, oi);
+        com.zerodhatech.models.HistoricalData zerodhaData = zerodhaApiService.getHistoricalData(symbol, from, to,
+                interval, continuous, oi);
+
+        if (zerodhaData != null) {
+            HistoricalData commonData = historyDataMapper.toCommonHistoricalData(zerodhaData);
+            if (commonData != null) {
+                commonData.setTradingSymbol(symbol);
+                return commonData;
+            }
+        }
+        return new HistoricalData();
     }
 
     @Override

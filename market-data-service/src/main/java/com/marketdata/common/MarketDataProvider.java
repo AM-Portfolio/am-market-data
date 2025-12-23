@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import com.zerodhatech.models.HistoricalData;
+import com.am.common.investment.model.historical.HistoricalData;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
 import com.am.marketdata.common.model.OHLCQuote;

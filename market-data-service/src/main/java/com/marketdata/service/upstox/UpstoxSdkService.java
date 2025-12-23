@@ -5,7 +5,9 @@ import com.upstox.ApiClient;
 import com.upstox.ApiException;
 import com.upstox.auth.OAuth;
 import io.swagger.client.api.MarketQuoteV3Api;
+import io.swagger.client.api.HistoryV3Api;
 import com.upstox.api.GetMarketQuoteLastTradedPriceResponseV3;
+import com.upstox.api.GetHistoricalCandleResponse;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -214,5 +216,129 @@ public class UpstoxSdkService {
         }
 
         return ohlcData;
+    }
+
+    /**
+     * Get historical candle data
+     *
+     * @param instrumentKey Instrument key (e.g. NSE_EQ|INE123...)
+     * @param interval      Interval (e.g. 1minute, day, 30minute)
+     * @param toDate        To date (YYYY-MM-DD or similar format required by API)
+     * @param fromDate      From date (YYYY-MM-DD)
+     * @return com.am.marketdata.upstock.model.HistoricalDataResponse
+     */
+    public com.am.marketdata.upstock.model.HistoricalDataResponse getHistoricalCandleData(String instrumentKey,
+            String unit, Integer interval, String toDate, String fromDate) {
+        if (this.accessToken == null || this.accessToken.isEmpty()) {
+            if (upstoxConfig.getAccessToken() != null) {
+                this.accessToken = upstoxConfig.getAccessToken();
+            }
+            if (this.accessToken == null || this.accessToken.isEmpty()) {
+                throw new IllegalStateException("Upstox Access token is not initialized");
+            }
+        }
+
+        try {
+            // Initialize ApiClient
+            ApiClient apiClient = new ApiClient();
+            OAuth oAuth = (OAuth) apiClient.getAuthentication("OAUTH2");
+            if (oAuth != null) {
+                oAuth.setAccessToken(this.accessToken);
+            } else {
+                apiClient.setAccessToken(this.accessToken);
+            }
+
+            HistoryV3Api historyV3Api = new HistoryV3Api(apiClient);
+
+            log.debug("Fetching historical data for key: {}, interval: {}, from: {}, to: {}", instrumentKey, interval,
+                    fromDate, toDate);
+
+            // Call SDK
+            GetHistoricalCandleResponse sdkResponse = historyV3Api.getHistoricalCandleData1(instrumentKey, unit,
+                    interval,
+                    toDate, fromDate);
+
+            return mapToHistoricalDataResponse(sdkResponse);
+        } catch (Exception e) {
+            log.error("Error getting historical candle data from SDK", e);
+            throw new RuntimeException("Error getting historical candle data", e);
+        }
+    }
+
+    private com.am.marketdata.upstock.model.HistoricalDataResponse mapToHistoricalDataResponse(
+            GetHistoricalCandleResponse sdkResponse) {
+        com.am.marketdata.upstock.model.HistoricalDataResponse response = new com.am.marketdata.upstock.model.HistoricalDataResponse();
+
+        if (sdkResponse != null && sdkResponse.getStatus() != null) {
+            response.setStatus(sdkResponse.getStatus().toString());
+        }
+
+        if (sdkResponse != null && sdkResponse.getData() != null && sdkResponse.getData().getCandles() != null) {
+            java.util.List<com.am.marketdata.upstock.model.HistoricalDataResponse.Candle> candles = new java.util.ArrayList<>();
+
+            for (java.util.List<Object> candleData : sdkResponse.getData().getCandles()) {
+                if (candleData != null && candleData.size() >= 6) {
+                    com.am.marketdata.upstock.model.HistoricalDataResponse.Candle candle = new com.am.marketdata.upstock.model.HistoricalDataResponse.Candle();
+                    try {
+                        // Index 0: Timestamp
+                        candle.setTimestamp(String.valueOf(candleData.get(0)));
+
+                        // Index 1: Open
+                        candle.setOpen(parseDouble(candleData.get(1)));
+
+                        // Index 2: High
+                        candle.setHigh(parseDouble(candleData.get(2)));
+
+                        // Index 3: Low
+                        candle.setLow(parseDouble(candleData.get(3)));
+
+                        // Index 4: Close
+                        candle.setClose(parseDouble(candleData.get(4)));
+
+                        // Index 5: Volume
+                        candle.setVolume(parseLong(candleData.get(5)));
+
+                        // Index 6: OI (Optional)
+                        if (candleData.size() > 6) {
+                            candle.setOi(parseLong(candleData.get(6)));
+                        }
+
+                        candles.add(candle);
+                    } catch (Exception e) {
+                        log.warn("Error parsing candle data: {}", candleData, e);
+                    }
+                }
+            }
+            response.setData(candles);
+        }
+
+        return response;
+    }
+
+    private Double parseDouble(Object val) {
+        if (val == null)
+            return 0.0;
+        if (val instanceof Number) {
+            return ((Number) val).doubleValue();
+        }
+        try {
+            return Double.parseDouble(val.toString());
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+
+    private Long parseLong(Object val) {
+        if (val == null)
+            return 0L;
+        if (val instanceof Number) {
+            return ((Number) val).longValue();
+        }
+        try {
+            Double d = Double.parseDouble(val.toString());
+            return d.longValue();
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 }

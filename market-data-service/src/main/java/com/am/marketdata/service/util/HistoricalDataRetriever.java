@@ -2,7 +2,6 @@ package com.am.marketdata.service.util;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.common.model.TimeFrame;
-import com.am.marketdata.mapper.HistoryDataMapper;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.marketdata.common.MarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
@@ -147,16 +146,20 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
         log.info("[PROVIDER] Fetching historical data from provider for {} symbols", symbols.size());
 
         Map<String, HistoricalData> result = new HashMap<>();
-        HistoryDataMapper historicalDataMapper = new HistoryDataMapper();
+        // Mapper not needed anymore as provider returns the correct model
 
         for (String symbol : symbols) {
             try {
-                com.zerodhatech.models.HistoricalData zerodhaHistoricalData = provider.getHistoricalData(symbol,
+                // Provider now returns the common HistoricalData model directly
+                HistoricalData historicalData = provider.getHistoricalData(symbol,
                         fromDate, toDate, interval, continuous, additionalParams);
 
-                if (zerodhaHistoricalData != null) {
-                    HistoricalData historicalData = historicalDataMapper.toCommonHistoricalData(zerodhaHistoricalData);
-                    historicalData.setTradingSymbol(symbol);
+                if (historicalData != null && historicalData.getDataPoints() != null
+                        && !historicalData.getDataPoints().isEmpty()) {
+                    // Ensure trading symbol is set
+                    if (historicalData.getTradingSymbol() == null || historicalData.getTradingSymbol().isEmpty()) {
+                        historicalData.setTradingSymbol(symbol);
+                    }
                     result.put(symbol, historicalData);
                     log.debug("[PROVIDER] Successfully fetched historical data for symbol: {}", symbol);
                 } else {
