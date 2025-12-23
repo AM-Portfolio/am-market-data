@@ -118,9 +118,31 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             log.debug("Fetching OHLC from Upstox API for keys: {}", context.instrumentKeys);
 
-            // Upstox requires interval for OHLC. Defaulting to 1 day as it's common for
+            // Upstox requires interval for HOhlc. Defaulting to 1 day as it's common for
             // general OHLC quote
-            OHLCResponse response = upstoxApiService.getOhlc(context.instrumentKeys, timeFrame.getUpStockValue());
+            String upstoxInterval = timeFrame.getUpStockValue();
+
+            log.debug("Fetching OHLC using interval: {}", upstoxInterval);
+
+            OHLCResponse response = null;
+
+            // Try SDK Service first
+            try {
+                com.am.marketdata.upstock.model.OHLCResponse sdkResponse = upstoxSdkService
+                        .getOhlc(context.instrumentKeys, upstoxInterval);
+                if (sdkResponse != null && sdkResponse.getData() != null && !sdkResponse.getData().isEmpty()) {
+                    // Map SDK response to OHLCResponse model structure used below
+                    response = sdkResponse;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch OHLC via SDK Service, falling back to API Service: {}", e.getMessage());
+            }
+
+            // Fallback to API Service if SDK failed or returned empty
+            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                response = upstoxApiService.getOhlc(context.instrumentKeys, upstoxInterval);
+            }
+
             Map<String, OHLCQuote> result = new HashMap<>();
 
             if (response != null && response.getData() != null) {
@@ -132,15 +154,24 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                     String symbol = context.keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
 
                     OHLCQuote quote = new OHLCQuote();
+                    // Use getters as fields might be mapped differently or computed
                     quote.setLastPrice(data.getLast_price() != null ? data.getLast_price() : 0.0);
 
                     if (data.getOhlc() != null) {
                         OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
-                        ohlc.setOpen(data.getOpen());
-                        ohlc.setHigh(data.getHigh());
-                        ohlc.setLow(data.getLow());
-                        ohlc.setClose(data.getClose());
+                        ohlc.setOpen(data.getOhlc().getOpen());
+                        ohlc.setHigh(data.getOhlc().getHigh());
+                        ohlc.setLow(data.getOhlc().getLow());
+                        ohlc.setClose(data.getOhlc().getClose());
                         quote.setOhlc(ohlc);
+                    }
+
+                    // Also set previous close if available in data
+                    if (data.getPrevious_close() != null) {
+                        log.debug("Setting Previous Close for {}: {}", symbol, data.getPrevious_close());
+                        quote.setPreviousClose(data.getPrevious_close());
+                    } else {
+                        log.debug("No Previous Close found in mapped data for {}", symbol);
                     }
 
                     result.put(symbol, quote);

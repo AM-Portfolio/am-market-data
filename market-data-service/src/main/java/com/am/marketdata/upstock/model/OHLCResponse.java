@@ -17,10 +17,12 @@ public class OHLCResponse {
     public static class OHLCData {
         @JsonProperty("ohlc")
         private OHLC ohlc;
-        
+
         private Double last_price;
-        
+
         private String instrument_token;
+
+        private Double previous_close;
 
         public Double getOpen() {
             return ohlc != null ? ohlc.getOpen() : null;

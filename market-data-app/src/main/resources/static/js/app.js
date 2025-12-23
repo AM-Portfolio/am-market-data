@@ -169,6 +169,7 @@ function processQuotes(quotes) {
         const high = data.ohlc?.high || 0;
         const low = data.ohlc?.low || 0;
         const close = data.ohlc?.close || 0;
+        const prevClose = data.previous_close || 0;
 
         row.innerHTML = `
             <td class="mono-font" style="font-size: 0.8rem; color: var(--text-muted);">${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })}</td>
@@ -178,7 +179,7 @@ function processQuotes(quotes) {
             <td class="mono-font">${high.toFixed(2)}</td>
             <td class="mono-font">${low.toFixed(2)}</td>
             <td class="mono-font">${close.toFixed(2)}</td>
-            <td class="mono-font">-</td>
+            <td class="mono-font">${prevClose.toFixed(2)}</td>
         `;
     }
 
