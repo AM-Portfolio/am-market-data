@@ -1,15 +1,12 @@
 package com.marketdata.service.upstox;
 
-import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.am.common.investment.model.stockindice.StockIndicesMarketData;
-import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.upstock.model.HistoricalDataResponse;
 import com.am.marketdata.upstock.model.MarketQuoteResponse;
 import com.am.marketdata.upstock.model.OHLCResponse;
 import com.marketdata.common.MarketDataProvider;
-import com.marketdata.common.MarketDataProvider.ProviderOperation;
+
 import com.zerodhatech.models.HistoricalData;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
@@ -17,8 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -34,45 +30,6 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService) {
         this.upstoxApiService = upstoxApiService;
         this.upstoxInstrumentService = upstoxInstrumentService;
-    }
-
-    private List<String> getStockISINs(List<String> stockSymbols) {
-        log.info("Resolving Instrument Keys for {} symbols: {}", stockSymbols.size(), stockSymbols);
-
-        com.am.marketdata.service.dto.InstrumentSearchCriteria criteria = new com.am.marketdata.service.dto.InstrumentSearchCriteria();
-        criteria.setTradingSymbols(stockSymbols);
-        criteria.setProvider("UPSTOX");
-
-        List<com.am.marketdata.service.model.UpstoxInstrument> instruments = upstoxInstrumentService
-                .searchInstruments(criteria);
-
-        // Map symbol -> instrumentKey
-        // We need to match the input symbols to the result instruments.
-        // Assuming tradingSymbol matches the input stockSymbol.
-
-        Map<String, String> symbolToKeyMap = instruments.stream()
-                .collect(Collectors.toMap(
-                        inst -> inst.getTradingSymbol(),
-                        inst -> inst.getInstrumentKey(),
-                        (existing, replacement) -> existing));
-
-        return stockSymbols.stream()
-                .map(symbol -> {
-                    String key = symbolToKeyMap.get(symbol);
-                    // if (key == null) {
-                    // // Fallback logic removed as per user request to strictly filter out missing
-                    // keys
-                    // }
-
-                    if (key == null) {
-                        log.warn("Instrument Key not found for symbol: {}", symbol);
-                    } else {
-                        log.debug("Resolved {} -> {}", symbol, key);
-                    }
-                    return key;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
     }
 
     @Override
@@ -105,36 +62,61 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         return new HashMap<>();
     }
 
-    @Override
-    public Map<String, OHLCQuote> getOHLC(List<String> symbols) {
-        try {
-            // Resolve symbols to keys and keep the mapping
-            com.am.marketdata.service.dto.InstrumentSearchCriteria criteria = new com.am.marketdata.service.dto.InstrumentSearchCriteria();
-            criteria.setTradingSymbols(symbols);
-            criteria.setProvider("UPSTOX");
+    private List<com.am.marketdata.service.model.UpstoxInstrument> resolveInstruments(List<String> symbols) {
+        // Strip exchange prefix if present (e.g., NSE:RELIANCE -> RELIANCE)
+        List<String> cleanedSymbols = symbols.stream()
+                .map(s -> {
+                    if (s.startsWith("NSE:") || s.startsWith("BSE:")) {
+                        return s.substring(4);
+                    }
+                    return s;
+                })
+                .collect(Collectors.toList());
 
-            List<com.am.marketdata.service.model.UpstoxInstrument> instruments = upstoxInstrumentService
-                    .searchInstruments(criteria);
+        com.am.marketdata.service.dto.InstrumentSearchCriteria criteria = new com.am.marketdata.service.dto.InstrumentSearchCriteria();
+        criteria.setTradingSymbols(cleanedSymbols);
+        criteria.setProvider("UPSTOX");
 
-            // Map instrumentKey -> tradingSymbol (Reverse mapping for response)
-            Map<String, String> keyToSymbolMap = instruments.stream()
-                    .collect(Collectors.toMap(
-                            inst -> inst.getInstrumentKey(),
-                            inst -> inst.getTradingSymbol(),
-                            (existing, replacement) -> existing));
+        return upstoxInstrumentService.searchInstruments(criteria);
+    }
 
-            List<String> isins = instruments.stream()
+    private static class InstrumentContext {
+        final List<String> instrumentKeys;
+        final Map<String, String> keyToSymbolMap;
+
+        InstrumentContext(List<com.am.marketdata.service.model.UpstoxInstrument> instruments) {
+            this.instrumentKeys = instruments.stream()
                     .map(com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey)
                     .collect(Collectors.toList());
 
-            if (isins.isEmpty()) {
+            this.keyToSymbolMap = instruments.stream()
+                    .collect(Collectors.toMap(
+                            com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey,
+                            com.am.marketdata.service.model.UpstoxInstrument::getTradingSymbol,
+                            (existing, replacement) -> existing));
+        }
+    }
+
+    private InstrumentContext resolveContext(List<String> symbols) {
+        return new InstrumentContext(resolveInstruments(symbols));
+    }
+
+    @Override
+    public Map<String, OHLCQuote> getOHLC(List<String> symbols, TimeFrame timeFrame) {
+        try {
+            InstrumentContext context = resolveContext(symbols);
+
+            log.info("Resolved {} instruments for symbols: {}", context.instrumentKeys.size(), symbols);
+            if (context.instrumentKeys.isEmpty()) {
                 log.warn("No instrument keys resolved for symbols: {}", symbols);
                 return new HashMap<>();
             }
 
+            log.debug("Fetching OHLC from Upstox API for keys: {}", context.instrumentKeys);
+
             // Upstox requires interval for OHLC. Defaulting to 1 day as it's common for
             // general OHLC quote
-            OHLCResponse response = upstoxApiService.getOhlc(isins, "I1");
+            OHLCResponse response = upstoxApiService.getOhlc(context.instrumentKeys, timeFrame.getUpStockValue());
             Map<String, OHLCQuote> result = new HashMap<>();
 
             if (response != null && response.getData() != null) {
@@ -143,7 +125,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                     OHLCResponse.OHLCData data = entry.getValue();
 
                     // Map back to symbol if possible, otherwise use key
-                    String symbol = keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
+                    String symbol = context.keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
 
                     OHLCQuote quote = new OHLCQuote();
                     quote.setLastPrice(data.getLast_price() != null ? data.getLast_price() : 0.0);
@@ -170,15 +152,22 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     @Override
     public Map<String, LTPQuote> getLTP(String[] symbols) {
         try {
-            List<String> isins = getStockISINs(Arrays.asList(symbols));
-            MarketQuoteResponse response = upstoxApiService.getLtp(isins);
+            InstrumentContext context = resolveContext(Arrays.asList(symbols));
+
+            if (context.instrumentKeys.isEmpty()) {
+                return new HashMap<>();
+            }
+
+            MarketQuoteResponse response = upstoxApiService.getLtp(context.instrumentKeys);
             Map<String, LTPQuote> result = new HashMap<>();
 
             if (response != null && response.getData() != null) {
                 for (Map.Entry<String, com.am.marketdata.upstock.model.common.StockQuote> entry : response.getData()
                         .entrySet()) {
-                    String symbol = entry.getKey();
+                    String instrumentKey = entry.getKey();
                     com.am.marketdata.upstock.model.common.StockQuote data = entry.getValue();
+
+                    String symbol = context.keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
 
                     LTPQuote quote = new LTPQuote();
                     quote.lastPrice = data.getLastPrice();

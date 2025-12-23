@@ -171,7 +171,7 @@ function processQuotes(quotes) {
         const close = data.ohlc?.close || 0;
 
         row.innerHTML = `
-            <td class="mono-font" style="font-size: 0.8rem; color: var(--text-muted);">${new Date().toLocaleTimeString()}</td>
+            <td class="mono-font" style="font-size: 0.8rem; color: var(--text-muted);">${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })}</td>
             <td style="font-weight: 600;">${displaySymbol}</td>
             <td class="mono-font">${ltp.toFixed(2)}</td>
             <td class="mono-font">${open.toFixed(2)}</td>
@@ -182,8 +182,9 @@ function processQuotes(quotes) {
         `;
     }
 
-    // Prune old rows (limit to 50 items visible history)
-    const MAX_ROWS = 50;
+    // Prune old rows (limit to last 3 sets of updates)
+    // If we receive N symbols, we keep 3*N rows.
+    const MAX_ROWS = symbolList.length * 3;
     while (tbody.rows.length > MAX_ROWS) {
         tbody.deleteRow(tbody.rows.length - 1);
     }
@@ -230,4 +231,81 @@ function log(msg, type = 'info') {
 
     // limit logs
     if (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+// --- Instrument Search Logic ---
+
+async function performSearch() {
+    const query = document.getElementById('searchInput').value;
+    if (!query) return;
+
+    const provider = document.getElementById('provider').value;
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = '<div style="padding:10px; text-align:center;">Searching...</div>';
+
+    const payload = {
+        queries: [query],
+        provider: provider
+    };
+
+    try {
+        const response = await fetch('/api/instruments/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            const results = await response.json();
+            renderSearchResults(results);
+            log(`Found ${results.length} instruments for query "${query}"`, "success");
+        } else {
+            resultsContainer.innerHTML = `<div style="padding:10px; color:red;">Search failed: ${response.statusText}</div>`;
+            log("Search failed", "error");
+        }
+    } catch (e) {
+        resultsContainer.innerHTML = `<div style="padding:10px; color:red;">Error: ${e.message}</div>`;
+        log(`Search Error: ${e.message}`, "error");
+    }
+}
+
+function renderSearchResults(results) {
+    const container = document.getElementById('searchResults');
+    container.innerHTML = '';
+
+    if (results.length === 0) {
+        container.innerHTML = '<div style="padding:10px; text-align:center;">No results found.</div>';
+        return;
+    }
+
+    results.forEach(item => {
+        // Adapt based on actual response structure of InstrumentSearchResult
+        const symbol = item.tradingSymbol || item.symbol || "Unknown";
+        const name = item.name || "";
+        const exchange = item.exchange || "";
+        const key = item.instrumentKey || "";
+
+        const div = document.createElement('div');
+        div.className = 'search-item';
+        div.onclick = () => addSymbolToInput(key || symbol); // Prefer key if available for uniqueness
+
+        div.innerHTML = `
+            <div>
+                <div class="search-item-title">${symbol} <span style="font-size:0.8em; color:#64748b;">(${exchange})</span></div>
+                <div class="search-item-meta">${name}</div>
+            </div>
+            <div class="add-icon">+</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function addSymbolToInput(symbol) {
+    const input = document.getElementById('symbols');
+    let current = input.value.trim();
+    if (current && !current.endsWith(',') && current.length > 0) current += ', ';
+    input.value = current + symbol;
+
+    // Visual feedback
+    log(`Added ${symbol} to configuration`, "success");
 }

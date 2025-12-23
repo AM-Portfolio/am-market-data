@@ -71,8 +71,27 @@
             </div>
         </div>
 
-        <!-- Data Visualization Panel -->
+        <!-- Instrument Search Panel -->
         <div class="card">
+            <h2>🔎 Instrument Search</h2>
+            <div class="form-group">
+                <input type="text" id="searchInput" placeholder="Search Symbol (e.g. Reliance, Nifty Bank)..."
+                    onkeypress="if(event.key === 'Enter') performSearch()">
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="performSearch()">Search</button>
+            </div>
+
+            <div id="searchResults" class="search-results-container">
+                <!-- Results will be injected here -->
+                <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                    Enter a query to find instruments.
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Visualization Panel -->
+        <div class="card full-width">
             <div class="filters">
                 <h2>Live Market Data Feed</h2>
                 <input type="text" id="filterInput" placeholder="Filter by Symbol (e.g. INFY)..."

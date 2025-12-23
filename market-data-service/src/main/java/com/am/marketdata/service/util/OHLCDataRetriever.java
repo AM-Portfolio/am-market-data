@@ -20,7 +20,7 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
 
     @Getter
     @Setter
-    private TimeFrame timeFrame = TimeFrame.FIVE_MINUTE; // Default to 5-minute timeframe
+    private TimeFrame timeFrame = TimeFrame.DAY; // Default to 5-minute timeframe
 
     private OHLCDataRetriever(
             MarketDataPersistenceService persistenceService,
@@ -122,7 +122,7 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
 
         try {
             // Pass the timeFrame to the provider
-            Map<String, OHLCQuote> providerData = provider.getOHLC(symbols);
+            Map<String, OHLCQuote> providerData = provider.getOHLC(symbols, timeFrame);
 
             if (providerData != null && !providerData.isEmpty()) {
                 log.info(

@@ -117,7 +117,7 @@ public class MarketDataService {
             String providerName = persistenceService.getMarketDataCacheService().getActiveProvider();
             providerName = resolveProviderName(providerName);
             String finalProviderName = providerName;
-            finalProviderName = "upstock"; // For lambda
+            finalProviderName = "upstox"; // For lambda
 
             MarketDataProvider provider = providerFactory.getProvider(finalProviderName);
             Object session = marketDataRetrievalUtil.retryOnFailure(() -> provider.generateSession(requestToken),

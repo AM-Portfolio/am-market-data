@@ -66,7 +66,6 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
         return zerodhaApiService.generateSession(requestToken);
     }
 
-    
     @Override
     public Map<String, Object> getQuotes(String[] symbols) {
         try {
@@ -79,9 +78,13 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(List<String> symbols) {
+    public Map<String, OHLCQuote> getOHLC(List<String> symbols, TimeFrame timeFrame) {
         try {
-            Map<String, com.zerodhatech.models.OHLCQuote> ohlc = zerodhaApiService.getOHLC(symbols.toArray(new String[0]));
+            // Note: Zerodha getOHLC typically returns the day's OHLC.
+            // Validating if we need to support other timeframes via historical data here.
+            // For now, passing symbols directly.
+            Map<String, com.zerodhatech.models.OHLCQuote> ohlc = zerodhaApiService
+                    .getOHLC(symbols.toArray(new String[0]));
             return ohlcMapper.toServiceOHLCQuoteMap(ohlc);
         } catch (Exception e) {
             log.error("Error getting OHLC from Zerodha: {}", e.getMessage(), e);
@@ -101,10 +104,11 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
     }
 
     @Override
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, 
-                                   boolean continuous, Map<String, Object> additionalParams) {
-        boolean oi = additionalParams != null && additionalParams.containsKey("oi") ? 
-                    (Boolean) additionalParams.get("oi") : false;
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval,
+            boolean continuous, Map<String, Object> additionalParams) {
+        boolean oi = additionalParams != null && additionalParams.containsKey("oi")
+                ? (Boolean) additionalParams.get("oi")
+                : false;
         return zerodhaApiService.getHistoricalData(symbol, from, to, interval, continuous, oi);
     }
 
@@ -114,7 +118,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
         List<Long> tokens = instrumentIds.stream()
                 .map(Long::parseLong)
                 .collect(Collectors.toList());
-        
+
         return zerodhaApiService.initializeTicker(tokens, (OnTicks) tickListener);
     }
 
