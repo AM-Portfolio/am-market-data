@@ -13,6 +13,7 @@ public class ZerodhaApiException extends RuntimeException {
 
     /**
      * Creates a new ZerodhaApiException with a message
+     * 
      * @param message Error message
      */
     public ZerodhaApiException(String message) {
@@ -22,16 +23,17 @@ public class ZerodhaApiException extends RuntimeException {
 
     /**
      * Creates a new ZerodhaApiException with a message and cause
+     * 
      * @param message Error message
-     * @param cause Original exception
+     * @param cause   Original exception
      */
     public ZerodhaApiException(String message, Throwable cause) {
         super(message, cause);
-        
+
         if (cause instanceof KiteException) {
             KiteException kiteException = (KiteException) cause;
             this.errorCode = kiteException.code;
-            
+
             if (kiteException.code == 403) {
                 this.errorType = "unauthorized";
             } else if (kiteException.code >= 400 && kiteException.code < 500) {
@@ -48,14 +50,15 @@ public class ZerodhaApiException extends RuntimeException {
 
     /**
      * Creates a new ZerodhaApiException with a message, cause, and error code
-     * @param message Error message
-     * @param cause Original exception
+     * 
+     * @param message   Error message
+     * @param cause     Original exception
      * @param errorCode HTTP error code
      */
     public ZerodhaApiException(String message, Throwable cause, int errorCode) {
         super(message, cause);
         this.errorCode = errorCode;
-        
+
         if (errorCode == 403) {
             this.errorType = "unauthorized";
         } else if (errorCode >= 400 && errorCode < 500) {
@@ -69,6 +72,7 @@ public class ZerodhaApiException extends RuntimeException {
 
     /**
      * Get the error code
+     * 
      * @return HTTP error code
      */
     public int getErrorCode() {
@@ -77,6 +81,7 @@ public class ZerodhaApiException extends RuntimeException {
 
     /**
      * Get the error type
+     * 
      * @return Error type string
      */
     public String getErrorType() {

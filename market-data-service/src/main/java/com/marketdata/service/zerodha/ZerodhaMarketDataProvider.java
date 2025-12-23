@@ -9,6 +9,7 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
 import com.zerodhatech.models.Quote;
+import com.marketdata.service.zerodha.ZerodhaApiException;
 import com.zerodhatech.ticker.OnTicks;
 
 import lombok.extern.slf4j.Slf4j;
