@@ -250,7 +250,7 @@ public class UpstoxSdkService {
 
             HistoryV3Api historyV3Api = new HistoryV3Api(apiClient);
 
-            log.debug("Fetching historical data for key: {}, interval: {}, from: {}, to: {}", instrumentKey, interval,
+            log.info("Fetching historical data for key: {}, interval: {}, from: {}, to: {}", instrumentKey, interval,
                     fromDate, toDate);
 
             // Call SDK

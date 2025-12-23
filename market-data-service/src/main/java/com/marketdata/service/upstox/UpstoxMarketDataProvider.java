@@ -243,7 +243,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             // 1. Try SDK Service if key resolved
             if (instrumentKey != null) {
                 try {
-                    log.debug("Fetching historical data via SDK for key: {}", instrumentKey);
+                    log.info("Fetching historical data via SDK for key: {}", instrumentKey);
                     response = upstoxSdkService.getHistoricalCandleData(instrumentKey, "days", 1, toDateStr,
                             fromDateStr);
                 } catch (Exception e) {

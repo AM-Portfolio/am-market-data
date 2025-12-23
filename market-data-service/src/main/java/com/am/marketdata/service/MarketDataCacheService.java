@@ -210,10 +210,10 @@ public class MarketDataCacheService {
                             symbol.toUpperCase(), timeFrame.getApiValue(), dateStr);
 
                     StockBars stockBars = stockCacheService.getBarsWithStats(symbol, timeFrame.getApiValue(), dateStr);
-                    List<OHLCV> bars = stockBars.getBars();
+                    List<OHLCV> bars = (stockBars != null) ? stockBars.getBars() : null;
                     OHLCV bar = null;
-                    if (stockBars != null && stockBars.getBars() != null && !stockBars.getBars().isEmpty()) {
-                        bar = stockBars.getBars().get(0);
+                    if (bars != null && !bars.isEmpty()) {
+                        bar = bars.get(0);
 
                         // Record the cache hit for logging
                         cacheHits.put(cacheKey, String.format("O:%.2f,H:%.2f,L:%.2f,C:%.2f",
