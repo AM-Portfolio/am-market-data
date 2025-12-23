@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.marketdata.service.upstox.UpstoxApiService;
 import com.marketdata.service.upstox.UpstoxMarketDataProvider;
+import com.marketdata.service.upstox.UpstoxSdkService;
 
 import java.time.Duration;
 
@@ -39,11 +40,20 @@ public class UpstoxApiConfig {
         return new UpstoxApiService(upStockClient, redisTemplate, objectMapper, upstoxConfig);
     }
 
+    @Bean(name = "upstoxSdkService")
+    public UpstoxSdkService upstoxSdkService(
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            com.am.marketdata.upstock.config.UpstoxConfig upstoxConfig) {
+        log.info("Creating Upstox SDK service");
+        return new UpstoxSdkService(redisTemplate, upstoxConfig);
+    }
+
     @Bean(name = "upstoxMarketDataProvider")
     public UpstoxMarketDataProvider upstoxMarketDataProvider(UpstoxApiService upstoxApiService,
-            com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService) {
+            com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService,
+            UpstoxSdkService upstoxSdkService) {
         log.info("Creating Upstox market data provider");
-        return new UpstoxMarketDataProvider(upstoxApiService, upstoxInstrumentService);
+        return new UpstoxMarketDataProvider(upstoxApiService, upstoxInstrumentService, upstoxSdkService);
     }
 
     @Bean(name = "marketDataUpstoxRetryRegistry")

@@ -3,9 +3,10 @@ package com.marketdata.service.upstox;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.upstock.model.HistoricalDataResponse;
-import com.am.marketdata.upstock.model.MarketQuoteResponse;
 import com.am.marketdata.upstock.model.OHLCResponse;
 import com.marketdata.common.MarketDataProvider;
+import com.upstox.api.GetMarketQuoteLastTradedPriceResponseV3;
+import com.upstox.api.MarketQuoteSymbolLtpV3;
 
 import com.zerodhatech.models.HistoricalData;
 import com.zerodhatech.models.Instrument;
@@ -25,11 +26,14 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     private final UpstoxApiService upstoxApiService;
     private final com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService;
+    private final UpstoxSdkService upstoxSdkService;
 
     public UpstoxMarketDataProvider(UpstoxApiService upstoxApiService,
-            com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService) {
+            com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService,
+            UpstoxSdkService upstoxSdkService) {
         this.upstoxApiService = upstoxApiService;
         this.upstoxInstrumentService = upstoxInstrumentService;
+        this.upstoxSdkService = upstoxSdkService;
     }
 
     @Override
@@ -158,14 +162,13 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                 return new HashMap<>();
             }
 
-            MarketQuoteResponse response = upstoxApiService.getLtp(context.instrumentKeys);
+            GetMarketQuoteLastTradedPriceResponseV3 response = upstoxSdkService.getLtp(context.instrumentKeys);
             Map<String, LTPQuote> result = new HashMap<>();
 
             if (response != null && response.getData() != null) {
-                for (Map.Entry<String, com.am.marketdata.upstock.model.common.StockQuote> entry : response.getData()
-                        .entrySet()) {
+                for (Map.Entry<String, MarketQuoteSymbolLtpV3> entry : response.getData().entrySet()) {
                     String instrumentKey = entry.getKey();
-                    com.am.marketdata.upstock.model.common.StockQuote data = entry.getValue();
+                    MarketQuoteSymbolLtpV3 data = entry.getValue();
 
                     String symbol = context.keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
 
@@ -178,7 +181,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             }
             return result;
         } catch (Exception e) {
-            log.error("Error fetching Upstox LTP", e);
+            log.error("Error fetching Upstox LTP via SDK Service", e);
             return new HashMap<>();
         }
     }

@@ -58,10 +58,25 @@ public class UpstoxApiService {
                 log.info("Found cached Access Token in Redis, applying to configuration");
                 setAccessToken(cachedToken);
             } else {
-                log.info("No cached Access Token found in Redis");
+                log.info("No cached Access Token found in Redis, checking configuration");
+                if (upstoxConfig.getAccessToken() != null && !upstoxConfig.getAccessToken().isEmpty()) {
+                    log.info("Found Access Token in configuration");
+                    // We don't call setAccessToken to avoid overwriting config with itself or
+                    // triggering side effects
+                    // But setAccessToken updates local field and config.
+                    // Since it's already in config, we just need to update local field.
+                    this.accessToken = upstoxConfig.getAccessToken();
+                } else {
+                    log.warn("No Access Token found in Redis or Configuration");
+                }
             }
         } catch (Exception e) {
             log.warn("Failed to load cached token from Redis (Redis might be down): {}", e.getMessage());
+            // Fallback to config even on exception
+            if (upstoxConfig.getAccessToken() != null && !upstoxConfig.getAccessToken().isEmpty()) {
+                log.info("Found Access Token in configuration (fallback)");
+                this.accessToken = upstoxConfig.getAccessToken();
+            }
         }
     }
 
@@ -138,5 +153,9 @@ public class UpstoxApiService {
     public HistoricalDataResponse getHistoricalCandleData(String symbol, String interval, String fromDate,
             String toDate) {
         return upStockClient.getHistoricalData(symbol, interval, fromDate, toDate);
+    }
+
+    public String getAccessToken() {
+        return this.accessToken;
     }
 }
