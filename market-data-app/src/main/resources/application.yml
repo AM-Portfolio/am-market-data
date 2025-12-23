@@ -45,7 +45,7 @@ MARKET_DATA_THREAD_QUEUE_CAPACITY: 10
 MARKET_DATA_MAX_AGE_MINUTES: 15
 
 # Upstox Configuration
-UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2OTQ5YzJmNTFiOWZlNDYyMjk2NDQ5ZTMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6ZmFsc2UsImlhdCI6MTc2NjQ0MTcxNywiaXNzIjoidWRhcGktZ2F0ZXdheS1zZXJ2aWNlIiwiZXhwIjoxNzY2NTI3MjAwfQ._zyEXWhgFoWaFoBZNen1FDTHargvox0mmr6EAqP6El8
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2OTRhNjNkM2I3MDY5MjI1YWY0M2UyYjUiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6ZmFsc2UsImlhdCI6MTc2NjQ4Mjg5OSwiaXNzIjoidWRhcGktZ2F0ZXdheS1zZXJ2aWNlIiwiZXhwIjoxNzY2NTI3MjAwfQ.C7rFT60x2Wcq2J5a4Sf-jj25CrDJ29kG1HSoaHkU4mY
 UPSTOX_API_KEY: 48d1e335-09ad-4dc0-b955-4505c350d10b
 UPSTOX_SECRET_KEY: jqre481zf0
 UPSTOX_CODE: rNLu2Q 
@@ -122,7 +122,7 @@ upstox:
     api-key: ${UPSTOX_API_KEY}
     secret-key: ${UPSTOX_SECRET_KEY}
     access-token: ${UPSTOX_ACCESS_TOKEN}
-    redirect-uri: http://localhost:8047/api/v1/market-data/auth/session
+    redirect-uri: http://localhost:8092/api/v1/market-data/auth/session
     authorization-url: https://api-v2.upstox.com/login/authorization/dialog
     token-url: https://api-v2.upstox.com/login/authorization/token
     token-refresh-interval: 3600000

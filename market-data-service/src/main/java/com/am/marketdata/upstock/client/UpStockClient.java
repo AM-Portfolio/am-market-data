@@ -8,6 +8,7 @@ import kong.unirest.Unirest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,7 +18,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UpStockClient {
     private final UpstoxConfig upstoxConfig;
+    private final StringRedisTemplate redisTemplate;
+
     private static final String BASE_URL = "https://api-v2.upstox.com/v2";
+    private static final String REDIS_KEY_ACCESS_TOKEN = "market_data:upstox:access_token";
 
     // Market Data APIs
     public MarketQuoteResponse getMarketQuotes(List<String> symbols) {
@@ -41,13 +45,25 @@ public class UpStockClient {
         return executeGet(url, HistoricalDataResponse.class, "from", from, "to", to);
     }
 
+    private String getAccessToken() {
+        try {
+            String cachedToken = redisTemplate.opsForValue().get(REDIS_KEY_ACCESS_TOKEN);
+            if (cachedToken != null && !cachedToken.isEmpty()) {
+                return cachedToken;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get access token from Redis: {}", e.getMessage());
+        }
+        return upstoxConfig.getAccessToken();
+    }
+
     private <T> T executeGet(String url, Class<T> responseType, String... queryParams) {
         log.info("=== Executing GET request to Upstox API ===");
         logRequest("GET", url, queryParams);
 
         try {
             var request = Unirest.get(url)
-                    .header("Authorization", "Bearer " + upstoxConfig.getAccessToken())
+                    .header("Authorization", "Bearer " + getAccessToken())
                     .header("Api-Version", "2.0")
                     .header("Content-Type", "application/json");
 
@@ -94,7 +110,7 @@ public class UpStockClient {
         }
 
         curl.append("'")
-                .append(" -H 'Authorization: Bearer ").append(upstoxConfig.getAccessToken()).append("'")
+                .append(" -H 'Authorization: Bearer ").append(getAccessToken()).append("'")
                 .append(" -H 'Api-Version: 2.0'")
                 .append(" -H 'Content-Type: application/json'");
 

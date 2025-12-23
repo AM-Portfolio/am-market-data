@@ -30,9 +30,13 @@ public class UpstoxApiConfig {
     private int retryDelayMs;
 
     @Bean(name = "upstoxApiService")
-    public UpstoxApiService upstoxApiService(com.am.marketdata.upstock.client.UpStockClient upStockClient) {
+    public UpstoxApiService upstoxApiService(
+            com.am.marketdata.upstock.client.UpStockClient upStockClient,
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+            com.am.marketdata.upstock.config.UpstoxConfig upstoxConfig) {
         log.info("Creating Upstox API service");
-        return new UpstoxApiService(upStockClient);
+        return new UpstoxApiService(upStockClient, redisTemplate, objectMapper, upstoxConfig);
     }
 
     @Bean(name = "upstoxMarketDataProvider")

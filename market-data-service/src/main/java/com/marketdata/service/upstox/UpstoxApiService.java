@@ -1,13 +1,19 @@
 package com.marketdata.service.upstox;
 
 import com.am.marketdata.upstock.client.UpStockClient;
+import com.am.marketdata.upstock.config.UpstoxConfig;
 import com.am.marketdata.upstock.model.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service for interacting with Upstox API
@@ -25,16 +31,38 @@ public class UpstoxApiService {
     @Value("${upstox.auth.redirect-uri}")
     private String redirectUri;
 
+    private static final String REDIS_KEY_ACCESS_TOKEN = "market_data:upstox:access_token";
+
     private final UpStockClient upStockClient;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final UpstoxConfig upstoxConfig;
     private String accessToken;
 
-    public UpstoxApiService(UpStockClient upStockClient) {
+    @Autowired
+    public UpstoxApiService(UpStockClient upStockClient, StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
+            UpstoxConfig upstoxConfig) {
         this.upStockClient = upStockClient;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.upstoxConfig = upstoxConfig;
     }
 
     @PostConstruct
     public void initialize() {
         log.info("Initializing Upstox API service");
+        try {
+            // Try to load cached token from Redis
+            String cachedToken = redisTemplate.opsForValue().get(REDIS_KEY_ACCESS_TOKEN);
+            if (cachedToken != null && !cachedToken.isEmpty()) {
+                log.info("Found cached Access Token in Redis, applying to configuration");
+                setAccessToken(cachedToken);
+            } else {
+                log.info("No cached Access Token found in Redis");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load cached token from Redis (Redis might be down): {}", e.getMessage());
+        }
     }
 
     public String getLoginUrl() {
@@ -58,12 +86,25 @@ public class UpstoxApiService {
 
             if (response.getStatus() == 200) {
                 String body = response.getBody();
-                // TODO: Parse body to extract access_token
                 log.info("Successfully generated Upstox session");
 
-                // Note: We need to parse the JSON and extract access_token here.
-                // For now, returning body.
-                // In a real scenario we would map this to a DTO.
+                try {
+                    // Parse response to extract access_token
+                    JsonNode rootNode = objectMapper.readTree(body);
+                    if (rootNode.has("access_token")) {
+                        String newToken = rootNode.get("access_token").asText();
+                        log.info("Extracted Access Token, saving to Redis");
+
+                        // Save to cache (TTL 1 day or as appropriate)
+                        redisTemplate.opsForValue().set(REDIS_KEY_ACCESS_TOKEN, newToken, 24, TimeUnit.HOURS);
+
+                        // Update in-memory state
+                        setAccessToken(newToken);
+                    }
+                } catch (Exception e) {
+                    log.error("Error parsing token response: {}", e.getMessage());
+                }
+
                 return body;
             } else {
                 throw new RuntimeException(
@@ -78,18 +119,12 @@ public class UpstoxApiService {
 
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
-        // Ideally update UpStockClient's config too if possible, but UpstoxConfig might
-        // be immutable bean.
-        // If UpStockClient reads from UpstoxConfig bean, we might need to update that
-        // bean's state if it has setters.
-        // UpstoxConfig has @Data so it has setters.
-        // But we need access to the bean. UpStockClient has it.
-        // We can't access it easily here unless we cast or expose it.
-        // For now, assuming static config or manual update if possible.
-        // Actually, UpStockClient reads `upstoxConfig.getAccessToken()` on every
-        // request.
-        // So if we update the bean, it works.
-        // I'll need to inject UpstoxConfig here to update it.
+        if (upstoxConfig != null) {
+            upstoxConfig.setAccessToken(accessToken);
+        }
+        // Also ensure UpStockClient knows about it if it doesn't pull from config
+        // automatically
+        // Assuming UpStockClient uses UpstoxConfig bean which we just updated.
     }
 
     public MarketQuoteResponse getLtp(List<String> symbols) {
