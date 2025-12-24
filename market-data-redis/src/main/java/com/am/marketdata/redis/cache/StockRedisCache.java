@@ -20,6 +20,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.Objects;
 
 /**
  * Redis-based cache for stock price data, supporting both intraday and
@@ -284,7 +285,23 @@ public class StockRedisCache {
             return Collections.emptyMap();
         }
 
-        String prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        // Determine prefix based on date and interval:
+        // - TODAY's data (live market data) → always INTRADAY regardless of interval
+        // - PAST dates with daily+ intervals → HISTORICAL
+        // - PAST dates with sub-day intervals → INTRADAY
+        LocalDate today = LocalDate.now();
+        LocalDate queryDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
+        boolean isToday = queryDate.equals(today);
+
+        String prefix;
+        if (isToday) {
+            // TODAY's live data is always intraday
+            prefix = INTRADAY_PREFIX;
+        } else {
+            // Past data: use historical for daily+ intervals, intraday for sub-day
+            prefix = HISTORICAL_INTERVALS.contains(interval) ? HISTORICAL_PREFIX : INTRADAY_PREFIX;
+        }
+
         List<String> keys = new ArrayList<>(symbols.size());
 
         // Generate all keys to fetch
@@ -292,12 +309,22 @@ public class StockRedisCache {
             keys.add(generateKey(prefix, symbol, interval, date));
         }
 
+        // Log first 3 keys for debugging
+        log.info("getMultiSymbolBars", "[REDIS_TRACE] Fetching {} keys from Redis. First 3 keys: {}",
+                keys.size(), keys.subList(0, Math.min(3, keys.size())));
+
         // Fetch all values in a single Redis operation
         List<String> jsonValues = redisTemplate.opsForValue().multiGet(keys);
 
         if (jsonValues == null) {
+            log.warn("getMultiSymbolBars", "[REDIS_TRACE] Redis multiGet returned NULL for {} keys", keys.size());
             return Collections.emptyMap();
         }
+
+        // Count how many values were found
+        long foundCount = jsonValues.stream().filter(Objects::nonNull).count();
+        log.info("getMultiSymbolBars", "[REDIS_TRACE] Redis returned {} non-null values out of {} keys",
+                foundCount, keys.size());
 
         Map<String, StockBars> result = new HashMap<>();
 
@@ -308,8 +335,12 @@ public class StockRedisCache {
                 try {
                     String symbol = symbols.get(i);
 
-                    // Reconstruct StockBars from stored bar data
-                    if (HISTORICAL_INTERVALS.contains(interval)) {
+                    log.debug("getMultiSymbolBars",
+                            "[REDIS_PARSE] Processing symbol {} ({}/{}), JSON length: {}",
+                            symbol, i + 1, symbols.size(), json.length());
+
+                    // Reconstruct StockBars - use PREFIX (date-aware) NOT interval type
+                    if (prefix.equals(HISTORICAL_PREFIX)) {
                         // For historical data, we stored a single OHLCV
                         OHLCV bar = redisObjectMapper.readValue(json, OHLCV.class);
                         StockBars stockBars = StockBars.builder()
@@ -320,6 +351,8 @@ public class StockRedisCache {
                                 .bars(Collections.singletonList(bar))
                                 .build();
                         result.put(symbol, stockBars);
+                        log.debug("getMultiSymbolBars", "[REDIS_PARSE] Successfully parsed HISTORICAL data for {}",
+                                symbol);
                     } else {
                         // For intraday data, we stored a List<OHLCV>
                         List<OHLCV> bars = redisObjectMapper.readValue(json,
@@ -333,11 +366,20 @@ public class StockRedisCache {
                                 .bars(bars)
                                 .build();
                         result.put(symbol, stockBars);
+                        log.debug("getMultiSymbolBars",
+                                "[REDIS_PARSE] Successfully parsed INTRADAY data for {} with {} bars",
+                                symbol, bars.size());
 
                     }
                 } catch (JsonProcessingException e) {
                     log.error("getMultiSymbolBars",
-                            "Failed to deserialize stock bars for " + symbols.get(i) + ": " + e.getMessage());
+                            "[REDIS_PARSE_ERROR] JSON deserialization failed for " + symbols.get(i) +
+                                    ". Error: " + e.getMessage() +
+                                    ". JSON preview: "
+                                    + (json != null ? json.substring(0, Math.min(200, json.length())) : "null"));
+                } catch (Exception e) {
+                    log.error("getMultiSymbolBars",
+                            "[REDIS_PARSE_ERROR] Unexpected error for " + symbols.get(i) + ": " + e.getMessage(), e);
                 }
             }
         }

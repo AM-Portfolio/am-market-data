@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -40,15 +41,21 @@ public class MarketDataCacheService {
         this.stockCacheService = stockCacheService;
     }
 
-    public void cacheOHLCData(Map<String, OHLCQuote> ohlcData) {
+    public void cacheOHLCData(Map<String, OHLCQuote> ohlcData, TimeFrame timeFrame) {
         try {
-            LocalDate today = LocalDate.now();
-            Map<String, List<OHLCV>> symbolPrices = new HashMap<>();
+            String interval = timeFrame != null ? timeFrame.getApiValue() : "1D";
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-            // Convert OHLC quotes to OHLCV objects
+            log.info("cacheOHLCData", "Caching {} symbols with timeframe: {} for date: {}",
+                    ohlcData.size(), interval, today);
+
+            // Convert OHLC quotes to OHLCV objects and cache per symbol with timeframe
+            List<String> cachedKeys = new ArrayList<>();
             for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
                 String fullSymbol = entry.getKey();
-                String symbol = fullSymbol.replace("NSE:", "");
+                // Remove all exchange prefixes (NSE_EQ:, NSE:, etc.)
+                String symbol = fullSymbol.contains(":") ? fullSymbol.substring(fullSymbol.indexOf(":") + 1)
+                        : fullSymbol;
                 OHLCQuote quote = entry.getValue();
 
                 // Create OHLCV from OHLCQuote
@@ -56,23 +63,26 @@ public class MarketDataCacheService {
                         LocalDateTime.now(),
                         quote.getOhlc().getOpen(),
                         quote.getOhlc().getHigh(),
-                        quote.getOhlc().getLow(),
                         quote.getOhlc().getClose(),
-                        0L, // Default volume as it might not be available in OHLCQuote
+                        quote.getOhlc().getClose(),
+                        0L,
                         quote.getLastPrice());
 
-                // Add to map
-                symbolPrices.computeIfAbsent(symbol, k -> new ArrayList<>()).add(ohlcv);
+                // Cache as intraday (today's live market data)
+                // Retrieval logic will determine prefix based on date
+                List<OHLCV> bars = new ArrayList<>();
+                bars.add(ohlcv);
+                stockCacheService.cacheIntradayBars(symbol, interval, bars);
+
+                // Collect Redis key
+                String redisKey = String.format("stock:intraday:%s:%s:%s", symbol.toUpperCase(), interval, today);
+                cachedKeys.add(symbol + " -> " + redisKey);
             }
 
-            // Process and cache data for each symbol
-            if (!symbolPrices.isEmpty()) {
-                // Use the specialized cache logging utility
-                // CacheLoggingUtil.logBatchOHLCCaching(log, symbolPrices, today);
-
-                // Process and cache the data
-                stockCacheService.processAndCacheMultiSymbolData(symbolPrices, today);
-            }
+            // Log only first 3 keys as samples
+            List<String> sampleKeys = cachedKeys.subList(0, Math.min(3, cachedKeys.size()));
+            log.info("cacheOHLCData", "Cached {} symbols with timeframe: {} for date: {}. Sample keys: {}",
+                    ohlcData.size(), interval, today, sampleKeys);
         } catch (Exception e) {
             // Use the specialized exception logging
             CacheLoggingUtil.logCacheException(log, "CACHE_OHLC", null, "Error caching OHLC data", e);
@@ -127,19 +137,39 @@ public class MarketDataCacheService {
 
     public Map<String, OHLCQuote> getOHLCFromCache(List<String> tradingSymbols, TimeFrame timeFrame) {
         try {
-            // Clean symbols (remove NSE: prefix if present)
+            // Clean symbols (remove NSE: prefix if present AND filter out index symbols)
+            List<String> knownIndices = Arrays.asList("NIFTY 50", "NIFTY BANK", "SENSEX", "NIFTY", "BANKNIFTY");
             List<String> cleanSymbols = tradingSymbols.stream()
-                    .map(symbol -> symbol.replace("NSE:", ""))
+                    .map(symbol -> symbol.replace("NSE:", "").replace("NSE_EQ:", ""))
+                    .filter(symbol -> !knownIndices.contains(symbol)) // Filter out indices
                     .collect(Collectors.toList());
 
+            if (cleanSymbols.isEmpty()) {
+                log.debug("getOHLCFromCache", "All symbols were indices, skipping cache lookup");
+                return Collections.emptyMap();
+            }
+
+            // Get today's date in the same format used for caching
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+
             // Log the cache retrieval operation
-            log.debug("getOHLCFromCache",
-                    String.format("Attempting to retrieve OHLC data from cache for %d symbols with timeFrame %s",
-                            cleanSymbols.size(), timeFrame.getApiValue()));
+            List<String> expectedKeys = new ArrayList<>();
+            for (String symbol : cleanSymbols) {
+                String redisKey = String.format("stock:intraday:%s:%s:%s", symbol.toUpperCase(),
+                        timeFrame.getApiValue(), today);
+                expectedKeys.add(symbol + " -> " + redisKey);
+            }
+
+            log.info("getOHLCFromCache",
+                    "Attempting to retrieve OHLC data from cache for {} symbols with timeFrame {} on date: {}. Expected Redis keys: {}",
+                    cleanSymbols.size(), timeFrame.getApiValue(), today, expectedKeys);
 
             // Try to get data from cache
             Map<String, StockBars> cachedBars = stockCacheService.getTodayMultiSymbolBars(cleanSymbols,
                     timeFrame.getApiValue());
+
+            log.info("getOHLCFromCache", "[CACHE_RESULT] Redis returned {} stocks out of {} requested",
+                    cachedBars != null ? cachedBars.size() : 0, cleanSymbols.size());
 
             if (cachedBars == null || cachedBars.isEmpty()) {
                 if (cachedBars == null || cachedBars.isEmpty()) {
@@ -392,7 +422,7 @@ public class MarketDataCacheService {
             }
 
             // Cache the data for future use
-            cacheOHLCData(providerData);
+            cacheOHLCData(providerData, timeFrame);
 
             // Format the response
             Map<String, Object> response = new HashMap<>();

@@ -151,12 +151,14 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
     @Override
     protected void saveDataAsync(Map<String, OHLCQuote> data) {
         if (data == null || data.isEmpty()) {
+            log.warn("saveDataAsync called with empty data");
             return;
         }
 
         try {
+            log.info("[SAVE_ASYNC] Initiating async save of {} OHLC quotes to database and cache", data.size());
             persistenceService.saveOHLCData(data);
-            log.debug("Initiated async save of {} OHLC quotes to database and cache", data.size());
+            log.info("[SAVE_ASYNC] Successfully initiated async save for {} quotes", data.size());
         } catch (Exception e) {
             log.error("Error initiating async save of OHLC data: {}", e.getMessage(), e);
         }
@@ -175,8 +177,10 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
 
         try {
             // Use the MarketDataCacheService directly to update only the cache
-            persistenceService.getMarketDataCacheService().cacheOHLCData(data);
-            log.debug("Updated cache with {} OHLC quotes", data.size());
+            // Use this retriever's timeFrame setting
+            persistenceService.getMarketDataCacheService().cacheOHLCData(data, this.timeFrame);
+            log.debug("Updated cache with {} OHLC quotes for timeFrame {}", data.size(),
+                    this.timeFrame != null ? this.timeFrame.getApiValue() : "default");
         } catch (Exception e) {
             log.error("Error updating cache with OHLC data: {}", e.getMessage(), e);
         }

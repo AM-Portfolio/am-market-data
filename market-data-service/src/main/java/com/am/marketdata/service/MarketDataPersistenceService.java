@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -77,8 +78,8 @@ public class MarketDataPersistenceService {
                 equityService.saveAllPrices(equityPrices);
                 log.debug("Successfully saved {} equity prices to database", equityPrices.size());
 
-                // Then update the cache
-                marketDataCacheService.cacheOHLCData(ohlcData);
+                // Then update the cache with default timeframe (1D for current day data)
+                marketDataCacheService.cacheOHLCData(ohlcData, TimeFrame.DAY);
                 log.debug("Successfully cached OHLC data for {} symbols", ohlcData.size());
             } catch (Exception e) {
                 log.error("Error saving OHLC data: {}", e.getMessage(), e);
@@ -118,11 +119,25 @@ public class MarketDataPersistenceService {
         }
 
         try {
+            // Filter out index symbols early to prevent false cache misses
+            List<String> knownIndices = Arrays.asList("NIFTY 50", "NIFTY BANK", "SENSEX", "NIFTY", "BANKNIFTY");
+            List<String> filteredSymbols = tradingSymbols.stream()
+                    .filter(symbol -> {
+                        String clean = symbol.replace("NSE:", "").replace("NSE_EQ:", "");
+                        return !knownIndices.contains(clean);
+                    })
+                    .collect(Collectors.toList());
+
+            if (filteredSymbols.isEmpty()) {
+                log.debug("All symbols were indices, returning empty result");
+                return Collections.emptyMap();
+            }
+
             // Use "LIVE" as the cache key for current/live prices (when timeFrame is null)
             String tfValue = timeFrame != null ? timeFrame.getApiValue() : "1D";
 
             Map<String, OHLCQuote> result = new HashMap<>();
-            Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
+            Set<String> remainingSymbols = new HashSet<>(filteredSymbols);
 
             if (!forceRefresh) {
                 // Try cache first

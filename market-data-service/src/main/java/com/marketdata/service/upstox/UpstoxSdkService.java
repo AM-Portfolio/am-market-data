@@ -157,7 +157,7 @@ public class UpstoxSdkService {
         com.upstox.api.GetMarketQuoteOHLCResponseV3 sdkResponse;
         try {
             sdkResponse = marketQuoteV3Api.getMarketQuoteOHLC(interval, symbolList);
-            log.info("Full SDK Response JSON: {}", new Gson().toJson(sdkResponse));
+            log.info("Upstox SDK Response received for {} symbols", instrumentKeys.size());
         } catch (ApiException e) {
             log.error("Upstox SDK API Exception: Code={}, Body={}, Headers={}", e.getCode(), e.getResponseBody(),
                     e.getResponseHeaders());
