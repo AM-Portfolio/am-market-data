@@ -42,7 +42,7 @@ public class MarketAnalyticsController {
             @RequestParam(required = false) String indexSymbol,
             @RequestParam(required = false) String timeFrame) {
         try {
-            String index = indexSymbol != null ? indexSymbol : "NIFTY 500";
+            String index = indexSymbol != null ? indexSymbol : "NIFTY 50";
             com.am.marketdata.common.model.TimeFrame tf = timeFrame != null
                     ? com.am.marketdata.common.model.TimeFrame.fromApiValue(timeFrame)
                     : null;
@@ -69,7 +69,7 @@ public class MarketAnalyticsController {
             @RequestParam(required = false) String indexSymbol,
             @RequestParam(required = false) String timeFrame) {
         try {
-            String index = indexSymbol != null ? indexSymbol : "NIFTY 500";
+            String index = indexSymbol != null ? indexSymbol : "NIFTY 50";
             com.am.marketdata.common.model.TimeFrame tf = timeFrame != null
                     ? com.am.marketdata.common.model.TimeFrame.fromApiValue(timeFrame)
                     : null;

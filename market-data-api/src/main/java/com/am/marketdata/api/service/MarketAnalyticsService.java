@@ -20,7 +20,7 @@ public class MarketAnalyticsService {
     private final StockDataEnricher stockDataEnricher;
 
     // Default broad index for "entire market" analytics
-    private static final String DEFAULT_MARKET_INDEX = "NIFTY 500";
+    private static final String DEFAULT_MARKET_INDEX = "NIFTY 50";
 
     /**
      * Get Top Gainers or Losers

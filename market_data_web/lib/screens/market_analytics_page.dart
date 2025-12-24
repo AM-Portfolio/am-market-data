@@ -10,7 +10,7 @@ import '../providers/market_provider.dart';
 class MarketAnalyticsPage extends StatefulWidget {
   final String indexSymbol;
 
-  const MarketAnalyticsPage({super.key, required this.indexSymbol});
+  const MarketAnalyticsPage({super.key, this.indexSymbol = 'NIFTY 50'});
 
   @override
   State<MarketAnalyticsPage> createState() => _MarketAnalyticsPageState();
@@ -22,11 +22,9 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
   List<Map<String, dynamic>> _gainers = [];
   List<Map<String, dynamic>> _losers = [];
   List<Map<String, dynamic>> _sectors = [];
-  Map<String, dynamic> _marketCap = {};
   
   bool _isLoadingMovers = false;
   bool _isLoadingSectors = false;
-  bool _isLoadingMarketCap = false;
 
   @override
   void initState() {
@@ -46,14 +44,12 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
     setState(() {
       _isLoadingMovers = true;
       _isLoadingSectors = true;
-      _isLoadingMarketCap = true;
     });
 
     // Load all analytics data concurrently
     await Future.wait([
       _loadMovers(),
       _loadSectors(),
-      _loadMarketCap(),
     ]);
   }
 
@@ -99,23 +95,6 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingSectors = false);
-      }
-    }
-  }
-
-  Future<void> _loadMarketCap() async {
-    try {
-      final marketCap = await _apiService.fetchMarketCapAnalysis();
-      
-      if (mounted) {
-        setState(() {
-          _marketCap = marketCap;
-          _isLoadingMarketCap = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingMarketCap = false);
       }
     }
   }
@@ -172,33 +151,17 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
             ),
             const SizedBox(height: 16),
 
-            // Sector Performance and Market Cap side by side
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: SectorPerformanceView(
-                    sectors: _sectors,
-                    isLoading: _isLoadingSectors,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 1,
-                  child: MarketCapView(
-                    data: _marketCap,
-                    isLoading: _isLoadingMarketCap,
-                  ),
-                ),
-              ],
+            // Sector Performance (Full Width)
+            SectorPerformanceView(
+              sectors: _sectors,
+              isLoading: _isLoadingSectors,
             ),
             const SizedBox(height: 24),
 
             // Heatmap Section
-            if (provider.selectedSymbol != null && 
-                provider.selectedSymbol!.isNotEmpty &&
-                provider.selectedSymbol != 'All Indices')
+            if (provider.selectedIndex != null && 
+                provider.selectedIndex!.isNotEmpty &&
+                provider.selectedIndex != 'All Indices')
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

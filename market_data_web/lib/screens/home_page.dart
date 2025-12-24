@@ -240,7 +240,7 @@ class _HomePageState extends State<HomePage> {
                      : provider.error != null
                          ? Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.redAccent)))
                          : isAnalytics
-                             ? MarketAnalyticsPage(indexSymbol: provider.selectedSymbol ?? 'NIFTY 500')
+                             ? MarketAnalyticsPage(indexSymbol: provider.selectedIndex ?? 'NIFTY 50')
                              : _currentView == 0
                                  ? const ConstituentsTable()
                                  : const HeatmapView(),

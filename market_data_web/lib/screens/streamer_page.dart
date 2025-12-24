@@ -23,9 +23,9 @@ class _StreamerPageState extends State<StreamerPage> {
   
   // Config State
   String _provider = 'UPSTOX'; // UPSTOX, ZERODHA
-  String _exchangeSegment = 'NSE_EQ';
+  String _exchangeSegment = 'None'; // Default to None
   bool _autoPrefix = true;
-  final TextEditingController _symbolsController = TextEditingController();
+  final TextEditingController _symbolsController = TextEditingController(text: 'NIFTY 50'); // Default to NIFTY 50
   final TextEditingController _searchInputController = TextEditingController();
   
   // Live Data State

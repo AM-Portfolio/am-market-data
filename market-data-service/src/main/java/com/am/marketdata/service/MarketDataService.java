@@ -157,22 +157,30 @@ public class MarketDataService {
 
     public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh,
             String providerName) {
+        String methodName = "getOHLC";
+        String tfValue = timeFrame != null ? timeFrame.getApiValue() : "default";
         Timer.Sample timer = Timer.start(meterRegistry);
-        try {
-            providerName = resolveProviderName(providerName);
+        log.info(methodName, String.format("Getting OHLC for %d symbols with timeFrame: %s, forceRefresh: %b",
+                tradingSymbols.size(), tfValue, forceRefresh));
 
+        try {
+
+            providerName = resolveProviderName(providerName);
             OHLCDataRetriever retriever = createOHLCDataRetriever(providerName);
             Map<String, OHLCQuote> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
+
+            // Original success metric, adapted with tfValue
+            meterRegistry.counter("market.data.success.count", "operation", "getOHLC", "timeFrame", tfValue)
+                    .increment();
             return result;
         } catch (Exception e) {
-            log.error("Error getting OHLC data for timeFrame {}: {}", timeFrame, e.getMessage(), e);
+            log.error("Error getting OHLC data for timeFrame {}: {}", tfValue, e.getMessage(), e);
             meterRegistry
-                    .counter("market.data.failure.count", "operation", "getOHLC", "timeFrame", timeFrame.getApiValue())
+                    .counter("market.data.failure.count", "operation", "getOHLC", "timeFrame", tfValue)
                     .increment();
-            throw new RuntimeException("Failed to get OHLC data for timeFrame " + timeFrame, e);
+            throw new RuntimeException("Failed to get OHLC data for timeFrame " + tfValue, e);
         } finally {
-            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC", "timeFrame",
-                    timeFrame.getApiValue()));
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC", "timeFrame", tfValue));
         }
     }
 
