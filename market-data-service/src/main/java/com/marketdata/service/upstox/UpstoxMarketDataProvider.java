@@ -21,9 +21,19 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-@Slf4j
+import com.am.marketdata.common.log.AppLogger;
+import org.springframework.stereotype.Service;
+
+import java.text.SimpleDateFormat;
+
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
 @Service("upstoxMarketDataProvider")
 public class UpstoxMarketDataProvider implements MarketDataProvider {
+
+    private final AppLogger log = AppLogger.getLogger();
 
     private final UpstoxApiService upstoxApiService;
     private final com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService;
@@ -111,19 +121,20 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         try {
             InstrumentContext context = resolveContext(symbols);
 
-            log.info("Resolved {} instruments for symbols: {}", context.instrumentKeys.size(), symbols);
+            log.info("getOHLC",
+                    String.format("Resolved %d instruments for symbols: %s", context.instrumentKeys.size(), symbols));
             if (context.instrumentKeys.isEmpty()) {
-                log.warn("No instrument keys resolved for symbols: {}", symbols);
+                log.warn("getOHLC", "No instrument keys resolved for symbols: " + symbols);
                 return new HashMap<>();
             }
 
-            log.debug("Fetching OHLC from Upstox API for keys: {}", context.instrumentKeys);
+            log.debug("getOHLC", "Fetching OHLC from Upstox API for keys: " + context.instrumentKeys);
 
             // Upstox requires interval for HOhlc. Defaulting to 1 day as it's common for
             // general OHLC quote
             String upstoxInterval = timeFrame.getUpStockValue();
 
-            log.debug("Fetching OHLC using interval: {}", upstoxInterval);
+            log.debug("getOHLC", "Fetching OHLC using interval: " + upstoxInterval);
 
             OHLCResponse response = null;
 
@@ -136,7 +147,8 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                     response = sdkResponse;
                 }
             } catch (Exception e) {
-                log.warn("Failed to fetch OHLC via SDK Service, falling back to API Service: {}", e.getMessage());
+                log.warn("getOHLC",
+                        "Failed to fetch OHLC via SDK Service, falling back to API Service: " + e.getMessage());
             }
 
             // Fallback to API Service if SDK failed or returned empty
@@ -169,10 +181,11 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
                     // Also set previous close if available in data
                     if (data.getPrevious_close() != null) {
-                        log.debug("Setting Previous Close for {}: {}", symbol, data.getPrevious_close());
+                        log.debug("getOHLC",
+                                String.format("Setting Previous Close for %s: %s", symbol, data.getPrevious_close()));
                         quote.setPreviousClose(data.getPrevious_close());
                     } else {
-                        log.debug("No Previous Close found in mapped data for {}", symbol);
+                        log.debug("getOHLC", "No Previous Close found in mapped data for " + symbol);
                     }
 
                     result.put(symbol, quote);
@@ -180,7 +193,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             }
             return result;
         } catch (Exception e) {
-            log.error("Error fetching Upstox OHLC", e);
+            log.error("getOHLC", "Error fetching Upstox OHLC", e);
             return new HashMap<>();
         }
     }
@@ -213,7 +226,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             }
             return result;
         } catch (Exception e) {
-            log.error("Error fetching Upstox LTP via SDK Service", e);
+            log.error("getLTP", "Error fetching Upstox LTP via SDK Service", e);
             return new HashMap<>();
         }
     }
@@ -235,7 +248,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             if (!context.instrumentKeys.isEmpty()) {
                 instrumentKey = context.instrumentKeys.get(0);
             } else {
-                log.warn("Could not resolve instrument key for historical data symbol: {}", symbol);
+                log.warn("getHistoricalData", "Could not resolve instrument key for historical data symbol: " + symbol);
             }
 
             HistoricalDataResponse response = null;
@@ -243,17 +256,17 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             // 1. Try SDK Service if key resolved
             if (instrumentKey != null) {
                 try {
-                    log.info("Fetching historical data via SDK for key: {}", instrumentKey);
+                    log.info("getHistoricalData", "Fetching historical data via SDK for key: " + instrumentKey);
                     response = upstoxSdkService.getHistoricalCandleData(instrumentKey, "days", 1, toDateStr,
                             fromDateStr);
                 } catch (Exception e) {
-                    log.warn("Failed to fetch historical data via SDK: {}", e.getMessage());
+                    log.warn("getHistoricalData", "Failed to fetch historical data via SDK: " + e.getMessage());
                 }
             }
 
             // 2. Fallback to API Service (uses symbol directly, or internal logic)
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                log.info("Falling back to API Service for historical data: {}", symbol);
+                log.info("getHistoricalData", "Falling back to API Service for historical data: " + symbol);
                 response = upstoxApiService.getHistoricalCandleData(symbol, upstoxInterval, fromDateStr, toDateStr);
             }
 
@@ -297,7 +310,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             return historicalData;
         } catch (Exception e) {
-            log.error("Error fetching Upstox historical data", e);
+            log.error("getHistoricalData", "Error fetching Upstox historical data", e);
             return new HistoricalData();
         }
     }

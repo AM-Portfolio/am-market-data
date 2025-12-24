@@ -1,7 +1,7 @@
 package com.am.marketdata.api.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.am.marketdata.common.log.AppLogger;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +20,7 @@ import jakarta.annotation.PostConstruct;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+    private final AppLogger log = AppLogger.getLogger();
 
     @Value("${security.enabled:true}")
     private boolean securityEnabled;
@@ -30,37 +30,39 @@ public class SecurityConfig {
 
     @PostConstruct
     public void init() {
-        log.info("=".repeat(80));
-        log.info("SECURITY CONFIGURATION INITIALIZED");
-        log.info("=".repeat(80));
+        String methodName = "init";
+        log.info(methodName, "=".repeat(80));
+        log.info(methodName, "SECURITY CONFIGURATION INITIALIZED");
+        log.info(methodName, "=".repeat(80));
 
         if (securityEnabled) {
-            log.info("Mode: PRODUCTION (Security ENABLED)");
-            log.info("✓ JWT Validation is ACTIVE");
-            log.info("✓ Protected endpoints: /api/v1/**");
+            log.info(methodName, "Mode: PRODUCTION (Security ENABLED)");
+            log.info(methodName, "✓ JWT Validation is ACTIVE");
+            log.info(methodName, "✓ Protected endpoints: /api/v1/**");
         } else {
-            log.info("Mode: DEVELOPMENT (Security DISABLED)");
-            log.warn("⚠️  WARNING: All endpoints are PUBLIC");
+            log.info(methodName, "Mode: DEVELOPMENT (Security DISABLED)");
+            log.warn(methodName, "⚠️  WARNING: All endpoints are PUBLIC");
         }
-        log.info("=".repeat(80));
+        log.info(methodName, "=".repeat(80));
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring Security Filter Chain...");
+        String methodName = "filterChain";
+        log.info(methodName, "Configuring Security Filter Chain...");
 
         http
                 .csrf(csrf -> {
                     csrf.disable();
-                    log.debug("CSRF protection disabled (stateless API)");
+                    log.debug("filterChain", "CSRF protection disabled (stateless API)");
                 })
                 .sessionManagement(session -> {
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-                    log.debug("Session management: STATELESS");
+                    log.debug("filterChain", "Session management: STATELESS");
                 });
 
         if (securityEnabled) {
-            log.info("Applying PRODUCTION security configuration (JWT enabled)");
+            log.info(methodName, "Applying PRODUCTION security configuration (JWT enabled)");
 
             http.authorizeHttpRequests(auth -> {
                 auth
@@ -80,7 +82,7 @@ public class SecurityConfig {
                     });
 
         } else {
-            log.warn("Applying DEVELOPMENT security configuration (ALL ENDPOINTS PUBLIC)");
+            log.warn(methodName, "Applying DEVELOPMENT security configuration (ALL ENDPOINTS PUBLIC)");
             http.authorizeHttpRequests(auth -> {
                 auth.anyRequest().permitAll();
             });

@@ -10,8 +10,7 @@ import com.am.marketdata.redis.model.StockBars;
 import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.redis.util.CacheLoggingUtil;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
@@ -32,7 +31,7 @@ import java.util.stream.Collectors;
 @Service("serviceModuleMarketDataCacheService")
 public class MarketDataCacheService {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataCacheService.class);
+    private final AppLogger log = AppLogger.getLogger();
     private static final String DEFAULT_INTERVAL = "5m";
 
     private final StockCacheService stockCacheService;
@@ -85,7 +84,7 @@ public class MarketDataCacheService {
         try {
             if (historicalData == null || historicalData.getDataPoints() == null
                     || historicalData.getDataPoints().isEmpty()) {
-                log.warn("No historical data to cache for symbol: {}", symbol);
+                log.warn("cacheHistoricalData", "No historical data to cache for symbol: " + symbol);
                 return;
             }
 
@@ -134,15 +133,19 @@ public class MarketDataCacheService {
                     .collect(Collectors.toList());
 
             // Log the cache retrieval operation
-            log.debug("Attempting to retrieve OHLC data from cache for {} symbols with timeFrame {}",
-                    cleanSymbols.size(), timeFrame.getApiValue());
+            log.debug("getOHLCFromCache",
+                    String.format("Attempting to retrieve OHLC data from cache for %d symbols with timeFrame %s",
+                            cleanSymbols.size(), timeFrame.getApiValue()));
 
             // Try to get data from cache
             Map<String, StockBars> cachedBars = stockCacheService.getTodayMultiSymbolBars(cleanSymbols,
                     timeFrame.getApiValue());
 
             if (cachedBars == null || cachedBars.isEmpty()) {
-                log.debug("No OHLC data found in cache for the requested symbols");
+                if (cachedBars == null || cachedBars.isEmpty()) {
+                    log.debug("getOHLCFromCache", "No OHLC data found in cache for the requested symbols");
+                    return Collections.emptyMap();
+                }
                 return Collections.emptyMap();
             }
 
@@ -170,8 +173,9 @@ public class MarketDataCacheService {
 
             if (!result.isEmpty()) {
                 // Log the cache hits with values
-                log.info("Retrieved OHLC data from cache for {} symbols with values: {}",
-                        result.size(), cacheHits);
+                log.info("getOHLCFromCache",
+                        String.format("Retrieved OHLC data from cache for %d symbols with values: %s",
+                                result.size(), cacheHits));
             }
 
             return result;
@@ -187,9 +191,11 @@ public class MarketDataCacheService {
             String toDate) {
         try {
             // Log the cache retrieval attempt
-            log.debug(
-                    "Attempting to retrieve historical data from cache for symbol: {} with timeFrame: {} from: {} to: {}",
-                    symbol, timeFrame.getApiValue(), fromDate, toDate);
+            // Log the cache retrieval attempt
+            log.debug("getHistoricalDataFromCache",
+                    String.format(
+                            "Attempting to retrieve historical data from cache for symbol: %s with timeFrame: %s from: %s to: %s",
+                            symbol, timeFrame.getApiValue(), fromDate, toDate));
 
             // Parse dates
             LocalDate from = LocalDate.parse(fromDate, DateTimeFormatter.ISO_LOCAL_DATE);
@@ -229,8 +235,10 @@ public class MarketDataCacheService {
 
                 if (!points.isEmpty()) {
                     // Log the cache hits
-                    log.info("Retrieved {} historical data points from cache for symbol: {} with values: {}",
-                            points.size(), symbol, cacheHits);
+                    log.info("getHistoricalDataFromCache",
+                            String.format(
+                                    "Retrieved %d historical data points from cache for symbol: %s with values: %s",
+                                    points.size(), symbol, cacheHits));
 
                     return convertToHistoricalData(symbol, points);
                 }
@@ -246,24 +254,25 @@ public class MarketDataCacheService {
 
                 if (bars != null && !bars.isEmpty()) {
                     // Log the cache hit
-                    log.info("Retrieved {} intraday data points from cache for symbol: {} with key: {}",
-                            bars.size(), symbol, cacheKey);
+                    log.info("getHistoricalDataFromCache",
+                            String.format("Retrieved %d intraday data points from cache for symbol: %s with key: %s",
+                                    bars.size(), symbol, cacheKey));
 
                     // Log detailed data at debug level
-                    if (log.isDebugEnabled()) {
-                        for (OHLCV bar : bars) {
-                            log.debug("Retrieved data point: time={}, open={}, high={}, low={}, close={}, volume={}",
-                                    bar.getTime(), bar.getOpen(), bar.getHigh(), bar.getLow(), bar.getClose(),
-                                    bar.getVolume());
-                        }
+                    for (OHLCV bar : bars) {
+                        log.debug("getHistoricalDataFromCache", String.format(
+                                "Retrieved data point: time=%s, open=%.2f, high=%.2f, low=%.2f, close=%.2f, volume=%d",
+                                bar.getTime(), bar.getOpen(), bar.getHigh(), bar.getLow(), bar.getClose(),
+                                bar.getVolume()));
                     }
 
                     return convertToHistoricalData(symbol, bars);
                 }
             }
 
-            log.debug("No historical data found in cache for symbol: {} with timeFrame: {}", symbol,
-                    timeFrame.getApiValue());
+            log.debug("getHistoricalDataFromCache",
+                    String.format("No historical data found in cache for symbol: %s with timeFrame: %s", symbol,
+                            timeFrame.getApiValue()));
             return null;
         } catch (Exception e) {
             // Use the specialized exception logging
@@ -323,10 +332,9 @@ public class MarketDataCacheService {
         quote.setLastPrice(bar.getLastPrice()); // Set last price to close price
 
         // Log at debug level
-        if (log.isDebugEnabled()) {
-            log.debug("Converted OHLC data point: time={}, O={}, H={}, L={}, C={}",
-                    bar.getTime(), bar.getOpen(), bar.getHigh(), bar.getLow(), bar.getClose());
-        }
+        log.debug("createOHLCQuoteFromBar",
+                String.format("Converted OHLC data point: time=%s, O=%.2f, H=%.2f, L=%.2f, C=%.2f",
+                        bar.getTime(), bar.getOpen(), bar.getHigh(), bar.getLow(), bar.getClose()));
 
         return quote;
     }
@@ -344,8 +352,8 @@ public class MarketDataCacheService {
             boolean forceRefresh) {
         try {
             // Log the request
-            log.info("Getting quotes for {} symbols with timeFrame: {}, forceRefresh: {}",
-                    symbols.size(), timeFrame.getApiValue(), forceRefresh);
+            log.info("getQuotes", String.format("Getting quotes for %d symbols with timeFrame: %s, forceRefresh: %s",
+                    symbols.size(), timeFrame.getApiValue(), forceRefresh));
 
             // Convert Set<String> to List<String>
             List<String> symbolList = new ArrayList<>(symbols);
@@ -354,8 +362,8 @@ public class MarketDataCacheService {
             if (!forceRefresh) {
                 Map<String, OHLCQuote> cachedData = getOHLCFromCache(symbolList, timeFrame);
                 if (!cachedData.isEmpty()) {
-                    log.info("Retrieved quotes from cache for {} symbols with timeFrame: {}",
-                            cachedData.size(), timeFrame.getApiValue());
+                    log.info("getQuotes", String.format("Retrieved quotes from cache for %d symbols with timeFrame: %s",
+                            cachedData.size(), timeFrame.getApiValue()));
 
                     // Format the response
                     Map<String, Object> response = new HashMap<>();
@@ -366,15 +374,16 @@ public class MarketDataCacheService {
             }
 
             // If we get here, we need to fetch from the provider
-            log.info("Fetching quotes from provider for {} symbols with timeFrame: {}",
-                    symbols.size(), timeFrame.getApiValue());
+            log.info("getQuotes", String.format("Fetching quotes from provider for %d symbols with timeFrame: %s",
+                    symbols.size(), timeFrame.getApiValue()));
 
             // Call the MarketDataService to get quotes from provider
             MarketDataService marketDataService = ApplicationContextProvider.getBean(MarketDataService.class);
             Map<String, OHLCQuote> providerData = marketDataService.getOHLC(symbolList, timeFrame, true, null);
 
             if (providerData.isEmpty()) {
-                log.warn("No quotes data returned from provider for timeFrame: {}", timeFrame.getApiValue());
+                log.warn("getQuotes",
+                        "No quotes data returned from provider for timeFrame: " + timeFrame.getApiValue());
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("ERROR", Map.of(
                         "error", "NO_DATA",

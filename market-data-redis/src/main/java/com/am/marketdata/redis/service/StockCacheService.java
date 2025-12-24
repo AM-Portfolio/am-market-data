@@ -6,7 +6,7 @@ import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -24,10 +24,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Delegates to specialized services for historical data, symbol-specific
  * operations, and bar calculation.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockCacheService {
+
+    private final AppLogger log = AppLogger.getLogger();
 
     private final StockRedisCache stockRedisCache;
     private final BarCalculator barCalculator;
@@ -153,7 +154,7 @@ public class StockCacheService {
      */
     public Map<String, Boolean> processAndCacheRawPriceData(String symbol, List<OHLCV> rawPrices, LocalDate date) {
         if (rawPrices == null || rawPrices.isEmpty()) {
-            log.warn("No raw price data provided for symbol: {}", symbol);
+            log.warn("processAndCacheRawPriceData", "No raw price data provided for symbol: " + symbol);
             return Map.of();
         }
 
@@ -173,9 +174,11 @@ public class StockCacheService {
                             .build();
                     boolean success = symbolService.cacheIntradayBars(List.of(stockBars));
                     result.put(interval, success);
-                    log.debug("Processed and cached {} {} bars for {} on {} with Redis key 'stock:intraday:{}:{}:{}'",
+
+                    log.debug("processAndCacheRawPriceData", String.format(
+                            "Processed and cached %d %s bars for %s on %s with Redis key 'stock:intraday:%s:%s:%s'",
                             bars.size(), interval, symbol, date, symbol.toUpperCase(), interval,
-                            date.format(DATE_FORMATTER));
+                            date.format(DATE_FORMATTER)));
                 }
             }
 
@@ -199,7 +202,8 @@ public class StockCacheService {
             // }
 
         } catch (Exception e) {
-            log.error("Error processing raw price data for {}: {}", symbol, e.getMessage());
+            log.error("processAndCacheRawPriceData",
+                    "Error processing raw price data for " + symbol + ": " + e.getMessage());
         }
 
         return result;

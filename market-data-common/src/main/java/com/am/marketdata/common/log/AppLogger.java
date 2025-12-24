@@ -71,6 +71,10 @@ public class AppLogger {
         log.debug(formatMessage(methodName, message), args);
     }
 
+    public boolean isDebugEnabled() {
+        return log.isDebugEnabled();
+    }
+
     // --- Helper Methods ---
 
     private String formatMessage(String methodName, String message) {

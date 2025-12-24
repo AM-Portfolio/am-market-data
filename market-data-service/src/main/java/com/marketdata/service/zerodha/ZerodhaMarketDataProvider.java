@@ -12,7 +12,7 @@ import com.zerodhatech.models.Quote;
 import com.marketdata.service.zerodha.ZerodhaApiException;
 import com.zerodhatech.ticker.OnTicks;
 
-import lombok.extern.slf4j.Slf4j;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -29,9 +29,10 @@ import java.util.stream.Collectors;
 /**
  * Zerodha implementation of the MarketDataProvider interface
  */
-@Slf4j
 @Service("zerodhaMarketDataProvider")
 public class ZerodhaMarketDataProvider implements MarketDataProvider {
+
+    private final AppLogger log = AppLogger.getLogger();
 
     private final ZerodhaApiService zerodhaApiService;
     private final OHLCMapper ohlcMapper;
@@ -42,20 +43,20 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
         this.zerodhaApiService = zerodhaApiService;
         this.ohlcMapper = ohlcMapper;
         this.historyDataMapper = historyDataMapper;
-        log.info("Initialized Zerodha market data provider");
+        log.info("ZerodhaMarketDataProvider", "Initialized Zerodha market data provider");
     }
 
     @PostConstruct
     @Override
     public void initialize() {
-        log.info("Initializing Zerodha market data provider");
+        log.info("initialize", "Initializing Zerodha market data provider");
         zerodhaApiService.initialize();
     }
 
     @PreDestroy
     @Override
     public void cleanup() {
-        log.info("Cleaning up Zerodha market data provider");
+        log.info("cleanup", "Cleaning up Zerodha market data provider");
         zerodhaApiService.cleanup();
     }
 
@@ -80,7 +81,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
             Map<String, Quote> quotes = zerodhaApiService.getQuotes(symbols);
             return new HashMap<>(quotes);
         } catch (Exception e) {
-            log.error("Error getting quotes from Zerodha: {}", e.getMessage(), e);
+            log.error("getQuotes", "Error getting quotes from Zerodha: " + e.getMessage(), e);
             return new HashMap<>();
         }
     }
@@ -95,7 +96,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
                     .getOHLC(symbols.toArray(new String[0]));
             return ohlcMapper.toServiceOHLCQuoteMap(ohlc);
         } catch (Exception e) {
-            log.error("Error getting OHLC from Zerodha: {}", e.getMessage(), e);
+            log.error("getOHLC", "Error getting OHLC from Zerodha: " + e.getMessage(), e);
             return new HashMap<>();
         }
     }
@@ -106,7 +107,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
             Map<String, LTPQuote> ltp = zerodhaApiService.getLTP(symbols);
             return new HashMap<>(ltp);
         } catch (Exception e) {
-            log.error("Error getting LTP from Zerodha: {}", e.getMessage(), e);
+            log.error("getLTP", "Error getting LTP from Zerodha: " + e.getMessage(), e);
             return new HashMap<>();
         }
     }
@@ -151,7 +152,7 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
             List<Instrument> instruments = zerodhaApiService.getAllInstruments();
             return new ArrayList<>(instruments);
         } catch (Exception e) {
-            log.error("Error getting all instruments from Zerodha: {}", e.getMessage(), e);
+            log.error("getAllInstruments", "Error getting all instruments from Zerodha: " + e.getMessage(), e);
             return new ArrayList<>();
         }
     }
@@ -162,7 +163,8 @@ public class ZerodhaMarketDataProvider implements MarketDataProvider {
             List<Instrument> instruments = zerodhaApiService.getInstrumentsForExchange(exchange);
             return new ArrayList<>(instruments);
         } catch (Exception e) {
-            log.error("Error getting instruments for exchange from Zerodha: {}", e.getMessage(), e);
+            log.error("getSymbolsForExchange", "Error getting instruments for exchange from Zerodha: " + e.getMessage(),
+                    e);
             return new ArrayList<>();
         }
     }

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -27,10 +27,11 @@ import java.util.concurrent.TimeUnit;
  * Implements key design, TTL strategy, and helper functions for managing stock
  * price data.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class StockRedisCache {
+
+    private final AppLogger log = AppLogger.getLogger();
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -60,7 +61,7 @@ public class StockRedisCache {
      */
     public boolean saveIntradayBars(List<StockBars> stockBarsList) {
         if (stockBarsList == null || stockBarsList.isEmpty()) {
-            log.warn("Empty or null StockBars list provided for intraday data");
+            log.warn("saveIntradayBars", "Empty or null StockBars list provided for intraday data");
             return false;
         }
 
@@ -99,14 +100,15 @@ public class StockRedisCache {
             long ttlSeconds = calculateIntradayTtl(date);
 
             redisTemplate.opsForValue().set(key, json, ttlSeconds, TimeUnit.SECONDS);
-            log.debug("Saved {} intraday bars for {}, interval: {}, date: {}, TTL: {} seconds",
-                    bars.size(), symbol, interval, date, ttlSeconds);
+            log.debug("saveIntradayBars",
+                    String.format("Saved %d intraday bars for %s, interval: %s, date: %s, TTL: %d seconds",
+                            bars.size(), symbol, interval, date, ttlSeconds));
             return true;
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize stock bars for {}: {}", symbol, e.getMessage());
+            log.error("saveIntradayBars", "Failed to serialize stock bars for " + symbol + ": " + e.getMessage());
             return false;
         } catch (Exception e) {
-            log.error("Error saving intraday bars for {}: {}", symbol, e.getMessage());
+            log.error("saveIntradayBars", "Error saving intraday bars for " + symbol + ": " + e.getMessage());
             return false;
         }
     }
@@ -119,7 +121,7 @@ public class StockRedisCache {
      */
     public boolean saveHistoricalBar(List<StockBars> stockBarsList) {
         if (stockBarsList == null || stockBarsList.isEmpty()) {
-            log.warn("Empty or null StockBars list provided for historical data");
+            log.warn("saveHistoricalBar", "Empty or null StockBars list provided for historical data");
             return false;
         }
 
@@ -131,7 +133,7 @@ public class StockRedisCache {
             List<OHLCV> bars = stockBars.getBars();
 
             if (bars == null || bars.isEmpty()) {
-                log.warn("Empty bars list for symbol: {}", symbol);
+                log.warn("saveHistoricalBar", "Empty bars list for symbol: " + symbol);
                 allSuccess = false;
                 continue;
             }
@@ -174,13 +176,14 @@ public class StockRedisCache {
             long ttlSeconds = 86400;
 
             redisTemplate.opsForValue().set(key, json, ttlSeconds, TimeUnit.SECONDS);
-            log.debug("Saved historical bar for {}, date: {}, TTL: {} seconds", symbol, date, ttlSeconds);
+            log.debug("saveHistoricalBar",
+                    String.format("Saved historical bar for %s, date: %s, TTL: %d seconds", symbol, date, ttlSeconds));
             return true;
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize historical bar for {}: {}", symbol, e.getMessage());
+            log.error("saveHistoricalBar", "Failed to serialize historical bar for " + symbol + ": " + e.getMessage());
             return false;
         } catch (Exception e) {
-            log.error("Error saving historical bar for {}: {}", symbol, e.getMessage());
+            log.error("saveHistoricalBar", "Error saving historical bar for " + symbol + ": " + e.getMessage());
             return false;
         }
     }
@@ -203,7 +206,8 @@ public class StockRedisCache {
         try {
             String json = redisTemplate.opsForValue().get(key);
             if (json == null) {
-                log.debug("No data found for {}, interval: {}, date: {}", symbol, interval, date);
+                log.debug("getBars",
+                        String.format("No data found for %s, interval: %s, date: %s", symbol, interval, date));
                 return null;
             }
 
@@ -232,10 +236,10 @@ public class StockRedisCache {
                         .build();
             }
         } catch (JsonProcessingException e) {
-            log.error("Failed to deserialize stock bars for {}: {}", symbol, e.getMessage());
+            log.error("getBars", "Failed to deserialize stock bars for " + symbol + ": " + e.getMessage());
             return null;
         } catch (Exception e) {
-            log.error("Error retrieving bars for {}: {}", symbol, e.getMessage());
+            log.error("getBars", "Error retrieving bars for " + symbol + ": " + e.getMessage());
             return null;
         }
     }
@@ -253,12 +257,12 @@ public class StockRedisCache {
         Set<String> keys = redisTemplate.keys(pattern);
 
         if (keys == null || keys.isEmpty()) {
-            log.debug("No intraday data found for date: {}", date);
+            log.debug("clearIntradayDataForDate", "No intraday data found for date: {}", date);
             return 0;
         }
 
         Long deletedCount = redisTemplate.delete(keys);
-        log.debug("Deleted {} intraday keys for date: {}", deletedCount, date);
+        log.debug("clearIntradayDataForDate", "Deleted {} intraday keys for date: {}", deletedCount, date);
 
         return deletedCount != null ? deletedCount : 0;
     }
@@ -329,9 +333,11 @@ public class StockRedisCache {
                                 .bars(bars)
                                 .build();
                         result.put(symbol, stockBars);
+
                     }
                 } catch (JsonProcessingException e) {
-                    log.error("Failed to deserialize stock bars for {}: {}", symbols.get(i), e.getMessage());
+                    log.error("getMultiSymbolBars",
+                            "Failed to deserialize stock bars for " + symbols.get(i) + ": " + e.getMessage());
                 }
             }
         }
@@ -391,7 +397,7 @@ public class StockRedisCache {
             return result;
 
         } catch (DateTimeParseException e) {
-            log.error("Invalid date format: {}", e.getMessage());
+            log.error("getMultiSymbolHistoricalBars", "Invalid date format: " + e.getMessage());
             throw new IllegalArgumentException("Invalid date format. Use YYYY-MM-DD");
         }
     }
@@ -481,9 +487,9 @@ public class StockRedisCache {
         }
         try {
             redisTemplate.opsForValue().set("market-data:config:active-provider", providerName);
-            log.info("Set active provider to: {}", providerName);
+            log.info("setActiveProvider", "Set active provider to: " + providerName);
         } catch (Exception e) {
-            log.error("Error setting active provider: {}", e.getMessage());
+            log.error("setActiveProvider", "Error setting active provider: " + e.getMessage());
         }
     }
 
@@ -496,7 +502,7 @@ public class StockRedisCache {
         try {
             return redisTemplate.opsForValue().get("market-data:config:active-provider");
         } catch (Exception e) {
-            log.error("Error getting active provider: {}", e.getMessage());
+            log.error("getActiveProvider", "Error getting active provider: " + e.getMessage());
             return null;
         }
     }

@@ -17,9 +17,8 @@ import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.log.AppLogger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
@@ -39,7 +38,7 @@ import java.util.stream.Collectors;
 @Service
 public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataFetchServiceImpl.class);
+    private final AppLogger log = AppLogger.getLogger();
 
     private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataService marketDataService;
@@ -66,8 +65,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     @Override
     public Map<String, Object> getQuotes(Set<String> tradingSymbols, boolean isIndexSymbol, TimeFrame timeFrame,
             boolean forceRefresh) {
-        log.info("Getting quotes for {} symbols with timeFrame: {}, isIndexSymbol: {}, forceRefresh: {}",
-                tradingSymbols.size(), timeFrame.getApiValue(), isIndexSymbol, forceRefresh);
+        String methodName = "getQuotes";
+        log.info(methodName,
+                String.format("Getting quotes for %d symbols with timeFrame: %s, isIndexSymbol: %b, forceRefresh: %b",
+                        tradingSymbols.size(), timeFrame.getApiValue(), isIndexSymbol, forceRefresh));
 
         // Get all symbols including index constituents if requested
         Set<String> symbols = getSymbols(tradingSymbols, isIndexSymbol);
@@ -144,13 +145,14 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 int filteredCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : originalCount;
                 return new SymbolProcessingResult(symbol, singleResult, true, originalCount, filteredCount, null);
             } else {
-                log.warn("Failed to get historical data for symbol: {}", symbol);
+                log.warn("processSymbolHistoricalData", "Failed to get historical data for symbol: " + symbol);
                 return new SymbolProcessingResult(symbol,
                         Collections.singletonMap("error", "Failed to fetch data"),
                         false, 0, 0, null);
             }
         } catch (Exception e) {
-            log.error("Error processing historical data for symbol {}: {}", symbol, e.getMessage(), e);
+            log.error("processSymbolHistoricalData",
+                    "Error processing historical data for symbol " + symbol + ": " + e.getMessage(), e);
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("error", "Failed to fetch historical data");
             errorResult.put("message", e.getMessage());
@@ -179,15 +181,16 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate,
             TimeFrame interval, String instrumentType,
             Map<String, Object> additionalParams, boolean forceRefresh) {
-        log.info("Processing historical data request for multiple symbols: {} from {} to {}",
-                symbols, fromDate, toDate);
+        String methodName = "getHistoricalDataMultipleSymbols";
+        log.info(methodName, String.format("Processing historical data request for multiple symbols: %s from %s to %s",
+                symbols, fromDate, toDate));
 
         Map<String, Object> aggregatedResult = new HashMap<>();
         Map<String, Object> symbolsData = new HashMap<>();
         aggregatedResult.put("data", symbolsData);
 
         if (symbols == null || symbols.isEmpty()) {
-            log.warn("No symbols provided for historical data request");
+            log.warn(methodName, "No symbols provided for historical data request");
             return aggregatedResult;
         }
 
@@ -273,8 +276,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 : 1;
 
         if ("CUSTOM".equalsIgnoreCase(filterType) && filterFrequency < 2) {
-            log.warn("CUSTOM filter type specified but filterFrequency is less than 2 ({}). Using default of 2.",
-                    filterFrequency);
+            log.warn("extractFilterParams",
+                    String.format(
+                            "CUSTOM filter type specified but filterFrequency is less than 2 (%d). Using default of 2.",
+                            filterFrequency));
             filterFrequency = 2;
         }
 
@@ -402,12 +407,13 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 }
             }
         } else {
-            log.warn("Unexpected data type for filtering: {}", dataObj != null ? dataObj.getClass().getName() : "null");
+            log.warn("extractHistoricalDataInfo",
+                    "Unexpected data type for filtering: " + (dataObj != null ? dataObj.getClass().getName() : "null"));
             return null;
         }
 
         if (dataPoints.isEmpty()) {
-            log.warn("No data points found for filtering");
+            log.warn("extractHistoricalDataInfo", "No data points found for filtering");
             return null;
         }
 
@@ -448,27 +454,31 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
     @Override
     public Map<String, Object> getOptionChain(String underlyingSymbol, Date expiryDate, boolean forceRefresh) {
-        log.debug("Fetching option chain for symbol: {} with expiry date: {}", underlyingSymbol, expiryDate);
+        log.debug("getOptionChain",
+                "Fetching option chain for symbol: " + underlyingSymbol + " with expiry date: " + expiryDate);
         return investmentInstrumentService.getOptionChain(underlyingSymbol, expiryDate);
     }
 
     @Override
     public Map<String, Object> getMutualFundDetails(String schemeCode, boolean forceRefresh) {
-        log.debug("Fetching mutual fund details for scheme code: {}", schemeCode);
+        log.debug("getMutualFundDetails", "Fetching mutual fund details for scheme code: " + schemeCode);
         return investmentInstrumentService.getMutualFundDetails(schemeCode);
     }
 
     @Override
     public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh) {
-        log.debug("Fetching mutual fund NAV history for scheme code: {} from: {} to: {}", schemeCode, from, to);
+        log.debug("getMutualFundNavHistory",
+                "Fetching mutual fund NAV history for scheme code: " + schemeCode + " from: " + from + " to: " + to);
         return investmentInstrumentService.getMutualFundNavHistory(schemeCode, from, to);
     }
 
     @Override
     public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
-        log.info("Processing historical data request for symbols: {} from {} to {}, interval: {}, filterType: {}",
+        String methodName = "processHistoricalDataRequest";
+        log.info(methodName, String.format(
+                "Processing historical data request for symbols: %s from %s to %s, interval: %s, filterType: %s",
                 request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()),
-                request.getFilterType());
+                request.getFilterType()));
 
         Set<String> symbolList = parseSymbols(request.getSymbols());
         if (symbolList.isEmpty()) {
@@ -541,10 +551,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 null);
 
         if (ohlcData != null) {
-            log.info("Fetched OHLC data for keys: {}", ohlcData.keySet());
+            log.info("getOHLC", "Fetched OHLC data for keys: " + ohlcData.keySet());
             return ohlcData;
         } else {
-            log.warn("Fetched OHLC data is null");
+            log.warn("getOHLC", "Fetched OHLC data is null");
             return new HashMap<>();
         }
     }
@@ -565,7 +575,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     public List<String> findMissingSymbols(List<String> indexSymbols, List<String> symbolsToCheck) {
-        log.debug("Finding symbols not included in the passed list: {}", symbolsToCheck);
+        log.debug("findMissingSymbols", "Finding symbols not included in the passed list: " + symbolsToCheck);
 
         if (symbolsToCheck == null || symbolsToCheck.isEmpty()) {
             return Collections.emptyList();
@@ -592,9 +602,9 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     public Map<String, Object> getHistoricalChartsData(String symbol, String range) {
-        log.info(
-                "[MarketDataFetchServiceImpl.getHistoricalChartsData] Fetching historical charts for symbol: {}, range: {}",
-                symbol, range);
+        String methodName = "getHistoricalChartsData";
+        log.info(methodName, String.format("Fetching historical charts for symbol: %s, range: %s",
+                symbol, range));
 
         String interval;
         java.time.LocalDate to = java.time.LocalDate.now();
@@ -620,9 +630,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         try {
             return processHistoricalDataRequest(request);
         } catch (Exception e) {
-            log.error(
-                    "[MarketDataFetchServiceImpl.getHistoricalChartsData] Error fetching historical charts for {}: {}",
-                    symbol, e.getMessage());
+            log.error(methodName, "Error fetching historical charts for " + symbol + ": " + e.getMessage());
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch chart data");
             errorResponse.put("message", e.getMessage());

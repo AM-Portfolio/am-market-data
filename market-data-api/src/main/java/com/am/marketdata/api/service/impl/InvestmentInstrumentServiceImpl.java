@@ -7,10 +7,9 @@ import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
 
+import com.am.marketdata.common.log.AppLogger;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
@@ -23,7 +22,7 @@ import java.util.*;
 @Service
 public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentService {
 
-    private static final Logger log = LoggerFactory.getLogger(InvestmentInstrumentServiceImpl.class);
+    private final AppLogger log = AppLogger.getLogger();
     private final MarketDataService marketDataService;
     private final MeterRegistry meterRegistry;
     private final SimpleDateFormat dateFormat;
@@ -38,9 +37,10 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Object> getLivePrices(List<String> symbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getLivePrices";
         try {
-            log.info("Processing request for live prices with {} symbols",
-                    symbols != null ? symbols.size() : "all");
+            log.info(methodName, "Processing request for live prices with " + (symbols != null ? symbols.size() : "all")
+                    + " symbols");
 
             long startTime = System.currentTimeMillis();
             // Pass null for providerName to use active/sticky provider
@@ -53,10 +53,11 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             response.put("timestamp", new Date());
             response.put("processingTimeMs", (endTime - startTime));
 
-            log.info("Successfully processed {} live prices in {}ms", prices.size(), (endTime - startTime));
+            log.info(methodName, String.format("Successfully processed %d live prices in %dms", prices.size(),
+                    (endTime - startTime)));
             return response;
         } catch (Exception e) {
-            log.error("Error processing live prices: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing live prices: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getLivePrices").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -72,9 +73,11 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     public Map<String, Object> getHistoricalData(String symbol, Date fromDate, Date toDate,
             TimeFrame interval, String instrumentType, Map<String, Object> additionalParams) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getHistoricalData";
         try {
-            log.info("Processing historical data request for symbol {} from {} to {} with interval {}",
-                    symbol, dateFormat.format(fromDate), dateFormat.format(toDate), interval);
+            log.info(methodName,
+                    String.format("Processing historical data request for symbol %s from %s to %s with interval %s",
+                            symbol, dateFormat.format(fromDate), dateFormat.format(toDate), interval));
 
             validateHistoricalDataParams(symbol, fromDate, toDate, interval);
 
@@ -106,11 +109,11 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             response.put("count", historicalData != null ? historicalData.getDataPoints().size() : 0);
             response.put("processingTimeMs", (endTime - startTime));
 
-            log.info("Successfully processed historical data with {} candles in {}ms",
-                    historicalData != null ? historicalData.getDataPoints().size() : 0, (endTime - startTime));
+            log.info(methodName, String.format("Successfully processed historical data with %d candles in %dms",
+                    historicalData != null ? historicalData.getDataPoints().size() : 0, (endTime - startTime)));
             return response;
         } catch (Exception e) {
-            log.error("Error processing historical data: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing historical data: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getHistoricalData").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -125,9 +128,12 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Object> searchInstruments(int page, int size, String symbol, String type, String exchange) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "searchInstruments";
         try {
-            log.info("Processing search symbols request with page={}, size={}, symbol={}, type={}, exchange={}",
-                    page, size, symbol, type, exchange);
+            log.info(methodName,
+                    String.format(
+                            "Processing search symbols request with page=%d, size=%d, symbol=%s, type=%s, exchange=%s",
+                            page, size, symbol, type, exchange));
 
             long startTime = System.currentTimeMillis();
 
@@ -158,11 +164,12 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
             response.put("totalPages", Math.ceil((double) totalCount / size));
             response.put("processingTimeMs", (endTime - startTime));
 
-            log.info("Successfully processed search with {} symbols in {}ms", instruments.size(),
-                    (endTime - startTime));
+            log.info(methodName,
+                    String.format("Successfully processed search with %d symbols in %dms", instruments.size(),
+                            (endTime - startTime)));
             return response;
         } catch (Exception e) {
-            log.error("Error processing symbol search: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing symbol search: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "searchInstruments").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -177,9 +184,10 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getQuotes";
         try {
-            log.info("Processing quotes request for {} instruments",
-                    tradingSymbols != null ? tradingSymbols.size() : 0);
+            log.info(methodName, "Processing quotes request for " + (tradingSymbols != null ? tradingSymbols.size() : 0)
+                    + " instruments");
 
             long startTime = System.currentTimeMillis();
 
@@ -212,7 +220,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
                 }
             }
 
-            log.info("Processed quotes for {} symbols in {}ms",
+            log.info(methodName, "Processed quotes for {} symbols in {}ms",
                     tradingSymbols != null ? tradingSymbols.size() : 0,
                     System.currentTimeMillis() - startTime);
 
@@ -235,9 +243,10 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Object> getOptionChain(String underlyingSymbol, Date expiryDate) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getOptionChain";
         try {
-            log.info("Processing option chain request for underlying symbol: {} and expiry: {}",
-                    underlyingSymbol, expiryDate != null ? dateFormat.format(expiryDate) : "all");
+            log.info(methodName, "Processing option chain request for underlying symbol: " + underlyingSymbol
+                    + " and expiry: " + (expiryDate != null ? dateFormat.format(expiryDate) : "all"));
 
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Option chain functionality not yet implemented");
@@ -245,7 +254,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
 
             return response;
         } catch (Exception e) {
-            log.error("Error processing option chain: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing option chain: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getOptionChain").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -260,8 +269,9 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Object> getMutualFundDetails(String schemeCode) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getMutualFundDetails";
         try {
-            log.info("Processing mutual fund details request for scheme code: {}", schemeCode);
+            log.info(methodName, "Processing mutual fund details request for scheme code: " + schemeCode);
 
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Mutual fund details functionality not yet implemented");
@@ -269,7 +279,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
 
             return response;
         } catch (Exception e) {
-            log.error("Error processing mutual fund details: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing mutual fund details: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getMutualFundDetails").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();
@@ -284,9 +294,11 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     @Override
     public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        String methodName = "getMutualFundNavHistory";
         try {
-            log.info("Processing mutual fund NAV history request for scheme code: {} from {} to {}",
-                    schemeCode, dateFormat.format(from), dateFormat.format(to));
+            log.info(methodName,
+                    String.format("Processing mutual fund NAV history request for scheme code: %s from %s to %s",
+                            schemeCode, dateFormat.format(from), dateFormat.format(to)));
 
             Map<String, Object> response = new HashMap<>();
             response.put("error", "Mutual fund NAV history functionality not yet implemented");
@@ -294,7 +306,7 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
 
             return response;
         } catch (Exception e) {
-            log.error("Error processing mutual fund NAV history: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing mutual fund NAV history: " + e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getMutualFundNavHistory").increment();
 
             Map<String, Object> errorResponse = new HashMap<>();

@@ -9,9 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import lombok.RequiredArgsConstructor;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Indices", description = "APIs for retrieving market data for various indices")
 public class MarketIndexController {
-        private static final Logger log = LoggerFactory.getLogger(MarketIndexController.class);
+        private final AppLogger log = AppLogger.getLogger();
         private final com.am.marketdata.scraper.config.NSEIndicesConfig nseIndicesConfig;
         private final StockIndicesService stockIndicesService;
 
@@ -41,7 +40,7 @@ public class MarketIndexController {
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
         public ResponseEntity<java.util.Map<String, java.util.List<String>>> getAvailableIndices() {
-                log.info("[MarketIndexController.getAvailableIndices] Fetching available indices");
+                log.info("getAvailableIndices", "Fetching available indices");
                 java.util.Map<String, java.util.List<String>> indices = new java.util.HashMap<>();
                 indices.put("broad", nseIndicesConfig.getBroadMarketIndices());
                 indices.put("sector", nseIndicesConfig.getSectorIndices());
@@ -67,8 +66,9 @@ public class MarketIndexController {
                         @Parameter(description = "List of Index symbols (e.g., NIFTY, BANKNIFTY, FINNIFTY)", required = true) @RequestBody java.util.List<String> indexSymbols,
                         @Parameter(description = "Force refresh from source instead of using cache") @RequestParam(value = "forceRefresh", required = false, defaultValue = "false") boolean forceRefresh) {
 
-                log.info("[MarketIndexController.getLatestIndicesData] Fetching latest data for indices: {}, forceRefresh: {}",
-                                indexSymbols, forceRefresh);
+                String methodName = "getLatestIndicesData";
+                log.info(methodName, String.format("Fetching latest data for indices: %s, forceRefresh: %b",
+                                indexSymbols, forceRefresh));
                 java.util.List<StockIndicesMarketData> data = stockIndicesService.getLatestIndicesData(indexSymbols);
 
                 return ResponseEntity.ok(data);

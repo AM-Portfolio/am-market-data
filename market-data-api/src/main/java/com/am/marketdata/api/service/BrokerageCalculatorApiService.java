@@ -3,10 +3,9 @@ package com.am.marketdata.api.service;
 import com.marketdata.common.model.margin.BrokerageCalculationRequest;
 import com.marketdata.common.model.margin.BrokerageCalculationResponse;
 import com.marketdata.service.margin.BrokerageCalculatorService;
+import com.am.marketdata.common.log.AppLogger;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,14 +18,15 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class BrokerageCalculatorApiService {
 
-    private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorApiService.class);
+    private final AppLogger log = AppLogger.getLogger();
     private final BrokerageCalculatorService brokerageCalculatorService;
     private final MeterRegistry meterRegistry;
 
-    public BrokerageCalculatorApiService(BrokerageCalculatorService brokerageCalculatorService, MeterRegistry meterRegistry) {
+    public BrokerageCalculatorApiService(BrokerageCalculatorService brokerageCalculatorService,
+            MeterRegistry meterRegistry) {
         this.brokerageCalculatorService = brokerageCalculatorService;
         this.meterRegistry = meterRegistry;
-        log.info("Initializing Brokerage Calculator API Service");
+        log.info("BrokerageCalculatorApiService", "Initializing Brokerage Calculator API Service");
     }
 
     /**
@@ -37,8 +37,9 @@ public class BrokerageCalculatorApiService {
      */
     public BrokerageCalculationResponse calculateBrokerage(BrokerageCalculationRequest request) {
         Timer.Sample sample = Timer.start(meterRegistry);
-        log.info("API: Calculating brokerage for {} trade of {} shares of {}",
-                request.getTradeType(), request.getQuantity(), request.getTradingSymbol());
+        String methodName = "calculateBrokerage";
+        log.info(methodName, String.format("API: Calculating brokerage for %s trade of %d shares of %s",
+                request.getTradeType(), request.getQuantity(), request.getTradingSymbol()));
 
         try {
             // Validate request
@@ -46,15 +47,14 @@ public class BrokerageCalculatorApiService {
 
             // Call service layer
             BrokerageCalculationResponse response = brokerageCalculatorService.calculateBrokerage(request);
-            
+
             // Increment success counter
             meterRegistry.counter("market-data.api.brokerage.calculation.success").increment();
-            
             return response;
         } catch (Exception e) {
-            log.error("API: Error calculating brokerage: {}", e.getMessage(), e);
+            log.error("calculateBrokerage", "API: Error calculating brokerage: " + e.getMessage(), e);
             meterRegistry.counter("market-data.api.brokerage.calculation.error").increment();
-            
+
             // Return error response
             return BrokerageCalculationResponse.builder()
                     .status("ERROR")
@@ -73,8 +73,9 @@ public class BrokerageCalculatorApiService {
      */
     public CompletableFuture<BrokerageCalculationResponse> calculateBrokerageAsync(
             BrokerageCalculationRequest request) {
-        log.info("API: Calculating brokerage asynchronously for {} trade of {} shares of {}",
-                request.getTradeType(), request.getQuantity(), request.getTradingSymbol());
+        String methodName = "calculateBrokerageAsync";
+        log.info(methodName, String.format("API: Calculating brokerage asynchronously for %s trade of %d shares of %s",
+                request.getTradeType(), request.getQuantity(), request.getTradingSymbol()));
 
         try {
             // Validate request
@@ -87,18 +88,20 @@ public class BrokerageCalculatorApiService {
                         return response;
                     })
                     .exceptionally(ex -> {
-                        log.error("API: Error calculating brokerage asynchronously: {}", ex.getMessage(), ex);
+                        log.error("calculateBrokerageAsync",
+                                "API: Error calculating brokerage asynchronously: " + ex.getMessage(), ex);
                         meterRegistry.counter("market-data.api.brokerage.calculation.error").increment();
-                        
+
                         return BrokerageCalculationResponse.builder()
                                 .status("ERROR")
                                 .error("Failed to calculate brokerage: " + ex.getMessage())
                                 .build();
                     });
         } catch (Exception e) {
-            log.error("API: Error initiating async brokerage calculation: {}", e.getMessage(), e);
+            log.error("calculateBrokerageAsync", "API: Error initiating async brokerage calculation: " + e.getMessage(),
+                    e);
             meterRegistry.counter("market-data.api.brokerage.calculation.error").increment();
-            
+
             CompletableFuture<BrokerageCalculationResponse> future = new CompletableFuture<>();
             future.complete(BrokerageCalculationResponse.builder()
                     .status("ERROR")
@@ -118,38 +121,38 @@ public class BrokerageCalculatorApiService {
         if (request == null) {
             throw new IllegalArgumentException("Request cannot be null");
         }
-        
+
         if (request.getTradingSymbol() == null || request.getTradingSymbol().isEmpty()) {
             throw new IllegalArgumentException("Trading symbol is required");
         }
-        
+
         if (request.getQuantity() <= 0) {
             throw new IllegalArgumentException("Quantity must be greater than zero");
         }
-        
+
         if (request.getBuyPrice() == null || request.getBuyPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Buy price must be greater than zero");
         }
-        
+
         if (request.getSellPrice() != null && request.getSellPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Sell price must be greater than zero");
         }
-        
+
         if (request.getExchange() == null || request.getExchange().isEmpty()) {
             throw new IllegalArgumentException("Exchange is required");
         }
-        
+
         if (request.getTradeType() == null) {
             throw new IllegalArgumentException("Trade type is required");
         }
-        
+
         if (request.getBrokerType() == null) {
             throw new IllegalArgumentException("Broker type is required");
         }
-        
+
         // Log if broker name is provided for better debugging
         if (request.getBrokerName() != null && !request.getBrokerName().isEmpty()) {
-            log.debug("Using broker-specific fees for broker: {}", request.getBrokerName());
+            log.info("validateRequest", "Using broker-specific fees for broker: " + request.getBrokerName());
         }
     }
 }

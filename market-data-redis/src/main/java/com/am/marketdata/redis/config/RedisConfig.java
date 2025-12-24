@@ -3,8 +3,7 @@ package com.am.marketdata.redis.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
@@ -29,8 +28,8 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class RedisConfig {
-    
-    private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
+
+    private final AppLogger log = AppLogger.getLogger();
 
     @Value("${spring.data.redis.host}")
     private String redisHost;
@@ -47,27 +46,30 @@ public class RedisConfig {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-        
-        log.info("Redis connection details - Host: {}, Port: {}", redisHost, 6379);
-        log.info("Redis password is {}", redisPassword != null && !redisPassword.isEmpty() ? "provided" : "not provided");
-        
+
+        log.info("redisConnectionFactory", "Redis connection details - Host: " + redisHost + ", Port: 6379");
+        log.info("redisConnectionFactory", "Redis password is "
+                + (redisPassword != null && !redisPassword.isEmpty() ? "provided" : "not provided"));
+
         redisConfig.setHostName(redisHost);
-        //redisConfig.setPort(6379);
-        
+        // redisConfig.setPort(6379);
+
         if (redisPassword != null && !redisPassword.isEmpty()) {
-            log.info("Setting Redis password for authentication");
+            log.info("redisConnectionFactory", "Setting Redis password for authentication");
             redisConfig.setPassword(redisPassword);
         } else {
-            log.warn("No Redis password provided, connecting without authentication");
+            log.warn("redisConnectionFactory", "No Redis password provided, connecting without authentication");
         }
-        
+
         return new LettuceConnectionFactory(redisConfig);
     }
 
     /**
-     * ObjectMapper configured with JavaTimeModule for handling Java 8 date/time types
+     * ObjectMapper configured with JavaTimeModule for handling Java 8 date/time
+     * types
      * Using @Qualifier to avoid conflicts with other ObjectMapper beans
-     * Using @Primary to make this the default ObjectMapper when no qualifier is specified
+     * Using @Primary to make this the default ObjectMapper when no qualifier is
+     * specified
      */
     @Bean
     @Primary
@@ -78,7 +80,7 @@ public class RedisConfig {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return objectMapper;
     }
-    
+
     /**
      * Redis template for operations with JSR310 support
      */
@@ -87,10 +89,11 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory());
         template.setKeySerializer(new StringRedisSerializer());
-        
+
         // Create Jackson serializer with JSR310 support (non-deprecated approach)
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(redisObjectMapper, Object.class);
-        
+        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(redisObjectMapper,
+                Object.class);
+
         template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(serializer);
@@ -102,14 +105,16 @@ public class RedisConfig {
      * Redis cache manager with TTL configuration and JSR310 support
      */
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, 
-                                         @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory,
+            @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
         // Create Jackson serializer with JSR310 support (non-deprecated approach)
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(redisObjectMapper, Object.class);
-        
+        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(redisObjectMapper,
+                Object.class);
+
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofSeconds(cacheTimeToLiveSeconds))
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
                 .disableCachingNullValues();
 
