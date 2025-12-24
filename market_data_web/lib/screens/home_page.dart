@@ -6,6 +6,7 @@ import '../widgets/constituents_table.dart';
 import '../widgets/indices_performance_view.dart'; // Market Overview
 import '../screens/streamer_page.dart';
 import '../screens/market_analytics_page.dart';
+import '../screens/instrument_explorer_page.dart';
 import '../utils/app_logger.dart';
 
 class HomePage extends StatefulWidget {
@@ -33,7 +34,8 @@ class _HomePageState extends State<HomePage> {
     if (index == null || 
         index.isEmpty || 
         index == 'All Indices' || 
-        index == 'Streamer') {
+        index == 'Streamer' ||
+        index == 'Instruments') {
       return 'NIFTY 50';
     }
     return index;
@@ -44,22 +46,23 @@ class _HomePageState extends State<HomePage> {
     final provider = context.watch<MarketProvider>();
     final isAllIndices = provider.selectedIndex == "All Indices";
     final isStreamer = provider.selectedIndex == "Streamer";
+    final isInstruments = provider.selectedIndex == "Instruments";
     final isAnalytics = _currentView == 2;
 
     return Scaffold(
-      appBar: _buildAppBar(provider, isAllIndices, isStreamer),
+      appBar: _buildAppBar(provider, isAllIndices, isStreamer, isInstruments),
       body: Row(
         children: [
-          _buildSidebar(provider, isAllIndices, isStreamer),
-          _buildContent(provider, isAllIndices, isStreamer, isAnalytics),
+          _buildSidebar(provider, isAllIndices, isStreamer, isInstruments),
+          _buildContent(provider, isAllIndices, isStreamer, isInstruments, isAnalytics),
         ],
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments) {
     return AppBar(
-        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : (provider.selectedIndex ?? 'Market Data')),
+        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : isInstruments ? 'Instrument Explorer' : (provider.selectedIndex ?? 'Market Data')),
         actions: [
           // Force Refresh Toggle
           Row(
@@ -74,7 +77,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 10),
           
-          if (!isAllIndices && !isStreamer) ...[
+          if (!isAllIndices && !isStreamer && !isInstruments) ...[
             IconButton(
               icon: const Icon(Icons.table_chart),
               tooltip: 'Table View',
@@ -116,7 +119,7 @@ class _HomePageState extends State<HomePage> {
       );
   }
 
-  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments) {
     return Container(
             width: 260,
             decoration: const BoxDecoration(
@@ -155,6 +158,19 @@ class _HomePageState extends State<HomePage> {
                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("Streamer"),
+                      ),
+                      
+                      const SizedBox(height: 5),
+
+                      // Instrument Explorer Option
+                      ListTile(
+                        title: const Text("Instrument Explorer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                        leading: const Icon(Icons.search, color: Colors.tealAccent),
+                        selected: isInstruments,
+                        selectedTileColor: Colors.tealAccent.withOpacity(0.15),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        onTap: () => provider.selectIndex("Instruments"),
                       ),
                       
                       const SizedBox(height: 15),
@@ -232,20 +248,23 @@ class _HomePageState extends State<HomePage> {
           );
   }
 
-  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isAnalytics) {
+  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isAnalytics) {
     return Expanded(
             child: Container(
               color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
               child: IndexedStack(
-                index: isAllIndices ? 0 : isStreamer ? 1 : 2,
+                index: isAllIndices ? 0 : isStreamer ? 1 : isInstruments ? 2 : 3,
                 children: [
                    // Index 0: Market Overview
                    const IndicesPerformanceView(),
                    
                    // Index 1: Streamer
                    const StreamerPage(),
+
+                   // Index 2: Instrument Explorer
+                   const InstrumentExplorerPage(),
                    
-                   // Index 2: Analytics or Index Details (Table/Heatmap)
+                   // Index 3: Analytics or Index Details (Table/Heatmap)
                    provider.isLoading
                      ? const Center(child: CircularProgressIndicator())
                      : provider.error != null

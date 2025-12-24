@@ -161,8 +161,10 @@ public class MarketDataCacheService {
             }
 
             log.info("getOHLCFromCache",
-                    "Attempting to retrieve OHLC data from cache for {} symbols with timeFrame {} on date: {}. Expected Redis keys: {}",
-                    cleanSymbols.size(), timeFrame.getApiValue(), today, expectedKeys);
+                    "Attempting to retrieve OHLC data from cache for {} symbols with timeFrame {} on date: {}",
+                    cleanSymbols.size(), timeFrame.getApiValue(), today);
+
+            log.debug("getOHLCFromCache", "Expected Redis keys: {}", expectedKeys);
 
             // Try to get data from cache
             Map<String, StockBars> cachedBars = stockCacheService.getTodayMultiSymbolBars(cleanSymbols,
@@ -203,9 +205,8 @@ public class MarketDataCacheService {
 
             if (!result.isEmpty()) {
                 // Log the cache hits with values
-                log.info("getOHLCFromCache",
-                        String.format("Retrieved OHLC data from cache for %d symbols with values: %s",
-                                result.size(), cacheHits));
+                log.info("getOHLCFromCache", "Retrieved OHLC data from cache for {} symbols", result.size());
+                log.debug("getOHLCFromCache", "Retrieved values: {}", cacheHits);
             }
 
             return result;

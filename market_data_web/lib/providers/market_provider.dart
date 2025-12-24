@@ -69,7 +69,11 @@ class MarketProvider with ChangeNotifier {
       _availableIndices = await _apiService.fetchAvailableIndices();
       AppLogger.info("MarketProvider.loadIndices", "Fetched available indices: ${_availableIndices?.broad.length ?? 0} broad, ${_availableIndices?.sectoral.length ?? 0} sectoral");
       if (_availableIndices?.broad.isNotEmpty ?? false) {
-        selectIndex(_availableIndices!.broad.first); // Auto-select first
+        // Auto-select NIFTY 50 if available, otherwise first
+        String defaultIndex = _availableIndices!.broad.contains("NIFTY 50") 
+            ? "NIFTY 50" 
+            : _availableIndices!.broad.first;
+        selectIndex(defaultIndex);
       }
     } catch (e) {
       _error = e.toString();

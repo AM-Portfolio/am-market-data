@@ -92,15 +92,10 @@ public class MarketAnalyticsService {
             return Collections.emptyList();
         }
 
-        // Group by sector (using symbol prefix as heuristic)
+        // Group by sector
         Map<String, List<EnrichedStockData>> bySector = stockDataEnricher.groupBy(
                 enrichedData,
-                esd -> {
-                    String symbol = esd.getSymbol();
-                    return symbol != null && symbol.length() >= 3
-                            ? symbol.substring(0, 3).toUpperCase()
-                            : "OTHER";
-                });
+                esd -> esd.getSymbol());
 
         // Calculate sector performance
         List<Map<String, Object>> sectorPerformance = new ArrayList<>();

@@ -160,25 +160,22 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> searchInstruments(String query, String provider) async {
-    if (query.isEmpty) return [];
-    
-    try {
-      final payload = {
-        'queries': [query],
-        'provider': provider
-      };
+    return advancedSearchInstruments({'queries': [query], 'provider': provider});
+  }
 
+  Future<List<Map<String, dynamic>>> advancedSearchInstruments(Map<String, dynamic> criteria) async {
+    try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/instruments/search'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload)
+        body: json.encode(criteria)
       );
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(json.decode(response.body));
       }
     } catch (e) {
-      AppLogger.error("ApiService.searchInstruments", "Error searching instruments for '$query'", e);
+      AppLogger.error("ApiService.advancedSearchInstruments", "Error searching instruments", e);
     }
     return [];
   }
