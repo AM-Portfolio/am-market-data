@@ -7,6 +7,7 @@ import '../widgets/indices_performance_view.dart'; // Market Overview
 import '../screens/streamer_page.dart';
 import '../screens/market_analytics_page.dart';
 import '../screens/instrument_explorer_page.dart';
+import '../screens/security_explorer_page.dart'; // Added for Security Explorer
 import '../utils/app_logger.dart';
 
 class HomePage extends StatefulWidget {
@@ -18,7 +19,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // 0 = Table, 1 = Heatmap, 2 = Analytics
-  int _currentView = 2; // Default to Analytics view 
+  int _currentView = 2; // Default to Analytics view
 
   @override
   void initState() {
@@ -31,11 +32,12 @@ class _HomePageState extends State<HomePage> {
 
   // Helper to filter out invalid index values
   String _getValidIndexSymbol(String? index) {
-    if (index == null || 
-        index.isEmpty || 
-        index == 'All Indices' || 
+    if (index == null ||
+        index.isEmpty ||
+        index == 'All Indices' ||
         index == 'Streamer' ||
-        index == 'Instruments') {
+        index == 'Instruments' ||
+        index == 'Security Explorer') { // Added for Security Explorer
       return 'NIFTY 50';
     }
     return index;
@@ -47,22 +49,23 @@ class _HomePageState extends State<HomePage> {
     final isAllIndices = provider.selectedIndex == "All Indices";
     final isStreamer = provider.selectedIndex == "Streamer";
     final isInstruments = provider.selectedIndex == "Instruments";
+    final isSecurityExplorer = provider.selectedIndex == "Security Explorer"; // Added for Security Explorer
     final isAnalytics = _currentView == 2;
 
     return Scaffold(
-      appBar: _buildAppBar(provider, isAllIndices, isStreamer, isInstruments),
+      appBar: _buildAppBar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer), // Updated AppBar call
       body: Row(
         children: [
-          _buildSidebar(provider, isAllIndices, isStreamer, isInstruments),
-          _buildContent(provider, isAllIndices, isStreamer, isInstruments, isAnalytics),
+          _buildSidebar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer), // Updated Sidebar call
+          _buildContent(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer, isAnalytics), // Updated Content call
         ],
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments) {
+  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer) {
     return AppBar(
-        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : isInstruments ? 'Instrument Explorer' : (provider.selectedIndex ?? 'Market Data')),
+        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : isInstruments ? 'Instrument Explorer' : isSecurityExplorer ? 'Security Explorer' : (provider.selectedIndex ?? 'Market Data')), // Updated title logic
         actions: [
           // Force Refresh Toggle
           Row(
@@ -76,8 +79,8 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(width: 10),
-          
-          if (!isAllIndices && !isStreamer && !isInstruments) ...[
+
+          if (!isAllIndices && !isStreamer && !isInstruments && !isSecurityExplorer) ...[ // Updated condition
             IconButton(
               icon: const Icon(Icons.table_chart),
               tooltip: 'Table View',
@@ -110,6 +113,8 @@ class _HomePageState extends State<HomePage> {
                     provider.loadAllIndicesData();
                 } else if (isStreamer) {
                     // No refresh action for streamer yet, or maybe reconnect?
+                } else if (isSecurityExplorer) {
+                    // No refresh action for Security Explorer yet
                 } else {
                     provider.refreshIndexData();
                 }
@@ -119,7 +124,7 @@ class _HomePageState extends State<HomePage> {
       );
   }
 
-  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments) {
+  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer) {
     return Container(
             width: 260,
             decoration: const BoxDecoration(
@@ -146,7 +151,7 @@ class _HomePageState extends State<HomePage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("All Indices"),
                       ),
-                      
+
                       const SizedBox(height: 5),
 
                       // Streamer Option
@@ -159,7 +164,7 @@ class _HomePageState extends State<HomePage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("Streamer"),
                       ),
-                      
+
                       const SizedBox(height: 5),
 
                       // Instrument Explorer Option
@@ -172,13 +177,26 @@ class _HomePageState extends State<HomePage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("Instruments"),
                       ),
-                      
+
+                      const SizedBox(height: 5),
+
+                      // Security Explorer Option (Added)
+                      ListTile(
+                        title: const Text("Security Explorer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                        leading: const Icon(Icons.security, color: Colors.redAccent),
+                        selected: isSecurityExplorer,
+                        selectedTileColor: Colors.redAccent.withOpacity(0.15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        onTap: () => provider.selectIndex("Security Explorer"),
+                      ),
+
                       const SizedBox(height: 15),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         child: Text("INDICES", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                       ),
-                      
+
                       if (provider.availableIndices != null) ...[
                         // Broad Market Dropdown
                         if (provider.availableIndices!.broad.isNotEmpty)
@@ -248,23 +266,26 @@ class _HomePageState extends State<HomePage> {
           );
   }
 
-  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isAnalytics) {
+  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer, bool isAnalytics) {
     return Expanded(
             child: Container(
               color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
               child: IndexedStack(
-                index: isAllIndices ? 0 : isStreamer ? 1 : isInstruments ? 2 : 3,
+                index: isAllIndices ? 0 : isStreamer ? 1 : isInstruments ? 2 : isSecurityExplorer ? 3 : 4, // Updated index logic
                 children: [
                    // Index 0: Market Overview
                    const IndicesPerformanceView(),
-                   
+
                    // Index 1: Streamer
                    const StreamerPage(),
 
                    // Index 2: Instrument Explorer
                    const InstrumentExplorerPage(),
-                   
-                   // Index 3: Analytics or Index Details (Table/Heatmap)
+
+                   // Index 3: Security Explorer (Added)
+                   const SecurityExplorerPage(),
+
+                   // Index 4: Analytics or Index Details (Table/Heatmap)
                    provider.isLoading
                      ? const Center(child: CircularProgressIndicator())
                      : provider.error != null

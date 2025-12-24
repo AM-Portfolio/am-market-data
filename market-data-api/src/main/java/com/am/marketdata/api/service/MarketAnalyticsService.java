@@ -5,6 +5,7 @@ import com.am.common.investment.model.stockindice.StockData;
 import com.am.marketdata.api.util.StockDataEnricher;
 import com.am.marketdata.api.util.StockDataEnricher.EnrichedStockData;
 import com.am.marketdata.common.log.AppLogger;
+import com.am.marketdata.service.SecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ public class MarketAnalyticsService {
 
     private final AppLogger log = AppLogger.getLogger();
     private final StockIndicesService stockIndicesService;
+    private final SecurityService securityService;
     private final StockDataEnricher stockDataEnricher;
 
     // Default broad index for "entire market" analytics
@@ -92,10 +94,17 @@ public class MarketAnalyticsService {
             return Collections.emptyList();
         }
 
+        // Fetch security details (sectors) for all symbols
+        List<String> symbols = enrichedData.stream()
+                .map(EnrichedStockData::getSymbol)
+                .collect(Collectors.toList());
+
+        Map<String, String> symbolToSector = securityService.getSymbolToSectorMap(symbols);
+
         // Group by sector
         Map<String, List<EnrichedStockData>> bySector = stockDataEnricher.groupBy(
                 enrichedData,
-                esd -> esd.getSymbol());
+                esd -> symbolToSector.getOrDefault(esd.getSymbol(), "Unknown"));
 
         // Calculate sector performance
         List<Map<String, Object>> sectorPerformance = new ArrayList<>();

@@ -236,8 +236,35 @@ class ApiService {
         throw Exception('Failed to fetch market cap analysis: ${response.statusCode}');
       }
     } catch (e) {
-      AppLogger.error("ApiService.fetchMarketCapAnalysis", "Error fetching market cap", e);
+      AppLogger.error("ApiService.fetchMarketCapAnalysis", "Error fetching market cap analysis", e);
       return {};
+    }
+  }
+
+
+
+  // Legacy GET search
+  Future<List<dynamic>> searchSecurities(String query) async {
+    return searchSecuritiesAdvanced({'query': query});
+  }
+
+  // New POST search with request object
+  Future<List<dynamic>> searchSecuritiesAdvanced(Map<String, dynamic> request) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/securities/search'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(request)
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to search securities');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.searchSecuritiesAdvanced", "Error searching securities", e);
+      return [];
     }
   }
 }
