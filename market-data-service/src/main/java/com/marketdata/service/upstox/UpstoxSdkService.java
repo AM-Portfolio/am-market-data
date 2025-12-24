@@ -212,7 +212,7 @@ public class UpstoxSdkService {
                     sdkData.getPrevOhlc().getClose());
             ohlcData.setPrevious_close(sdkData.getPrevOhlc().getClose());
         } else {
-            log.warn("PrevOHLC is NULL from SDK for token: {}", sdkData.getInstrumentToken());
+            log.debug("PrevOHLC is NULL from SDK for token: {}", sdkData.getInstrumentToken());
         }
 
         return ohlcData;

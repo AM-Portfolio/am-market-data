@@ -21,6 +21,7 @@ public class StockDataEnricher {
 
     private final AppLogger log = AppLogger.getLogger();
     private final MarketDataService marketDataService;
+    private final InstrumentUtils instrumentUtils;
 
     /**
      * Enriched stock data with price information
@@ -84,7 +85,9 @@ public class StockDataEnricher {
         }
 
         public boolean hasValidPrice() {
-            return lastPrice != null && percentChange != null;
+            // Only require lastPrice to be non-null
+            // Allow percentChange to be 0 or null (getter will return 0.0)
+            return lastPrice != null;
         }
     }
 
@@ -125,12 +128,40 @@ public class StockDataEnricher {
         // Fetch prices for all symbols (with optional time frame)
         Map<String, OHLCQuote> priceData = fetchLivePrices(symbols, timeFrame);
 
+        // Normalize price data keys to remove exchange prefix (NSE_EQ:, NSE:, etc.)
+        Map<String, OHLCQuote> normalizedPriceData = new HashMap<>();
+        for (Map.Entry<String, OHLCQuote> entry : priceData.entrySet()) {
+            String key = entry.getKey();
+            // Remove exchange prefix if present (e.g., NSE_EQ:RELIANCE -> RELIANCE)
+            String normalizedKey = key.contains(":") ? key.substring(key.indexOf(":") + 1) : key;
+            normalizedPriceData.put(normalizedKey, entry.getValue());
+        }
+
+        log.info("enrichWithPrices", "Normalized price data keys: " + normalizedPriceData.keySet());
+
         // Enrich each StockData with price information
-        return stockDataList.stream()
+        List<EnrichedStockData> enrichedList = stockDataList.stream()
                 .filter(sd -> sd != null && sd.getSymbol() != null)
-                .map(sd -> new EnrichedStockData(sd, priceData.get(sd.getSymbol())))
-                .filter(EnrichedStockData::hasValidPrice) // Only keep stocks with valid prices
+                .map(sd -> {
+                    OHLCQuote quote = normalizedPriceData.get(sd.getSymbol());
+                    if (quote == null) {
+                        log.warn("enrichWithPrices", "No price data found for symbol: " + sd.getSymbol());
+                    }
+                    return new EnrichedStockData(sd, quote);
+                })
                 .collect(Collectors.toList());
+
+        log.info("enrichWithPrices", "Created " + enrichedList.size() + " enriched stock data objects");
+
+        // Filter for valid prices
+        List<EnrichedStockData> validData = enrichedList.stream()
+                .filter(EnrichedStockData::hasValidPrice)
+                .collect(Collectors.toList());
+
+        log.info("enrichWithPrices", "Filtered to " + validData.size() + " stocks with valid prices (removed " +
+                (enrichedList.size() - validData.size()) + " stocks)");
+
+        return validData;
     }
 
     /**
@@ -147,8 +178,14 @@ public class StockDataEnricher {
             log.info("fetchLivePrices",
                     "Fetching prices for " + symbols.size() + " symbols with timeFrame: " + timeFrameStr);
 
-            // Call market data service to get OHLC data
-            Map<String, OHLCQuote> prices = marketDataService.getOHLC(symbols, timeFrame, false, null);
+            // Resolve any index symbols to their constituent stocks
+            Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(symbols);
+            log.info("fetchLivePrices",
+                    "Resolved " + symbols.size() + " symbols to " + resolvedSymbols.size() + " constituent stocks");
+
+            // Call market data service to get OHLC data for resolved symbols
+            Map<String, OHLCQuote> prices = marketDataService.getOHLC(
+                    new ArrayList<>(resolvedSymbols), timeFrame, false, null);
 
             log.info("fetchLivePrices", "Retrieved prices for " + prices.size() + " symbols");
             return prices;
