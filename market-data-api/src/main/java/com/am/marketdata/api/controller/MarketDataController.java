@@ -351,11 +351,11 @@ public class MarketDataController {
             java.time.LocalDate from;
 
             if ("5Y".equalsIgnoreCase(range)) {
-                interval = "month"; // Monthly
+                interval = "1M"; // Monthly
                 from = to.minusYears(5);
             } else {
                 // Default to 1Y
-                interval = "day"; // Daily
+                interval = "1D"; // Daily
                 from = to.minusYears(1);
             }
 

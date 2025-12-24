@@ -80,3 +80,12 @@ coverage.xml
 *~
 *.swp
 *.swo
+
+# Flutter (market_data_web)
+market_data_web/build/
+market_data_web/.dart_tool/
+market_data_web/.flutter-plugins
+market_data_web/.flutter-plugins-dependencies
+market_data_web/.pub/
+market_data_web/.pub-cache/
+market_data_web/.metadata

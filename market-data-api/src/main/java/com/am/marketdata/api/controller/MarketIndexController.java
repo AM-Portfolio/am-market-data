@@ -29,12 +29,12 @@ public class MarketIndexController {
         private final StockIndicesService stockIndicesService;
 
         /**
-         * Get available NSE indices
+         * Get available indices
          * 
-         * @return List of available NSE indices (Broad and Sector)
+         * @return List of available indices (Broad and Sector)
          */
         @GetMapping(value = "/available", produces = MediaType.APPLICATION_JSON_VALUE)
-        @Operation(summary = "Get available indices", description = "Retrieves the list of available NSE indices (Broad and Sector)")
+        @Operation(summary = "Get available indices", description = "Retrieves the list of available indices (Broad and Sector)")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Indices retrieved successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.util.List.class))),
                         @ApiResponse(responseCode = "500", description = "Internal server error")

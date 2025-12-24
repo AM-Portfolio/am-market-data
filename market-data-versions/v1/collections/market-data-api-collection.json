@@ -665,23 +665,89 @@
             ]
         },
         {
-            "name": "NSE Indices",
+            "name": "Indices",
             "item": [
                 {
-                    "name": "Get Index Data",
+                    "name": "Available Indices",
                     "request": {
                         "method": "GET",
                         "header": [],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/nse-indices/NIFTY",
+                            "raw": "{{baseUrl}}/api/v1/indices/available",
                             "host": [
                                 "{{baseUrl}}"
                             ],
                             "path": [
                                 "api",
                                 "v1",
-                                "nse-indices",
-                                "NIFTY"
+                                "indices",
+                                "available"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Batch Indices Data",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "[\"NIFTY 50\", \"BANKNIFTY\"]"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/indices/batch?forceRefresh=false",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "indices",
+                                "batch"
+                            ],
+                            "query": [
+                                {
+                                    "key": "forceRefresh",
+                                    "value": "false"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Historical Charts",
+            "item": [
+                {
+                    "name": "Get Historical Chart",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/market-data/historical-charts/RELIANCE?range=1Y",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "market-data",
+                                "historical-charts",
+                                "RELIANCE"
+                            ],
+                            "query": [
+                                {
+                                    "key": "range",
+                                    "value": "1Y",
+                                    "description": "1Y or 5Y"
+                                }
                             ]
                         }
                     }
@@ -692,7 +758,7 @@
     "variable": [
         {
             "key": "baseUrl",
-            "value": "http://localhost:8048",
+            "value": "http://localhost:8092",
             "type": "string"
         }
     ]
