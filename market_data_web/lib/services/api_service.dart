@@ -243,6 +243,22 @@ class ApiService {
 
 
 
+  Future<Map<String, dynamic>> fetchLivePrices(List<String> symbols) async {
+    try {
+      final query = symbols.join(',');
+      final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/live-prices?symbols=$query'));
+      
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to fetch live prices: ${response.statusCode}');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.fetchLivePrices", "Error fetching live prices", e);
+      return {};
+    }
+  }
+
   // Legacy GET search
   Future<List<dynamic>> searchSecurities(String query) async {
     return searchSecuritiesAdvanced({'query': query});

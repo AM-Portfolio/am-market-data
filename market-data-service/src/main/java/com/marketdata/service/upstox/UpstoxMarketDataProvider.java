@@ -38,14 +38,20 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     private final UpstoxApiService upstoxApiService;
     private final com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService;
     private final UpstoxSdkService upstoxSdkService;
+    private final UpstoxIndexIdentifier indexIdentifier;
 
     public UpstoxMarketDataProvider(UpstoxApiService upstoxApiService,
             com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService,
-            UpstoxSdkService upstoxSdkService) {
+            UpstoxSdkService upstoxSdkService,
+            UpstoxIndexIdentifier indexIdentifier) {
         this.upstoxApiService = upstoxApiService;
         this.upstoxInstrumentService = upstoxInstrumentService;
         this.upstoxSdkService = upstoxSdkService;
+        this.indexIdentifier = indexIdentifier;
     }
+
+    // ... (initialize, cleanup, setAccessToken, getLoginUrl, generateSession,
+    // getQuotes methods remain unchanged)
 
     @Override
     public void initialize() {
@@ -78,6 +84,9 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     }
 
     private List<com.am.marketdata.service.model.UpstoxInstrument> resolveInstruments(List<String> symbols) {
+        if (symbols == null || symbols.isEmpty())
+            return new ArrayList<>();
+
         // Strip exchange prefix if present (e.g., NSE:RELIANCE -> RELIANCE)
         List<String> cleanedSymbols = symbols.stream()
                 .map(s -> {
@@ -99,21 +108,55 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         final List<String> instrumentKeys;
         final Map<String, String> keyToSymbolMap;
 
-        InstrumentContext(List<com.am.marketdata.service.model.UpstoxInstrument> instruments) {
-            this.instrumentKeys = instruments.stream()
-                    .map(com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey)
-                    .collect(Collectors.toList());
+        InstrumentContext(List<com.am.marketdata.service.model.UpstoxInstrument> instruments,
+                Map<String, String> mappedIndices) {
+            this.instrumentKeys = new ArrayList<>();
+            this.keyToSymbolMap = new HashMap<>();
 
-            this.keyToSymbolMap = instruments.stream()
-                    .collect(Collectors.toMap(
-                            com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey,
-                            com.am.marketdata.service.model.UpstoxInstrument::getTradingSymbol,
-                            (existing, replacement) -> existing));
+            // Add DB Instruments
+            if (instruments != null) {
+                this.instrumentKeys.addAll(instruments.stream()
+                        .map(com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey)
+                        .collect(Collectors.toList()));
+
+                this.keyToSymbolMap.putAll(instruments.stream()
+                        .collect(Collectors.toMap(
+                                com.am.marketdata.service.model.UpstoxInstrument::getInstrumentKey,
+                                com.am.marketdata.service.model.UpstoxInstrument::getTradingSymbol,
+                                (existing, replacement) -> existing)));
+            }
+
+            // Add Mapped Indices
+            if (mappedIndices != null) {
+                for (Map.Entry<String, String> entry : mappedIndices.entrySet()) {
+                    // Symbol -> Key map from identifier
+                    String symbol = entry.getKey();
+                    String key = entry.getValue();
+
+                    if (!this.instrumentKeys.contains(key)) {
+                        this.instrumentKeys.add(key);
+                        // Map Key -> Symbol for reverse lookup
+                        this.keyToSymbolMap.put(key, symbol);
+                    }
+                }
+            }
         }
     }
 
     private InstrumentContext resolveContext(List<String> symbols) {
-        return new InstrumentContext(resolveInstruments(symbols));
+        // 1. Identify and resolve known Indices
+        Map<String, String> resolvedIndices = indexIdentifier.resolveIndices(symbols); // Symbol -> Key
+
+        // 2. Identify remaining symbols to lookup in DB
+        List<String> symbolsForDb = symbols.stream()
+                .filter(s -> !resolvedIndices.containsKey(s))
+                .collect(Collectors.toList());
+
+        // 3. Lookup remaining symbols
+        List<com.am.marketdata.service.model.UpstoxInstrument> dbInstruments = resolveInstruments(symbolsForDb);
+
+        // 4. Combine
+        return new InstrumentContext(dbInstruments, resolvedIndices);
     }
 
     @Override

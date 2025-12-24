@@ -29,6 +29,16 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
   final List<String> _types = ['EQUITY', 'FUTURE', 'OPTION', 'INDEX'];
 
   @override
+  void initState() {
+    super.initState();
+    // Default Defaults
+    _selectedExchanges.add('NSE');
+    _selectedTypes.add('INDEX');
+    // Trigger initial search
+    WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+  }
+
+  @override
   void dispose() {
     _queryController.dispose();
     _isinController.dispose();
@@ -236,24 +246,24 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
             headingRowColor: MaterialStateProperty.all(const Color(0xFF0F3460)),
             dataRowColor: MaterialStateProperty.all(Colors.transparent),
             columns: const [
-              DataColumn(label: Text('Symbol', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Segment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Type', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Key', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
             ],
             rows: _results.map((item) {
               return DataRow(
                 cells: [
-                  DataCell(Text(item['tradingSymbol'] ?? '-', style: const TextStyle(color: Colors.white))),
+                  DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.white))),
                   DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis))),
                   DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.white70))),
                   DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(item['instrumentType'] ?? '-', style: const TextStyle(color: Colors.white70))),
+                  DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.white70))),
                   DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                   DataCell(Text(item['instrumentKey'] ?? '-', style: const TextStyle(color: Colors.white54, fontSize: 11))),
+                   DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.white54, fontSize: 11))),
                 ]
               );
             }).toList(),

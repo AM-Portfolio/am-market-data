@@ -7,7 +7,8 @@ import '../widgets/indices_performance_view.dart'; // Market Overview
 import '../screens/streamer_page.dart';
 import '../screens/market_analytics_page.dart';
 import '../screens/instrument_explorer_page.dart';
-import '../screens/security_explorer_page.dart'; // Added for Security Explorer
+import '../screens/security_explorer_page.dart';
+import '../screens/price_test_page.dart'; // Added for Price Test
 import '../utils/app_logger.dart';
 
 class HomePage extends StatefulWidget {
@@ -49,23 +50,24 @@ class _HomePageState extends State<HomePage> {
     final isAllIndices = provider.selectedIndex == "All Indices";
     final isStreamer = provider.selectedIndex == "Streamer";
     final isInstruments = provider.selectedIndex == "Instruments";
-    final isSecurityExplorer = provider.selectedIndex == "Security Explorer"; // Added for Security Explorer
+    final isSecurityExplorer = provider.selectedIndex == "Security Explorer";
+    final isPriceTest = provider.selectedIndex == "Price Test"; // Added for Price Test
     final isAnalytics = _currentView == 2;
 
     return Scaffold(
-      appBar: _buildAppBar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer), // Updated AppBar call
+      appBar: _buildAppBar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer, isPriceTest),
       body: Row(
         children: [
-          _buildSidebar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer), // Updated Sidebar call
-          _buildContent(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer, isAnalytics), // Updated Content call
+          _buildSidebar(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer, isPriceTest), 
+          _buildContent(provider, isAllIndices, isStreamer, isInstruments, isSecurityExplorer, isPriceTest, isAnalytics), 
         ],
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer) {
+  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer, bool isPriceTest) {
     return AppBar(
-        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : isInstruments ? 'Instrument Explorer' : isSecurityExplorer ? 'Security Explorer' : (provider.selectedIndex ?? 'Market Data')), // Updated title logic
+        title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : isInstruments ? 'Instrument Explorer' : isSecurityExplorer ? 'Security Explorer' : isPriceTest ? 'Price Test' : (provider.selectedIndex ?? 'Market Data')), 
         actions: [
           // Force Refresh Toggle
           Row(
@@ -80,7 +82,9 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 10),
 
-          if (!isAllIndices && !isStreamer && !isInstruments && !isSecurityExplorer) ...[ // Updated condition
+          const SizedBox(width: 10),
+
+          if (!isAllIndices && !isStreamer && !isInstruments && !isSecurityExplorer && !isPriceTest) ...[ 
             IconButton(
               icon: const Icon(Icons.table_chart),
               tooltip: 'Table View',
@@ -124,7 +128,7 @@ class _HomePageState extends State<HomePage> {
       );
   }
 
-  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer) {
+  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer, bool isPriceTest) {
     return Container(
             width: 260,
             decoration: const BoxDecoration(
@@ -189,6 +193,19 @@ class _HomePageState extends State<HomePage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("Security Explorer"),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      // Price Test Option (Added)
+                      ListTile(
+                        title: const Text("Price Test", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                        leading: const Icon(Icons.price_check, color: Colors.amberAccent),
+                        selected: isPriceTest,
+                        selectedTileColor: Colors.amberAccent.withOpacity(0.15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        onTap: () => provider.selectIndex("Price Test"),
                       ),
 
                       const SizedBox(height: 15),
@@ -266,12 +283,12 @@ class _HomePageState extends State<HomePage> {
           );
   }
 
-  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer, bool isAnalytics) {
+  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isInstruments, bool isSecurityExplorer, bool isPriceTest, bool isAnalytics) {
     return Expanded(
             child: Container(
               color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
               child: IndexedStack(
-                index: isAllIndices ? 0 : isStreamer ? 1 : isInstruments ? 2 : isSecurityExplorer ? 3 : 4, // Updated index logic
+                index: isAllIndices ? 0 : isStreamer ? 1 : isInstruments ? 2 : isSecurityExplorer ? 3 : isPriceTest ? 4 : 5, 
                 children: [
                    // Index 0: Market Overview
                    const IndicesPerformanceView(),
@@ -282,10 +299,13 @@ class _HomePageState extends State<HomePage> {
                    // Index 2: Instrument Explorer
                    const InstrumentExplorerPage(),
 
-                   // Index 3: Security Explorer (Added)
+                   // Index 3: Security Explorer
                    const SecurityExplorerPage(),
 
-                   // Index 4: Analytics or Index Details (Table/Heatmap)
+                   // Index 4: Price Test (Added)
+                   const PriceTestPage(),
+
+                   // Index 5: Analytics or Index Details (Table/Heatmap)
                    provider.isLoading
                      ? const Center(child: CircularProgressIndicator())
                      : provider.error != null

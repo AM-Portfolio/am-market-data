@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.marketdata.service.upstox.UpstoxApiService;
+import com.marketdata.service.upstox.UpstoxIndexIdentifier;
 import com.marketdata.service.upstox.UpstoxMarketDataProvider;
 import com.marketdata.service.upstox.UpstoxSdkService;
 
@@ -51,9 +52,11 @@ public class UpstoxApiConfig {
     @Bean(name = "upstoxMarketDataProvider")
     public UpstoxMarketDataProvider upstoxMarketDataProvider(UpstoxApiService upstoxApiService,
             com.am.marketdata.service.service.UpstoxInstrumentService upstoxInstrumentService,
-            UpstoxSdkService upstoxSdkService) {
+            UpstoxSdkService upstoxSdkService,
+            UpstoxIndexIdentifier indexIdentifier) {
         log.info("Creating Upstox market data provider");
-        return new UpstoxMarketDataProvider(upstoxApiService, upstoxInstrumentService, upstoxSdkService);
+        return new UpstoxMarketDataProvider(upstoxApiService, upstoxInstrumentService, upstoxSdkService,
+                indexIdentifier);
     }
 
     @Bean(name = "marketDataUpstoxRetryRegistry")
