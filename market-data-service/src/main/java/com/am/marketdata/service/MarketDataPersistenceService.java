@@ -1,6 +1,5 @@
 package com.am.marketdata.service;
 
-
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.EquityService;
@@ -54,7 +53,7 @@ public class MarketDataPersistenceService {
         this.ohlcMapper = ohlcMapper;
         this.taskExecutor = taskExecutor;
     }
-    
+
     /**
      * Get the market data cache service
      * 
@@ -77,7 +76,7 @@ public class MarketDataPersistenceService {
                 List<EquityPrice> equityPrices = ohlcMapper.toEquityPriceList(ohlcData);
                 equityService.saveAllPrices(equityPrices);
                 log.debug("Successfully saved {} equity prices to database", equityPrices.size());
-                
+
                 // Then update the cache
                 marketDataCacheService.cacheOHLCData(ohlcData);
                 log.debug("Successfully cached OHLC data for {} symbols", ohlcData.size());
@@ -88,8 +87,10 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval, HistoricalData historicalData) {
-        if (historicalData == null || historicalData.getDataPoints() == null || historicalData.getDataPoints().isEmpty()) {
+    public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval,
+            HistoricalData historicalData) {
+        if (historicalData == null || historicalData.getDataPoints() == null
+                || historicalData.getDataPoints().isEmpty()) {
             log.warn("No historical data to save for symbol: {}", symbol);
             return CompletableFuture.completedFuture(null);
         }
@@ -100,7 +101,7 @@ public class MarketDataPersistenceService {
                 log.debug("Saving historical data to database for symbol: {}", symbol);
                 historicalDataService.saveHistoricalData(historicalData);
                 log.debug("Successfully saved historical data for symbol: {}", symbol);
-                
+
                 // Then update the cache
                 marketDataCacheService.cacheHistoricalData(symbol, interval, historicalData);
                 log.debug("Successfully cached historical data for symbol: {}", symbol);
@@ -117,38 +118,49 @@ public class MarketDataPersistenceService {
         }
 
         try {
+            // Use "LIVE" as the cache key for current/live prices (when timeFrame is null)
+            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "1D";
+
             Map<String, OHLCQuote> result = new HashMap<>();
             Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
-            
-            // Step 1: Try to get from cache if not forcing refresh
+
             if (!forceRefresh) {
-                // Pass timeFrame to cache service if it supports it
+                // Try cache first
                 Map<String, OHLCQuote> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols, timeFrame);
-                if (!cachedData.isEmpty()) {
-                    log.debug("Retrieved OHLC data from cache for {} symbols with timeFrame {}", 
-                            cachedData.size(), timeFrame.getApiValue());
+                if (cachedData != null && !cachedData.isEmpty()) {
+                    log.debug("Retrieved {} OHLC data from cache with timeFrame {}",
+                            cachedData.size(), tfValue);
                     result.putAll(cachedData);
-                    
-                    // Remove found symbols from the remaining set
-                    cachedData.keySet().forEach(symbol -> 
-                        remainingSymbols.remove(symbol.replace("NSE:", "")));
+
+                    // Remove found symbols
+                    cachedData.keySet().forEach(key -> {
+                        String symbol = key.replace("NSE:", "").replace("NSE_EQ:", "");
+                        remainingSymbols.remove(symbol);
+                    });
+
+                    log.debug("{} symbols remaining after cache lookup for timeFrame {}",
+                            remainingSymbols.size(), tfValue);
+
+                    if (remainingSymbols.isEmpty()) {
+                        return result;
+                    }
                 }
             }
-            
-            // Step 2: If we have remaining symbols or forceRefresh is true, try database
+
+            // If we have remaining symbols or forceRefresh is true, try database
             if (!remainingSymbols.isEmpty() || forceRefresh) {
-                log.debug("{} OHLC data from database for {} symbols with timeFrame {}", 
-                        forceRefresh ? "Forcing refresh of" : "Fetching missing", 
-                        remainingSymbols.size(), timeFrame.getApiValue());
-                
+                log.debug("{} OHLC data from database for {} symbols with timeFrame {}",
+                        forceRefresh ? "Forcing refresh of" : "Fetching missing",
+                        remainingSymbols.size(), tfValue);
+
                 // Clean symbols (remove NSE: prefix if present)
                 List<String> cleanSymbols = remainingSymbols.stream()
-                    .map(symbol -> symbol.replace("NSE:", ""))
-                    .collect(Collectors.toList());
-                
+                        .map(symbol -> symbol.replace("NSE:", ""))
+                        .collect(Collectors.toList());
+
                 // Get equity prices from database
                 List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(cleanSymbols);
-                
+
                 if (!equityPrices.isEmpty()) {
                     // Convert equity prices to OHLCQuote format
                     for (EquityPrice price : equityPrices) {
@@ -156,22 +168,23 @@ public class MarketDataPersistenceService {
                             continue;
                         }
                         OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
-                        //String symbol = "NSE:" + price.getSymbol();
+                        // String symbol = "NSE:" + price.getSymbol();
                         result.put(price.getSymbol(), quote);
-                        
+
                         // Remove found symbols from the remaining set
                         remainingSymbols.remove(price.getSymbol());
                     }
-                    
-                    log.debug("Retrieved OHLC data from database for {} symbols with timeFrame {}", 
-                            equityPrices.size(), timeFrame.getApiValue());
+
+                    log.debug("Retrieved OHLC data from database for {} symbols with timeFrame {}",
+                            equityPrices.size(), tfValue);
                 }
             }
-            
+
             return result;
         } catch (Exception e) {
-            log.error("Error retrieving OHLC data with timeFrame {}: {}", 
-                    timeFrame.getApiValue(), e.getMessage(), e);
+            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "LIVE";
+            log.error("Error retrieving OHLC data with timeFrame {}: {}",
+                    tfValue, e.getMessage(), e);
             return Collections.emptyMap();
         }
     }
@@ -186,10 +199,10 @@ public class MarketDataPersistenceService {
         if (apiInterval == null || apiInterval.isEmpty()) {
             return "day"; // Default to daily interval
         }
-        
+
         // Convert to lowercase for case-insensitive comparison
         String interval = apiInterval.toLowerCase();
-        
+
         // Map common interval formats
         if (interval.contains("day") || interval.equals("1d") || interval.equals("d")) {
             return "day";
@@ -204,14 +217,15 @@ public class MarketDataPersistenceService {
                 return minutes + "minute";
             }
             return "minute";
-        } else if (interval.contains("hour") || interval.contains("hr") || interval.equals("1h") || interval.equals("h")) {
+        } else if (interval.contains("hour") || interval.contains("hr") || interval.equals("1h")
+                || interval.equals("h")) {
             return "hour";
         }
-        
+
         // Return as is if no mapping found
         return interval;
     }
-    
+
     /**
      * Creates an OHLCQuote object from an EquityPrice object
      * 
@@ -221,23 +235,23 @@ public class MarketDataPersistenceService {
     private OHLCQuote createOHLCQuoteFromEquityPrice(EquityPrice price) {
         OHLCQuote quote = new OHLCQuote();
         quote.setLastPrice(price.getLastPrice());
-        
+
         OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
         ohlc.setOpen(price.getOhlcv().getOpen());
         ohlc.setHigh(price.getOhlcv().getHigh());
         ohlc.setLow(price.getOhlcv().getLow());
         ohlc.setClose(price.getOhlcv().getClose());
-        
+
         quote.setOhlc(ohlc);
-        
+
         // Set additional fields if available
         // if (price.getVolume() != null) {
-        //     // Volume is not currently part of the OHLC model
+        // // Volume is not currently part of the OHLC model
         // }
-        
+
         return quote;
     }
-    
+
     public HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate) {
         if (symbol == null || symbol.isEmpty() || interval == null) {
             return null;
@@ -246,19 +260,19 @@ public class MarketDataPersistenceService {
         try {
             // First try to get from cache
             HistoricalData cachedData = marketDataCacheService.getHistoricalDataFromCache(
-                symbol, interval, fromDate, toDate);
-                
+                    symbol, interval, fromDate, toDate);
+
             if (cachedData != null && cachedData.getDataPoints() != null && !cachedData.getDataPoints().isEmpty()) {
                 log.debug("Retrieved historical data from cache for symbol: {}", symbol);
                 return cachedData;
             }
-            
+
             // If not in cache, try to get from database
             log.debug("No historical data found in cache, fetching from database for symbol: {}", symbol);
-            
+
             // Clean symbol (remove NSE: prefix if present)
             String cleanSymbol = symbol.replace("NSE:", "");
-            
+
             // Parse dates - handle potential format variations
             LocalDate from;
             LocalDate to;
@@ -271,24 +285,25 @@ public class MarketDataPersistenceService {
                 from = LocalDate.parse(fromDate, alternativeFormatter);
                 to = LocalDate.parse(toDate, alternativeFormatter);
             }
-            
+
             // Map interval to the format expected by the database service
             String mappedInterval = interval.name().toLowerCase();
-            
+
             // Get historical data from database using HistoricalDataService
             // Convert LocalDate to Instant at the start of the day in UTC
             Instant fromInstant = from.atStartOfDay(ZoneId.systemDefault()).toInstant();
             Instant toInstant = to.atStartOfDay(ZoneId.systemDefault()).toInstant();
-            
+
             // Handle Optional return type
             HistoricalData historicalData = historicalDataService.getHistoricalData(
-                cleanSymbol, fromInstant, toInstant, mappedInterval).orElse(null);
-            
-            if (historicalData != null && historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
+                    cleanSymbol, fromInstant, toInstant, mappedInterval).orElse(null);
+
+            if (historicalData != null && historicalData.getDataPoints() != null
+                    && !historicalData.getDataPoints().isEmpty()) {
                 log.debug("Retrieved historical data from database for symbol: {}", symbol);
                 return historicalData;
             }
-            
+
             log.debug("No historical data found in database for symbol: {}", symbol);
             return null;
         } catch (Exception e) {

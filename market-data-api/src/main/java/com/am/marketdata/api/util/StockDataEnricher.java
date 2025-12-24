@@ -3,6 +3,7 @@ package com.am.marketdata.api.util;
 import com.am.common.investment.model.stockindice.StockData;
 import com.am.marketdata.common.log.AppLogger;
 import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -94,7 +95,7 @@ public class StockDataEnricher {
      * @return List of EnrichedStockData with price information
      */
     public List<EnrichedStockData> enrichWithPrices(List<StockData> stockDataList) {
-        return enrichWithPrices(stockDataList, null);
+        return enrichWithPrices(stockDataList, TimeFrame.DAY);
     }
 
     /**
@@ -142,7 +143,7 @@ public class StockDataEnricher {
     private Map<String, OHLCQuote> fetchLivePrices(List<String> symbols,
             com.am.marketdata.common.model.TimeFrame timeFrame) {
         try {
-            String timeFrameStr = timeFrame != null ? timeFrame.getApiValue() : "current";
+            String timeFrameStr = timeFrame != null ? timeFrame.getApiValue() : TimeFrame.DAY.getApiValue();
             log.info("fetchLivePrices",
                     "Fetching prices for " + symbols.size() + " symbols with timeFrame: " + timeFrameStr);
 

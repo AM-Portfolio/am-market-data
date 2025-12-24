@@ -28,6 +28,17 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Helper to filter out invalid index values
+  String _getValidIndexSymbol(String? index) {
+    if (index == null || 
+        index.isEmpty || 
+        index == 'All Indices' || 
+        index == 'Streamer') {
+      return 'NIFTY 50';
+    }
+    return index;
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MarketProvider>();
@@ -240,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                      : provider.error != null
                          ? Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.redAccent)))
                          : isAnalytics
-                             ? MarketAnalyticsPage(indexSymbol: provider.selectedIndex ?? 'NIFTY 50')
+                             ? MarketAnalyticsPage(indexSymbol: _getValidIndexSymbol(provider.selectedIndex))
                              : _currentView == 0
                                  ? const ConstituentsTable()
                                  : const HeatmapView(),
