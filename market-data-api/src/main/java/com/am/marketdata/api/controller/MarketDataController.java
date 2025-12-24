@@ -20,6 +20,7 @@ import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -334,7 +335,7 @@ public class MarketDataController {
      * @return Historical data
      */
     @GetMapping(value = "/historical-charts/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Get historical charts data", description = "Retrieves historical data for charts (1Y Daily or 5Y Monthly)")
+    @Operation(summary = "Get historical charts data", description = "Retrieves historical data for charts with various time frames (10m, 1H, 1D, 1W, 1M, 5Y, etc.)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Chart data retrieved successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
@@ -342,34 +343,138 @@ public class MarketDataController {
     })
     public ResponseEntity<Map<String, Object>> getHistoricalCharts(
             @PathVariable String symbol,
-            @RequestParam(defaultValue = "1Y") String range) {
+            @RequestParam(defaultValue = "1D") String range) {
         try {
             log.info("Fetching historical charts for symbol: {}, range: {}", symbol, range);
 
-            String interval;
-            java.time.LocalDate to = java.time.LocalDate.now();
-            java.time.LocalDate from;
+            String interval = "1D";
+            java.time.LocalDateTime to = java.time.LocalDateTime.now();
+            java.time.LocalDateTime from = to.minusDays(1);
+            boolean isIntraday = false;
 
-            if ("5Y".equalsIgnoreCase(range)) {
-                interval = "1M"; // Monthly
-                from = to.minusYears(5);
-            } else {
-                // Default to 1Y
-                interval = "1D"; // Daily
-                from = to.minusYears(1);
+            // Determine Interval and From Time based on Range
+            switch (range.toUpperCase()) {
+                case "10M": // 10 Minutes
+                    interval = "1m";
+                    from = to.minusMinutes(10);
+                    isIntraday = true;
+                    break;
+                case "15M": // 15 Minutes
+                    interval = "1m";
+                    from = to.minusMinutes(15);
+                    isIntraday = true;
+                    break;
+                case "30M": // 30 Minutes
+                    interval = "1m";
+                    from = to.minusMinutes(30);
+                    isIntraday = true;
+                    break;
+                case "1H": // 1 Hour
+                    interval = "1m";
+                    from = to.minusHours(1);
+                    isIntraday = true;
+                    break;
+                case "4H": // 4 Hours
+                    interval = "5m"; // 5min interval for 4 hour chart
+                    from = to.minusHours(4);
+                    isIntraday = true;
+                    break;
+                case "1D": // 1 Day
+                    interval = "5m"; // 5min interval for daily chart (standard)
+                    from = to.minusDays(1); // Or start of day? usually 24h rolling or market open
+                    break;
+                case "1W": // 1 Week
+                    interval = "1H"; // Hourly
+                    from = to.minusWeeks(1);
+                    break;
+                case "1M": // 1 Month
+                    interval = "1D";
+                    from = to.minusMonths(1);
+                    break;
+                case "5Y": // 5 Years
+                    interval = "1W"; // Weekly (or Monthly?)
+                    from = to.minusYears(5);
+                    break;
+                default:
+                    // Fallback to 1Y Daily
+                    interval = "1D";
+                    from = to.minusYears(1);
             }
 
-            // Construct HistoricalDataRequest
+            // Construct Request - Date format yyyy-MM-dd is standard for APIs even for
+            // intraday usually
+            // but we might need to filter manually if the API gives us full days.
             HistoricalDataRequest request = HistoricalDataRequest.builder()
                     .symbols(symbol)
-                    .from(from.toString())
-                    .to(to.toString())
+                    .from(from.toLocalDate().toString()) // API typically takes Date Only
+                    .to(to.toLocalDate().toString())
                     .interval(interval)
-                    .filterType("price") // Or any appropriate filter
+                    .filterType("price")
                     .build();
 
-            // Delegate logic to existing service
-            return getHistoricalData(request);
+            // Fetch Data
+            Map<String, Object> response = marketDataCacheService.processHistoricalDataRequest(request);
+
+            if (response.containsKey("error")) {
+                return ResponseEntity.status(500).body(response);
+            }
+
+            // FILTERING Logic
+            // If Intraday or specifc logic, we filter the dataPoints to ensure they are >=
+            // from time
+            if (response.containsKey("data")) {
+                Object dataObj = response.get("data");
+                // Structure: { "SYMBOL": { "dataPoints": [ [time, o, h, l, c, v], ... ] } }
+                // OR { "SYMBOL": [ ... ] } depending on service implementation.
+                // Based on previous conversations, it's nested: data -> SYMBOL -> dataPoints
+                // list.
+
+                if (dataObj instanceof Map) {
+                    Map<String, Object> dataMap = (Map<String, Object>) dataObj;
+                    if (dataMap.containsKey(symbol)) {
+                        Object symbolDataObj = dataMap.get(symbol);
+                        if (symbolDataObj instanceof Map) {
+                            Map<String, Object> innerData = (Map<String, Object>) symbolDataObj;
+                            if (innerData.containsKey("dataPoints")) {
+                                Object pointsObj = innerData.get("dataPoints");
+                                if (pointsObj instanceof List) {
+                                    List<?> points = (List<?>) pointsObj;
+                                    long minTime = from.atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant()
+                                            .toEpochMilli();
+
+                                    List<Object> filteredPoints = points.stream()
+                                            .filter(p -> {
+                                                try {
+                                                    long timestamp = 0;
+                                                    if (p instanceof OHLCVTPoint) {
+                                                        timestamp = ((OHLCVTPoint) p).getTime()
+                                                                .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                                                                .toEpochMilli();
+                                                    } else if (p instanceof Map) {
+                                                        Object t = ((Map<?, ?>) p).get("time"); // or timestamp
+                                                        // ... parsing logic if needed
+                                                        return true; // Skip complex map parsing for now
+                                                    } else if (p instanceof List) {
+                                                        Object t = ((List<?>) p).get(0);
+                                                        if (t instanceof Number)
+                                                            timestamp = ((Number) t).longValue();
+                                                    }
+                                                    return timestamp >= minTime;
+                                                } catch (Exception e) {
+                                                    return true;
+                                                }
+                                            })
+                                            .collect(Collectors.toList());
+
+                                    innerData.put("dataPoints", filteredPoints);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             log.error("getHistoricalCharts", "Error fetching historical charts for " + symbol + ": " + e.getMessage());

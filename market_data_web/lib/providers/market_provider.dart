@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/market_data.dart';
 import '../services/api_service.dart';
+import '../utils/app_logger.dart';
 
 class MarketProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
+  // Logger imported via utils/app_logger.dart (need to add import)
 
   AvailableIndices? _availableIndices;
   StockIndicesMarketData? _currentIndexData;
@@ -14,9 +17,15 @@ class MarketProvider with ChangeNotifier {
   String? _error;
   bool _forceRefresh = false; // "Force Refresh" toggle state
 
+  Map<String, Map<String, dynamic>> _livePrices = {}; // Global live price cache
+  final StreamController<Map<String, dynamic>> _livePriceController = StreamController<Map<String, dynamic>>.broadcast();
+
   AvailableIndices? get availableIndices => _availableIndices;
   StockIndicesMarketData? get currentIndexData => _currentIndexData;
   List<StockIndicesMarketData> get allIndicesData => _allIndicesData;
+  Map<String, Map<String, dynamic>> get livePrices => _livePrices;
+  Stream<Map<String, dynamic>> get livePriceStream => _livePriceController.stream;
+  
   String? get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -27,6 +36,20 @@ class MarketProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateLivePrice(Map<String, dynamic> data) {
+    if (data.containsKey('symbol')) {
+      _livePrices[data['symbol']] = data;
+      // Emit event to stream instead of global notifyListeners
+      _livePriceController.add(data);
+    }
+  }
+
+  @override
+  void dispose() {
+    _livePriceController.close();
+    super.dispose();
+  }
+
   Future<void> loadIndices() async {
     _isLoading = true;
     _error = null;
@@ -34,6 +57,7 @@ class MarketProvider with ChangeNotifier {
 
     try {
       _availableIndices = await _apiService.fetchAvailableIndices();
+      AppLogger.info("MarketProvider.loadIndices", "Fetched available indices: ${_availableIndices?.broad.length ?? 0} broad, ${_availableIndices?.sectoral.length ?? 0} sectoral");
       if (_availableIndices?.broad.isNotEmpty ?? false) {
         selectIndex(_availableIndices!.broad.first); // Auto-select first
       }
@@ -91,7 +115,7 @@ class MarketProvider with ChangeNotifier {
              var data = await _apiService.fetchIndexData(sym, forceRefresh: _forceRefresh);
              results.add(data);
           } catch (e) {
-             print("Error loading $sym: $e");
+             AppLogger.warning("MarketProvider.loadAllIndicesData", "Error loading $sym", e);
           }
       }
       _allIndicesData = results;

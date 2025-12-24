@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import '../utils/app_logger.dart';
 
 class StreamService {
   WebSocketChannel? _channel;
@@ -20,7 +21,8 @@ class StreamService {
     try {
       _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
       _isConnected = true;
-      print("WebSocket Connected");
+      _isConnected = true;
+      AppLogger.info("StreamService.connect", "WebSocket Connected");
 
       _channel!.stream.listen(
         (message) {
@@ -30,20 +32,20 @@ class StreamService {
                  _streamController.add(data);
              }
           } catch (e) {
-            print("Error parsing WS message: $e");
+            AppLogger.error("StreamService.connect", "Error parsing WS message", e);
           }
         },
         onError: (error) {
-          print("WebSocket Error: $error");
+          AppLogger.error("StreamService.connect", "WebSocket Error", error);
           _isConnected = false;
         },
         onDone: () {
-          print("WebSocket Closed");
+          AppLogger.info("StreamService.connect", "WebSocket Closed");
           _isConnected = false;
         },
       );
     } catch (e) {
-      print("Error connecting to WebSocket: $e");
+      AppLogger.error("StreamService.connect", "Error connecting to WebSocket", e);
       _isConnected = false;
     }
   }

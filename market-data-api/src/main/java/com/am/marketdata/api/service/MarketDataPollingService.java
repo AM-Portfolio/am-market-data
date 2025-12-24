@@ -19,6 +19,7 @@ public class MarketDataPollingService {
 
     private final MarketDataFetchService marketDataFetchService;
     private final MarketDataWebSocketHandler webSocketHandler;
+    private final com.am.marketdata.api.util.InstrumentUtils instrumentUtils;
 
     // Scheduler for polling
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
@@ -28,8 +29,11 @@ public class MarketDataPollingService {
     private int pollIntervalSeconds;
 
     public void connectStream(List<String> instrumentKeys, String modeStr, String provider) {
-        log.info("Initiating stream simulation via polling for {} instruments. Provider: {}", instrumentKeys.size(),
-                provider);
+        // Resolve symbols using InstrumentUtils
+        Set<String> resolvedKeys = instrumentUtils.resolveSymbols(instrumentKeys);
+
+        log.info("Initiating stream simulation via polling for {} instruments (resolved from {}). Provider: {}",
+                resolvedKeys.size(), instrumentKeys.size(), provider);
 
         String providerKey = provider != null ? provider.toUpperCase() : "UNKNOWN";
 
@@ -39,7 +43,7 @@ public class MarketDataPollingService {
         Runnable pollingTask = () -> {
             try {
                 // Using getOHLC to fetch data
-                Set<String> keys = new HashSet<>(instrumentKeys);
+                Set<String> keys = new HashSet<>(resolvedKeys);
 
                 // Fetch latest daily data or appropriate timeframe
                 // ForceRefresh = true to get latest from provider

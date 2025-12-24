@@ -17,13 +17,21 @@ import org.springframework.web.bind.annotation.*;
 public class MarketDataStreamController {
 
     private final MarketDataPollingService pollingService;
+    private final com.am.marketdata.api.util.InstrumentUtils instrumentUtils;
 
     @PostMapping("/connect")
     @Operation(summary = "Connect to market data stream", description = "Initiates a WebSocket connection for the specified provider and instruments")
     public ResponseEntity<String> connect(@RequestBody StreamConnectRequest request) {
         try {
             log.info("Received stream connection request for provider: {}", request.getProvider());
-            pollingService.connectStream(request.getInstrumentKeys(), request.getMode(), request.getProvider());
+
+            // Resolve symbols/indices
+            java.util.Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(request.getInstrumentKeys());
+            log.info("Resolved {} symbols to {} for stream", request.getInstrumentKeys().size(),
+                    resolvedSymbols.size());
+
+            pollingService.connectStream(new java.util.ArrayList<>(resolvedSymbols), request.getMode(),
+                    request.getProvider());
             return ResponseEntity.ok("Stream connection initiated successfully");
         } catch (Exception e) {
             log.error("Failed to initiate stream connection: {}", e.getMessage(), e);

@@ -5,6 +5,7 @@ import '../widgets/heatmap_view.dart';
 import '../widgets/constituents_table.dart';
 import '../widgets/indices_performance_view.dart'; // Market Overview
 import '../screens/streamer_page.dart';
+import '../utils/app_logger.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLogger.info("HomePage.initState", "Initial Load of Indices");
       context.read<MarketProvider>().loadIndices();
     });
   }
@@ -58,7 +60,10 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: const Icon(Icons.grid_view),
               tooltip: 'Heatmap View',
-              onPressed: () => setState(() => _currentView = 1),
+              onPressed: () {
+                  setState(() => _currentView = 1);
+                  AppLogger.info("HomePage", "Switched to Heatmap View");
+              },
               color: _currentView == 1 ? Colors.blue : null,
             ),
           ],
@@ -80,92 +85,142 @@ class _HomePageState extends State<HomePage> {
         children: [
           // Sidebar
           Container(
-            width: 250,
-            color: Colors.black26,
+            width: 260,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1E1E2F), Color(0xFF2D2D44)], // Premium Dark Gradient
+              ),
+              border: Border(right: BorderSide(color: Colors.white10)),
+            ),
             child: Column(
               children: [
                 Expanded(
                   child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                     children: [
                       // Market Overview Option
                       ListTile(
-                        title: const Text("All Indices (Overview)", style: TextStyle(fontWeight: FontWeight.bold)),
-                        leading: const Icon(Icons.dashboard, color: Colors.blueAccent),
+                        title: const Text("All Indices (Overview)", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                        leading: const Icon(Icons.dashboard_rounded, color: Colors.blueAccent),
                         selected: isAllIndices,
-                        selectedTileColor: Colors.blue.withOpacity(0.2),
+                        selectedTileColor: Colors.blueAccent.withOpacity(0.15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Rounded selection
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("All Indices"),
                       ),
                       
+                      const SizedBox(height: 5),
+
                       // Streamer Option
                       ListTile(
-                        title: const Text("Streamer", style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: const Text("Streamer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
                         leading: const Icon(Icons.waves, color: Colors.purpleAccent),
                         selected: isStreamer,
-                        selectedTileColor: Colors.blue.withOpacity(0.2),
+                        selectedTileColor: Colors.purpleAccent.withOpacity(0.15),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         onTap: () => provider.selectIndex("Streamer"),
                       ),
                       
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 15),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Text("INDICES", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                      ),
                       
                       if (provider.availableIndices != null) ...[
+                        // Broad Market Dropdown
                         if (provider.availableIndices!.broad.isNotEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('BROAD MARKET', style: TextStyle(color: Colors.grey)),
+                          Theme(
+                            data: Theme.of(context).copyWith(dividerColor: Colors.transparent), // Remove borders
+                            child: ExpansionTile(
+                              leading: const Icon(Icons.public, color: Colors.greenAccent),
+                              title: const Text("Broad Market", style: TextStyle(fontSize: 14, color: Colors.white)),
+                              iconColor: Colors.greenAccent,
+                              collapsedIconColor: Colors.white54,
+                              children: provider.availableIndices!.broad.map((idx) => ListTile(
+                                title: Text(idx, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                                selected: provider.selectedIndex == idx,
+                                selectedTileColor: Colors.greenAccent.withOpacity(0.1),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.only(left: 32, right: 16),
+                                dense: true,
+                                onTap: () => provider.selectIndex(idx),
+                              )).toList(),
+                            ),
                           ),
-                        ...provider.availableIndices!.broad.map((idx) => ListTile(
-                              title: Text(idx),
-                              selected: provider.selectedIndex == idx,
-                              selectedTileColor: Colors.blue.withOpacity(0.2),
-                              onTap: () => provider.selectIndex(idx),
-                            )),
+
+                        // Sectoral Indices Dropdown
                         if (provider.availableIndices!.sector.isNotEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('SECTORAL', style: TextStyle(color: Colors.grey)),
-                          ),
-                        ...provider.availableIndices!.sector.map((idx) => ListTile(
-                              title: Text(idx),
-                              selected: provider.selectedIndex == idx,
-                              selectedTileColor: Colors.blue.withOpacity(0.2),
-                              onTap: () => provider.selectIndex(idx),
-                            )),
+                           Theme(
+                            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              leading: const Icon(Icons.pie_chart, color: Colors.orangeAccent),
+                              title: const Text("Sectoral Indices", style: TextStyle(fontSize: 14, color: Colors.white)),
+                              iconColor: Colors.orangeAccent,
+                              collapsedIconColor: Colors.white54,
+                              children: provider.availableIndices!.sector.map((idx) => ListTile(
+                                title: Text(idx, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                                selected: provider.selectedIndex == idx,
+                                selectedTileColor: Colors.orangeAccent.withOpacity(0.1),
+                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.only(left: 32, right: 16),
+                                dense: true,
+                                onTap: () => provider.selectIndex(idx),
+                              )).toList(),
+                            ),
+                           ),
                       ]
                     ],
                   ),
                 ),
                 // System Tools Section (Bottom of Sidebar)
-                const Divider(),
+                const Divider(color: Colors.white10),
                 const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text("SYSTEM TOOLS", style: TextStyle(color: Colors.grey, fontSize: 10)),
+                  padding: EdgeInsets.all(16.0),
+                  child: Text("SYSTEM TOOLS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                 ),
                 ListTile(
-                  title: const Text("Refresh Cookies"),
+                  title: const Text("Refresh Cookies", style: TextStyle(color: Colors.white)),
                   leading: const Icon(Icons.cookie, color: Colors.orange),
                   onTap: () async {
+                      AppLogger.info("HomePage", "Refresh Cookies requested");
                       await provider.refreshCookies();
                       ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(provider.error ?? "Cookies refreshed successfully!"))
                       );
                   },
                 ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
           // Main Content
           Expanded(
-            child: provider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.error != null
-                    ? Center(child: Text('Error: ${provider.error}'))
-                    : isAllIndices
-                        ? const IndicesPerformanceView()
-                        : isStreamer
-                            ? const StreamerPage()
-                            : _currentView == 0
-                                ? const ConstituentsTable()
-                                : const HeatmapView(),
+            child: Container(
+              color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
+              child: IndexedStack(
+                index: isAllIndices ? 0 : isStreamer ? 1 : 2,
+                children: [
+                   // Index 0: Market Overview
+                   const IndicesPerformanceView(),
+                   
+                   // Index 1: Streamer
+                   const StreamerPage(),
+                   
+                   // Index 2: Index Details (Table/Heatmap)
+                   provider.isLoading
+                     ? const Center(child: CircularProgressIndicator())
+                     : provider.error != null
+                         ? Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.redAccent)))
+                         : _currentView == 0
+                             ? const ConstituentsTable()
+                             : const HeatmapView(),
+                ],
+              ),
+            ),
           ),
         ],
       ),

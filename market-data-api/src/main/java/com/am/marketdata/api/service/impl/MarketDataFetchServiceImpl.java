@@ -43,13 +43,16 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataService marketDataService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
+    private final com.am.marketdata.api.util.InstrumentUtils instrumentUtils;
 
     public MarketDataFetchServiceImpl(InvestmentInstrumentService investmentInstrumentService,
             MarketDataService marketDataService,
-            StockIndicesMarketDataService stockIndicesMarketDataService) {
+            StockIndicesMarketDataService stockIndicesMarketDataService,
+            com.am.marketdata.api.util.InstrumentUtils instrumentUtils) {
         this.investmentInstrumentService = investmentInstrumentService;
         this.marketDataService = marketDataService;
         this.stockIndicesMarketDataService = stockIndicesMarketDataService;
+        this.instrumentUtils = instrumentUtils;
     }
 
     @Override
@@ -96,24 +99,9 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
-        Set<String> symbolsSet = new HashSet<>(symbols);
-
-        if (indexSymbol) {
-            List<StockIndicesMarketData> indicesData = stockIndicesMarketDataService.findByIndexSymbols(symbols);
-            if (indicesData != null) {
-                for (StockIndicesMarketData data : indicesData) {
-                    if (data != null && data.getData() != null) {
-                        for (StockData stockData : data.getData()) {
-                            if (stockData != null && stockData.getSymbol() != null) {
-                                symbolsSet.add(stockData.getSymbol());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return symbolsSet;
+        // Use InstrumentUtils to resolve symbols (handles both indices and regular
+        // symbols)
+        return instrumentUtils.resolveSymbols(new ArrayList<>(symbols));
     }
 
     /**

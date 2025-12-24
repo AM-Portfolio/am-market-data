@@ -65,6 +65,9 @@ class AvailableIndices {
   final List<String> broad;
   final List<String> sector;
 
+  // Alias for legacy compatibility if 'sectoral' is used
+  List<String> get sectoral => sector;
+
   AvailableIndices({required this.broad, required this.sector});
 
   factory AvailableIndices.fromJson(Map<String, dynamic> json) {

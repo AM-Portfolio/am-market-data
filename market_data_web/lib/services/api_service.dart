@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/market_data.dart';
+import '../utils/app_logger.dart';
 
 class ApiService {
   // Assuming the Flutter app runs on the same host or proxied. 
@@ -51,6 +52,7 @@ class ApiService {
         throw Exception('Failed to load indices');
       }
     } catch (e) {
+      AppLogger.error("ApiService.fetchAllIndices", "Error fetching indices", e);
       throw Exception('Error fetching indices: $e');
     }
   }
@@ -87,13 +89,14 @@ class ApiService {
         if (list != null) {
             return List<Map<String, dynamic>>.from(list);
         } else {
-            print('ApiService: Failed to parse history structure. Response: $jsonResponse');
+            AppLogger.warning("ApiService.fetchHistory", "Failed to parse history structure. Response: $jsonResponse");
             return [];
         }
       } else {
         throw Exception('Failed to load history: ${response.statusCode}');
       }
     } catch (e) {
+      AppLogger.error("ApiService.fetchHistory", "Error fetching history for $symbol", e);
       throw Exception('Error fetching history: $e');
     }
   }
@@ -103,7 +106,7 @@ class ApiService {
       final response = await http.get(Uri.parse('$baseUrl/api/scraper/cookies'));
       return response.statusCode == 200;
     } catch (e) {
-      print('Error refreshing cookies: $e');
+      AppLogger.error("ApiService.refreshCookies", "Error refreshing cookies", e);
       return false;
     }
   }
@@ -118,7 +121,7 @@ class ApiService {
         return data['loginUrl'] ?? data['url'] ?? data['authUrl'];
       }
     } catch (e) {
-      print('Error fetching login URL: $e');
+      AppLogger.error("ApiService.getLoginUrl", "Error fetching login URL", e);
     }
     return null;
   }
@@ -139,7 +142,7 @@ class ApiService {
       
       return response.statusCode == 200;
     } catch (e) {
-      print('Error connecting stream: $e');
+      AppLogger.error("ApiService.connectStream", "Error connecting stream for $symbols", e);
       return false;
     }
   }
@@ -151,7 +154,7 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error disconnecting stream: $e');
+      AppLogger.error("ApiService.disconnectStream", "Error disconnecting stream", e);
       return false;
     }
   }
@@ -175,7 +178,7 @@ class ApiService {
         return List<Map<String, dynamic>>.from(json.decode(response.body));
       }
     } catch (e) {
-      print('Error searching instruments: $e');
+      AppLogger.error("ApiService.searchInstruments", "Error searching instruments for '$query'", e);
     }
     return [];
   }

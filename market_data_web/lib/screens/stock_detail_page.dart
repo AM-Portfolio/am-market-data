@@ -3,6 +3,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 
+import 'package:provider/provider.dart';
+import '../providers/market_provider.dart';
+
 class StockDetailPage extends StatefulWidget {
   final String symbol;
 
@@ -54,10 +57,42 @@ class _StockDetailPageState extends State<StockDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to MarketProvider for live updates using Stream to avoid full rebuilds
+    final marketProvider = Provider.of<MarketProvider>(context, listen: false);
+
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E2E), // Dark Theme Background
       appBar: AppBar(
-        title: Text(widget.symbol),
+        title: StreamBuilder<Map<String, dynamic>>(
+          stream: marketProvider.livePriceStream.where((event) => event['symbol'] == widget.symbol),
+          builder: (context, snapshot) {
+            final liveData = marketProvider.livePrices[widget.symbol];
+            
+            double? ltp;
+            double? change;
+            double? pChange;
+            Color color = Colors.grey;
+
+            if (liveData != null) {
+               ltp = (liveData['lastPrice'] as num).toDouble();
+               change = (liveData['change'] as num).toDouble();
+               pChange = (liveData['changePercent'] as num).toDouble();
+               color = change >= 0 ? Colors.greenAccent : Colors.redAccent;
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.symbol),
+                if (ltp != null)
+                  Text(
+                    "₹${ltp.toStringAsFixed(2)}  ${change! >= 0 ? '+' : ''}${change.toStringAsFixed(2)} (${pChange!.toStringAsFixed(2)}%)",
+                     style: TextStyle(fontSize: 12, color: color),
+                  ),
+              ],
+            );
+          }
+        ),
         backgroundColor: const Color(0xFF2E2E3E),
       ),
       body: Column(
@@ -65,12 +100,21 @@ class _StockDetailPageState extends State<StockDetailPage> {
           // Range Selector
           Container(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                _buildRangeButton('1D'),
-                const SizedBox(width: 8),
-                _buildRangeButton('5Y'),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildRangeButton('10m'),
+                  _buildRangeButton('15m'),
+                  _buildRangeButton('30m'),
+                  _buildRangeButton('1H'),
+                  _buildRangeButton('4H'),
+                  _buildRangeButton('1D'),
+                  _buildRangeButton('1W'),
+                  _buildRangeButton('1M'),
+                  _buildRangeButton('5Y'),
+                ],
+              ),
             ),
           ),
           
@@ -242,20 +286,26 @@ class _StockDetailPageState extends State<StockDetailPage> {
 
   Widget _buildRangeButton(String range) {
     bool isSelected = _selectedRange == range;
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.blueAccent : const Color(0xFF2E2E3E),
-        foregroundColor: Colors.white,
-      ),
-      onPressed: () {
-        if (!isSelected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? Colors.blueAccent : const Color(0xFF2E2E3E),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: const Size(0, 32), // Compact height
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: () {
+          if (!isSelected) {
             setState(() {
-                _selectedRange = range;
+              _selectedRange = range;
             });
             _fetchData();
-        }
-      },
-      child: Text(range),
+          }
+        },
+        child: Text(range, style: const TextStyle(fontSize: 12)),
+      ),
     );
   }
 }
