@@ -4,13 +4,14 @@ import com.am.marketdata.common.log.AppLogger;
 import com.am.marketdata.service.dto.SecuritySearchRequest;
 import com.am.marketdata.service.model.security.SecurityDocument;
 import com.am.marketdata.service.repo.SecurityRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.data.redis.core.RedisTemplate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,14 +23,23 @@ import java.util.concurrent.TimeUnit;
 import java.time.Duration;
 
 @Service
-@RequiredArgsConstructor
 public class SecurityService {
 
     private final AppLogger log = AppLogger.getLogger();
     private final SecurityRepository securityRepository;
     private final MongoTemplate mongoTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public SecurityService(SecurityRepository securityRepository, MongoTemplate mongoTemplate,
+            RedisTemplate<String, Object> redisTemplate) {
+        this.securityRepository = securityRepository;
+        this.mongoTemplate = mongoTemplate;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
 
     private static final String CACHE_PREFIX = "security:metadata:";
     private static final long CACHE_TTL_DAYS = 7;
@@ -71,7 +81,7 @@ public class SecurityService {
                         results.add(doc);
                     }
                 } catch (Exception e) {
-                    log.warn("findBySymbols", "Error deserializing cached security for " + symbols.get(i));
+                    log.error("findBySymbols", "Error deserializing cached security for " + symbols.get(i), e);
                     missingSymbols.add(symbols.get(i));
                 }
             } else {
@@ -196,10 +206,6 @@ public class SecurityService {
         }
 
         Query query = new Query();
-
-        if (request.getSymbols() != null && !request.getSymbols().isEmpty()) {
-            query.addCriteria(Criteria.where("key.symbol").in(request.getSymbols()));
-        }
 
         if (request.getIsin() != null && !request.getIsin().isEmpty()) {
             query.addCriteria(Criteria.where("key.isin").is(request.getIsin()));

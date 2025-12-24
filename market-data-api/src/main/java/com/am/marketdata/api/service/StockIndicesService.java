@@ -27,6 +27,7 @@ public class StockIndicesService {
     private final MarketDataProcessingService marketDataProcessingService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final MarketDataFetchService marketDataCacheService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Value("${market.data.cache.enabled:true}")
     private boolean cacheEnabled;
@@ -100,7 +101,24 @@ public class StockIndicesService {
                     if (doc.getData() != null) {
                         try {
                             List<String> symbols = doc.getData().stream()
-                                    .map(stockData -> stockData.getSymbol())
+                                    .map(obj -> {
+                                        try {
+                                            if (obj instanceof com.am.common.investment.model.stockindice.StockData) {
+                                                return ((com.am.common.investment.model.stockindice.StockData) obj)
+                                                        .getSymbol();
+                                            } else {
+                                                // Handle LinkedHashMap case
+                                                com.am.common.investment.model.stockindice.StockData sd = objectMapper
+                                                        .convertValue(obj,
+                                                                com.am.common.investment.model.stockindice.StockData.class);
+                                                return sd.getSymbol();
+                                            }
+                                        } catch (Exception e) {
+                                            log.warn(methodName, "Failed to map stock data object: " + e.getMessage());
+                                            return null;
+                                        }
+                                    })
+                                    .filter(s -> s != null)
                                     .collect(Collectors.toList());
                             symbolsToProcess.addAll(symbols);
                             log.info(methodName,
