@@ -5,6 +5,7 @@ import '../widgets/heatmap_view.dart';
 import '../widgets/constituents_table.dart';
 import '../widgets/indices_performance_view.dart'; // Market Overview
 import '../screens/streamer_page.dart';
+import '../screens/market_analytics_page.dart';
 import '../utils/app_logger.dart';
 
 class HomePage extends StatefulWidget {
@@ -15,8 +16,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 0 = Table, 1 = Heatmap
-  int _currentView = 1; 
+  // 0 = Table, 1 = Heatmap, 2 = Analytics
+  int _currentView = 2; // Default to Analytics view 
 
   @override
   void initState() {
@@ -32,13 +33,14 @@ class _HomePageState extends State<HomePage> {
     final provider = context.watch<MarketProvider>();
     final isAllIndices = provider.selectedIndex == "All Indices";
     final isStreamer = provider.selectedIndex == "Streamer";
+    final isAnalytics = _currentView == 2;
 
     return Scaffold(
       appBar: _buildAppBar(provider, isAllIndices, isStreamer),
       body: Row(
         children: [
           _buildSidebar(provider, isAllIndices, isStreamer),
-          _buildContent(provider, isAllIndices, isStreamer),
+          _buildContent(provider, isAllIndices, isStreamer, isAnalytics),
         ],
       ),
     );
@@ -76,6 +78,15 @@ class _HomePageState extends State<HomePage> {
                   AppLogger.info("HomePage", "Switched to Heatmap View");
               },
               color: _currentView == 1 ? Colors.blue : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.analytics),
+              tooltip: 'Analytics View',
+              onPressed: () {
+                  setState(() => _currentView = 2);
+                  AppLogger.info("HomePage", "Switched to Analytics View");
+              },
+              color: _currentView == 2 ? Colors.blue : null,
             ),
           ],
           IconButton(
@@ -210,7 +221,7 @@ class _HomePageState extends State<HomePage> {
           );
   }
 
-  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer, bool isAnalytics) {
     return Expanded(
             child: Container(
               color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
@@ -223,14 +234,16 @@ class _HomePageState extends State<HomePage> {
                    // Index 1: Streamer
                    const StreamerPage(),
                    
-                   // Index 2: Index Details (Table/Heatmap)
+                   // Index 2: Analytics or Index Details (Table/Heatmap)
                    provider.isLoading
                      ? const Center(child: CircularProgressIndicator())
                      : provider.error != null
                          ? Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.redAccent)))
-                         : _currentView == 0
-                             ? const ConstituentsTable()
-                             : const HeatmapView(),
+                         : isAnalytics
+                             ? MarketAnalyticsPage(indexSymbol: provider.selectedSymbol ?? 'NIFTY 500')
+                             : _currentView == 0
+                                 ? const ConstituentsTable()
+                                 : const HeatmapView(),
                 ],
               ),
             ),

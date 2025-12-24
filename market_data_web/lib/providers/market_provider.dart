@@ -38,7 +38,17 @@ class MarketProvider with ChangeNotifier {
 
   void updateLivePrice(Map<String, dynamic> data) {
     if (data.containsKey('symbol')) {
-      _livePrices[data['symbol']] = data;
+      final String rawSymbol = data['symbol'];
+      
+      // 1. Store with raw key (e.g., "NSE_EQ:TCS")
+      _livePrices[rawSymbol] = data;
+
+      // 2. Store with base key (e.g., "TCS") if a prefix exists
+      if (rawSymbol.contains(':')) {
+        final baseSymbol = rawSymbol.split(':').last;
+        _livePrices[baseSymbol] = data;
+      }
+
       // Emit event to stream instead of global notifyListeners
       _livePriceController.add(data);
     }

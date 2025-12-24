@@ -37,8 +37,21 @@ class _StreamerPageState extends State<StreamerPage> {
   // Search State
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
+  
+  StreamSubscription? _subscription;
+  MarketProvider? _marketProvider; // Cache provider reference
 
-// ... existing initState ...
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      _marketProvider = Provider.of<MarketProvider>(context, listen: false);
+      _log("didChangeDependencies: MarketProvider cached", method: "StreamerPage.didChangeDependencies");
+    } catch (e) {
+      _log("didChangeDependencies Error: $e", method: "StreamerPage.didChangeDependencies", level: LogLevel.error);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,18 +59,19 @@ class _StreamerPageState extends State<StreamerPage> {
     _streamService.connect();
     
     // Listen to stream
-    _streamService.stream.listen((message) {
+    _subscription = _streamService.stream.listen((message) {
+       // We still check mounted to avoid setting state on disposed widget
+       if (!mounted) return; 
+       
        if (message.containsKey('quotes')) {
          try {
+           final provider = _marketProvider;
+           final bool hasProvider = provider != null;
+
            setState(() {
              final newQuotes = message['quotes'] as Map<String, dynamic>;
-             // Reduced logging noise, only log summary
-             // _log("Received ${newQuotes.length} updates", method: "StreamerPage.streamListener");
-             // Actually, the user LIKES the log in the UI.
-             
              final now = DateTime.now(); 
            
-              // Add each new quote to history
              newQuotes.forEach((key, val) {
                val['timestamp'] = now;
                val['symbol'] = key; 
@@ -65,7 +79,13 @@ class _StreamerPageState extends State<StreamerPage> {
                _feedHistory.insert(0, val);
                _quotes[key] = val; 
                
-               Provider.of<MarketProvider>(context, listen: false).updateLivePrice(val);
+               if (mounted && hasProvider) {
+                  try {
+                    provider!.updateLivePrice(val);
+                  } catch (e) {
+                    AppLogger.log(level: LogLevel.error, tag: "StreamerPage.updateLivePrice", message: "Error updating provider: $e");
+                  }
+               }
              });
   
              if (_feedHistory.length > 10) {
@@ -83,6 +103,7 @@ class _StreamerPageState extends State<StreamerPage> {
 
   @override
   void dispose() {
+    _subscription?.cancel(); // Cancel subscription to stop listener
     _streamService.dispose();
     _symbolsController.dispose();
     _searchInputController.dispose();
@@ -90,10 +111,12 @@ class _StreamerPageState extends State<StreamerPage> {
   }
 
   void _log(String msg, {String method = 'StreamerPage', LogLevel level = LogLevel.info}) {
-    setState(() {
-      _logs.insert(0, "[${DateFormat('HH:mm:ss').format(DateTime.now())}] $msg");
-      if (_logs.length > 50) _logs.removeLast();
-    });
+    if (mounted) {
+      setState(() {
+        _logs.insert(0, "[${DateFormat('HH:mm:ss').format(DateTime.now())}] $msg");
+        if (_logs.length > 50) _logs.removeLast();
+      });
+    }
     AppLogger.log(level: level, tag: method, message: msg);
   }
 

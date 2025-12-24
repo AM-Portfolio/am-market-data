@@ -182,4 +182,65 @@ class ApiService {
     }
     return [];
   }
+
+  // --- Market Analytics Methods ---
+
+  Future<List<Map<String, dynamic>>> fetchMovers({
+    String type = 'gainers', 
+    int limit = 10, 
+    String? indexSymbol
+  }) async {
+    try {
+      String url = '$baseUrl/api/v1/market-analytics/movers?type=$type&limit=$limit';
+      if (indexSymbol != null && indexSymbol.isNotEmpty) {
+        url += '&indexSymbol=$indexSymbol';
+      }
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to fetch movers: ${response.statusCode}');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.fetchMovers", "Error fetching $type", e);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSectorPerformance({String? indexSymbol}) async {
+    try {
+      String url = '$baseUrl/api/v1/market-analytics/sectors';
+      if (indexSymbol != null && indexSymbol.isNotEmpty) {
+        url += '?indexSymbol=$indexSymbol';
+      }
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to fetch sector performance: ${response.statusCode}');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.fetchSectorPerformance", "Error fetching sectors", e);
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchMarketCapAnalysis() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/v1/market-analytics/market-cap'));
+      
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to fetch market cap analysis: ${response.statusCode}');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.fetchMarketCapAnalysis", "Error fetching market cap", e);
+      return {};
+    }
+  }
 }
