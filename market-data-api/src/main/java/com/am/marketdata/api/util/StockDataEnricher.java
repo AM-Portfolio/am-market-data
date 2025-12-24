@@ -114,10 +114,12 @@ public class StockDataEnricher {
             return Collections.emptyList();
         }
 
-        // Extract symbols
+        // Extract symbols (exclude index symbols)
+        List<String> knownIndices = Arrays.asList("NIFTY 50", "NIFTY BANK", "SENSEX", "NIFTY", "BANKNIFTY");
         List<String> symbols = stockDataList.stream()
                 .filter(sd -> sd != null && sd.getSymbol() != null)
                 .map(StockData::getSymbol)
+                .filter(symbol -> !knownIndices.contains(symbol)) // Exclude index symbols
                 .collect(Collectors.toList());
 
         if (symbols.isEmpty()) {
