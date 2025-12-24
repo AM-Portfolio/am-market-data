@@ -69,7 +69,8 @@ public class MarketIndexController {
                 String methodName = "getLatestIndicesData";
                 log.info(methodName, String.format("Fetching latest data for indices: %s, forceRefresh: %b",
                                 indexSymbols, forceRefresh));
-                java.util.List<StockIndicesMarketData> data = stockIndicesService.getLatestIndicesData(indexSymbols);
+                java.util.List<StockIndicesMarketData> data = stockIndicesService.getLatestIndicesData(indexSymbols,
+                                forceRefresh);
 
                 return ResponseEntity.ok(data);
         }

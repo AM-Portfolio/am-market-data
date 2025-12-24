@@ -162,11 +162,26 @@
     <div id="sidebar">
         <h3>Indices</h3>
         <div id="indices-list">Loading...</div>
+
+        <div id="debug-section" style="margin-top: auto; padding: 15px; border-top: 1px solid #333;">
+            <h3 style="font-size: 1rem; color: #888; padding: 0; background: none;">System Tools</h3>
+            <button id="refresh-cookies-btn" onclick="refreshCookies()"
+                style="width: 100%; padding: 8px; font-size: 0.9em; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; margin-top: 10px;">
+                Refresh Cookies
+            </button>
+            <div id="cookie-status" style="margin-top: 5px; font-size: 0.8rem; color: #aaa;"></div>
+        </div>
     </div>
 
     <div id="main-content">
         <div id="header-section">
-            <h1 id="index-name">Select an Index</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 id="index-name" style="margin: 0;">Select an Index</h1>
+                <div>
+                    <input type="checkbox" id="force-refresh">
+                    <label for="force-refresh">Force Refresh</label>
+                </div>
+            </div>
             <div id="index-details">
                 <span id="index-value">--</span>
                 <span id="index-change">--</span>
@@ -211,6 +226,34 @@
         let candleSeries = null;
         let availableIndices = { broad: [], sector: [] };
 
+        async function refreshCookies() {
+            const btn = document.getElementById('refresh-cookies-btn');
+            const status = document.getElementById('cookie-status');
+
+            btn.disabled = true;
+            btn.innerText = 'Refreshing...';
+            status.innerText = '';
+            status.style.color = '#aaa';
+
+            try {
+                const response = await fetch('/api/scraper/cookies');
+                if (response.ok) {
+                    const data = await response.json();
+                    status.innerText = `Success! Cookies refreshed.`;
+                    status.style.color = '#4caf50';
+                } else {
+                    throw new Error('Failed to refresh');
+                }
+            } catch (error) {
+                console.error('Cookie refresh failed:', error);
+                status.innerText = 'Failed to refresh cookies';
+                status.style.color = '#f44336';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Refresh Cookies';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             fetchIndices();
         });
@@ -253,6 +296,35 @@
             }
         }
 
+        async function refreshCookies() {
+            const btn = document.getElementById('refresh-cookies-btn');
+            const status = document.getElementById('cookie-status');
+
+            btn.disabled = true;
+            btn.innerText = 'Refreshing...';
+            status.innerText = '';
+            status.style.color = '#aaa';
+
+            try {
+                const response = await fetch('/api/scraper/cookies');
+                if (response.ok) {
+                    const data = await response.json();
+                    // data is a List<WebsiteCookies>
+                    status.innerText = `Success! Cookies refreshed.`;
+                    status.style.color = '#4caf50';
+                } else {
+                    throw new Error('Failed to refresh');
+                }
+            } catch (error) {
+                console.error('Cookie refresh failed:', error);
+                status.innerText = 'Failed to refresh cookies';
+                status.style.color = '#f44336';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Refresh Cookies';
+            }
+        }
+
 
 
         async function loadIndex(indexName) {
@@ -266,9 +338,11 @@
             document.getElementById('index-name').innerText = indexName;
             document.querySelector('#constituents-table tbody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
 
+            const forceRefresh = document.getElementById('force-refresh') ? document.getElementById('force-refresh').checked : false;
+
             try {
                 // Use POST /api/v1/indices/batch to get index details
-                const response = await fetch('/api/v1/indices/batch', {
+                const response = await fetch(`/api/v1/indices/batch?forceRefresh=${forceRefresh}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify([indexName])
