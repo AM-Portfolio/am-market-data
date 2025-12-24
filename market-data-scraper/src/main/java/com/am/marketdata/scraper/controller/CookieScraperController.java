@@ -1,6 +1,7 @@
 package com.am.marketdata.scraper.controller;
 
 import com.am.marketdata.scraper.config.ScraperConfig;
+import com.am.marketdata.scraper.cookie.CookieCache;
 import com.am.marketdata.scraper.cookie.CookieScraper;
 import com.am.marketdata.scraper.model.WebsiteCookies;
 import lombok.RequiredArgsConstructor;
@@ -17,11 +18,21 @@ import java.util.stream.Collectors;
 public class CookieScraperController {
     private final CookieScraper scraperService;
     private final ScraperConfig scraperConfig;
+    private final CookieCache cookieCache;
 
     @GetMapping("/cookies")
     public List<WebsiteCookies> scrapeCookies() {
-        return scraperConfig.getUrls().stream()
+        List<WebsiteCookies> results = scraperConfig.getUrls().stream()
                 .map(scraperService::scrapeCookies)
                 .collect(Collectors.toList());
+
+        // Store cookies in cache
+        results.forEach(cookies -> {
+            if (cookies.getCookiesString() != null && !cookies.getCookiesString().isEmpty()) {
+                cookieCache.storeCookies(cookies.getCookiesString());
+            }
+        });
+
+        return results;
     }
 }
