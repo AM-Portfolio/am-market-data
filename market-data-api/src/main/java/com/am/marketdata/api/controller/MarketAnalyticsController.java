@@ -1,7 +1,10 @@
 package com.am.marketdata.api.controller;
 
+import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.service.MarketAnalyticsService;
+import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.log.AppLogger;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -11,25 +14,21 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/market-analytics")
 @RequiredArgsConstructor
-@Tag(name = "Market Analytics", description = "APIs for market analysis including Top Movers, Sector Performance, and Market Cap Analysis")
+@Tag(name = "Market Analytics", description = "APIs for market analysis including Top Movers, Sector Performance, Market Cap Analysis, and Historical Charts")
 public class MarketAnalyticsController {
 
     private final AppLogger log = AppLogger.getLogger(MarketAnalyticsController.class);
     private final MarketAnalyticsService marketAnalyticsService;
+    private final MarketDataFetchService marketDataFetchService;
 
     /**
      * Get Top Gainers or Losers
-     * 
-     * @param type        "gainers" or "losers" (default: gainers)
-     * @param limit       Number of records to return (default: 10)
-     * @param indexSymbol Market index to analyze (default: NIFTY 500)
-     * @return List of top movers
      */
     @GetMapping(value = "/movers", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Get Top Gainers/Losers", description = "Retrieves top performing or worst performing stocks from the specified market index")
@@ -59,9 +58,6 @@ public class MarketAnalyticsController {
 
     /**
      * Get Sector Performance
-     * 
-     * @param indexSymbol Market index to analyze (default: NIFTY 500)
-     * @return List of sectors and their average performance
      */
     @GetMapping(value = "/sectors", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Get Sector Performance", description = "Aggregates market performance by sector (Industry) from the specified index")
@@ -84,6 +80,142 @@ public class MarketAnalyticsController {
         } catch (Exception e) {
             log.error("getSectorPerformance", "Error fetching sector performance", e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Get Historical Charts
+     */
+    @GetMapping(value = "/historical-charts/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get historical charts data", description = "Retrieves historical data for charts with various time frames (10m, 1H, 1D, 1W, 1M, 5Y, etc.)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Chart data retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> getHistoricalCharts(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "1D") String range) {
+        try {
+            log.info("getHistoricalCharts", "Fetching historical charts for symbol: " + symbol + ", range: " + range);
+
+            String interval = "1D";
+            java.time.LocalDateTime to = java.time.LocalDateTime.now();
+            java.time.LocalDateTime from = to.minusDays(1);
+
+            // Determine Interval and From Time based on Range
+            switch (range.toUpperCase()) {
+                case "10M":
+                    interval = "1m";
+                    from = to.minusMinutes(10);
+                    break;
+                case "15M":
+                    interval = "1m";
+                    from = to.minusMinutes(15);
+                    break;
+                case "30M":
+                    interval = "1m";
+                    from = to.minusMinutes(30);
+                    break;
+                case "1H":
+                    interval = "1m";
+                    from = to.minusHours(1);
+                    break;
+                case "4H":
+                    interval = "5m";
+                    from = to.minusHours(4);
+                    break;
+                case "1D":
+                    interval = "5m";
+                    from = to.minusDays(1);
+                    break;
+                case "1W":
+                    interval = "1H";
+                    from = to.minusWeeks(1);
+                    break;
+                case "1M":
+                    interval = "1D";
+                    from = to.minusMonths(1);
+                    break;
+                case "5Y":
+                    interval = "1W";
+                    from = to.minusYears(5);
+                    break;
+                default:
+                    interval = "1D";
+                    from = to.minusYears(1);
+            }
+
+            // Construct Request
+            HistoricalDataRequest request = HistoricalDataRequest.builder()
+                    .symbols(symbol)
+                    .from(from.toLocalDate().toString())
+                    .to(to.toLocalDate().toString())
+                    .interval(interval)
+                    .filterType("price")
+                    .build();
+
+            // Fetch Data
+            Map<String, Object> response = marketDataFetchService.processHistoricalDataRequest(request);
+
+            if (response.containsKey("error")) {
+                return ResponseEntity.status(500).body(response);
+            }
+
+            // Filter data points by time range
+            if (response.containsKey("data")) {
+                Object dataObj = response.get("data");
+                if (dataObj instanceof Map) {
+                    Map<String, Object> dataMap = (Map<String, Object>) dataObj;
+                    if (dataMap.containsKey(symbol)) {
+                        Object symbolDataObj = dataMap.get(symbol);
+                        if (symbolDataObj instanceof Map) {
+                            Map<String, Object> innerData = (Map<String, Object>) symbolDataObj;
+                            if (innerData.containsKey("dataPoints")) {
+                                Object pointsObj = innerData.get("dataPoints");
+                                if (pointsObj instanceof List) {
+                                    List<?> points = (List<?>) pointsObj;
+                                    long minTime = from.atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant()
+                                            .toEpochMilli();
+
+                                    List<Object> filteredPoints = points.stream()
+                                            .filter(p -> {
+                                                try {
+                                                    long timestamp = 0;
+                                                    if (p instanceof OHLCVTPoint) {
+                                                        timestamp = ((OHLCVTPoint) p).getTime()
+                                                                .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                                                                .toEpochMilli();
+                                                    } else if (p instanceof Map) {
+                                                        return true;
+                                                    } else if (p instanceof List) {
+                                                        Object t = ((List<?>) p).get(0);
+                                                        if (t instanceof Number)
+                                                            timestamp = ((Number) t).longValue();
+                                                    }
+                                                    return timestamp >= minTime;
+                                                } catch (Exception e) {
+                                                    return true;
+                                                }
+                                            })
+                                            .collect(Collectors.toList());
+
+                                    innerData.put("dataPoints", filteredPoints);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("getHistoricalCharts", "Error fetching historical charts for " + symbol + ": " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch chart data");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }
