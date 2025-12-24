@@ -56,22 +56,46 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> fetchHistory(String symbol, String range) async {
-      try {
-        final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/historical-charts/$symbol?range=$range'));
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/historical-charts/$symbol?range=$range'));
 
-        if (response.statusCode == 200) {
-           final Map<String, dynamic> jsonResponse = json.decode(response.body);
-             if (jsonResponse.containsKey('data')) {
-                 return List<Map<String, dynamic>>.from(jsonResponse['data']);
-             } else {
-                 return [];
-             }
-        } else {
-          throw Exception('Failed to load history');
+      if (response.statusCode == 200) {
+        final dynamic jsonResponse = json.decode(response.body);
+        
+        // Helper to extract list from potential structures
+        // Structure seems to be: { "data": { "SYMBOL": { "dataPoints": [...] } } }
+        List<dynamic>? extractList(dynamic data) {
+           if (data is List) return data;
+           if (data is Map) {
+               // Prioritize "dataPoints" if present (deepest level)
+               if (data.containsKey('dataPoints')) {
+                   return extractList(data['dataPoints']);
+               }
+               // Then check if keyed by symbol
+               if (data.containsKey(symbol)) {
+                   return extractList(data[symbol]);
+               }
+               // Then check for "data" wrapper
+               if (data.containsKey('data')) {
+                   return extractList(data['data']);
+               }
+           }
+           return null;
         }
-      } catch (e) {
-        throw Exception('Error fetching history: $e');
+
+        final list = extractList(jsonResponse);
+        if (list != null) {
+            return List<Map<String, dynamic>>.from(list);
+        } else {
+            print('ApiService: Failed to parse history structure. Response: $jsonResponse');
+            return [];
+        }
+      } else {
+        throw Exception('Failed to load history: ${response.statusCode}');
       }
+    } catch (e) {
+      throw Exception('Error fetching history: $e');
+    }
   }
 
   Future<bool> refreshCookies() async {
