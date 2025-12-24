@@ -26,8 +26,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.am.marketdata.common.log.AppLogger;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Market Data", description = "APIs for retrieving various types of market data including quotes, historical data, option chains, and more")
 public class MarketDataController {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataController.class);
+    private final AppLogger log = AppLogger.getLogger(MarketDataController.class);
     private final MarketDataService marketDataService;
     private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataFetchService marketDataCacheService;
@@ -75,7 +75,7 @@ public class MarketDataController {
             Map<String, String> response = marketDataService.getLoginUrl(provider);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error getting login URL: {}", e.getMessage(), e);
+            log.error("getLoginUrl", "Error getting login URL", e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -103,7 +103,7 @@ public class MarketDataController {
         try {
             // Check status parameter - only proceed if it's "success" or not provided
             if (!"success".equalsIgnoreCase(status)) {
-                log.error("Authentication failed with status: {}", status);
+                log.error("generateSession", "Authentication failed with status: " + status);
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("error", "Authentication failed");
                 errorResponse.put("message", "Login was not successful. Status: " + status);
@@ -117,18 +117,19 @@ public class MarketDataController {
                 token = code;
             }
             if (token == null) {
-                log.error("No request token provided in either request_token or requestToken parameters");
+                log.error("generateSession",
+                        "No request token provided in either request_token or requestToken parameters");
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("error", "Missing request token");
                 errorResponse.put("message", "No request token provided");
                 return ResponseEntity.badRequest().body(errorResponse);
             }
 
-            log.info("Generating session with token: {}", token);
+            log.info("generateSession", "Generating session with token: " + token);
             Object session = marketDataService.generateSession(token);
             return ResponseEntity.ok(session);
         } catch (Exception e) {
-            log.error("Error generating session: {}", e.getMessage(), e);
+            log.error("generateSession", "Error generating session: " + e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -153,8 +154,10 @@ public class MarketDataController {
             @RequestParam(name = "timeFrame", defaultValue = "5m") String timeFrameStr,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}",
-                    symbols, timeFrameStr, forceRefresh);
+            log.info("getQuotes",
+                    String.format(
+                            "Controller received request for quotes for symbols: %s, timeFrame: %s, forceRefresh: %s",
+                            symbols, timeFrameStr, forceRefresh));
 
             // Parse symbols and timeframe
             Set<String> symbolList = parseSymbols(symbols);
@@ -177,13 +180,13 @@ public class MarketDataController {
             return ResponseEntity.ok(quotesResponse);
         } catch (IllegalArgumentException e) {
             // Handle invalid timeframe
-            log.error("Invalid timeFrame parameter: {}", timeFrameStr, e);
+            log.error("getQuotes", "Invalid timeFrame parameter: " + timeFrameStr, e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "INVALID_PARAMETER");
             errorResponse.put("message", "Invalid timeFrame parameter: " + e.getMessage());
             return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
-            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            log.error("getQuotes", "Error processing quotes request: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "INTERNAL_ERROR");
             errorResponse.put("message", e.getMessage());
@@ -206,8 +209,9 @@ public class MarketDataController {
     })
     public ResponseEntity<Map<String, Object>> getQuotesPost(@RequestBody QuotesRequest request) {
         try {
-            log.info("Controller received POST request for quotes for symbols: {}, timeFrame: {}, forceRefresh: {}",
-                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh());
+            log.info("getQuotesPost", String.format(
+                    "Controller received POST request for quotes for symbols: %s, timeFrame: %s, forceRefresh: %s",
+                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh()));
 
             // Parse symbols
             Set<String> symbolList = parseSymbols(request.getSymbols());
@@ -229,7 +233,7 @@ public class MarketDataController {
 
             return ResponseEntity.ok(quotesResponse);
         } catch (Exception e) {
-            log.error("Error processing quotes request: {}", e.getMessage(), e);
+            log.error("getQuotesPost", "Error processing quotes request: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "INTERNAL_ERROR");
             errorResponse.put("message", e.getMessage());
@@ -252,9 +256,11 @@ public class MarketDataController {
     })
     public ResponseEntity<?> getOHLC(@RequestBody OHLCRequest request) {
         try {
-            log.info(
-                    "Controller received POST request for OHLC data for symbols: {}, timeFrame: {}, forceRefresh: {}, indexSymbol: {}",
-                    request.getSymbols(), request.getTimeFrame(), request.isForceRefresh(), request.isIndexSymbol());
+            log.info("getOHLC",
+                    String.format(
+                            "Controller received POST request for OHLC data for symbols: %s, timeFrame: %s, forceRefresh: %s, indexSymbol: %s",
+                            request.getSymbols(), request.getTimeFrame(), request.isForceRefresh(),
+                            request.isIndexSymbol()));
             Set<String> symbolList = parseSymbols(request.getSymbols());
 
             // Use cache service instead of direct service call
@@ -264,7 +270,7 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error getting OHLC: {}", e.getMessage(), e);
+            log.error("getOHLC", "Error getting OHLC: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch OHLC data");
             errorResponse.put("message", e.getMessage());
@@ -287,10 +293,12 @@ public class MarketDataController {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
-        log.info(
-                "Controller received POST request for historical data for symbols: {} from {} to {}, interval: {}, filterType: {}, forceRefresh: {}",
-                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()),
-                request.getFilterType(), request.isForceRefresh());
+        log.info("getHistoricalData",
+                String.format(
+                        "Controller received POST request for historical data for symbols: %s from %s to %s, interval: %s, filterType: %s, forceRefresh: %s",
+                        request.getSymbols(), request.getFrom(), request.getTo(),
+                        TimeFrame.fromApiValue(request.getInterval()),
+                        request.getFilterType(), request.isForceRefresh()));
 
         try {
             // Delegate all processing to the service
@@ -309,9 +317,64 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while getting historical data: {}", e.getMessage(), e);
+            log.error("getHistoricalData",
+                    "Unexpected error in controller while getting historical data: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch historical data");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * Get historical charts data (1Y Daily or 5Y Monthly)
+     * 
+     * @param symbol Symbol to fetch data for
+     * @param range  Range (1Y or 5Y)
+     * @return Historical data
+     */
+    @GetMapping(value = "/historical-charts/{symbol}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get historical charts data", description = "Retrieves historical data for charts (1Y Daily or 5Y Monthly)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Chart data retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> getHistoricalCharts(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "1Y") String range) {
+        try {
+            log.info("Fetching historical charts for symbol: {}, range: {}", symbol, range);
+
+            String interval;
+            java.time.LocalDate to = java.time.LocalDate.now();
+            java.time.LocalDate from;
+
+            if ("5Y".equalsIgnoreCase(range)) {
+                interval = "month"; // Monthly
+                from = to.minusYears(5);
+            } else {
+                // Default to 1Y
+                interval = "day"; // Daily
+                from = to.minusYears(1);
+            }
+
+            // Construct HistoricalDataRequest
+            HistoricalDataRequest request = HistoricalDataRequest.builder()
+                    .symbols(symbol)
+                    .from(from.toString())
+                    .to(to.toString())
+                    .interval(interval)
+                    .filterType("price") // Or any appropriate filter
+                    .build();
+
+            // Delegate logic to existing service
+            return getHistoricalData(request);
+
+        } catch (Exception e) {
+            log.error("getHistoricalCharts", "Error fetching historical charts for " + symbol + ": " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch chart data");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
@@ -340,9 +403,9 @@ public class MarketDataController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String exchange) {
         try {
-            log.info(
-                    "Controller received request to search symbols with page={}, size={}, symbol={}, type={}, exchange={}",
-                    page, size, symbol, type, exchange);
+            log.info("searchSymbols", String.format(
+                    "Controller received request to search symbols with page=%d, size=%d, symbol=%s, type=%s, exchange=%s",
+                    page, size, symbol, type, exchange));
 
             Map<String, Object> response = investmentInstrumentService.searchInstruments(page, size, symbol, type,
                     exchange);
@@ -354,7 +417,7 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while searching symbols: {}", e.getMessage(), e);
+            log.error("searchSymbols", "Unexpected error in controller while searching symbols: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to search symbols");
             errorResponse.put("message", e.getMessage());
@@ -380,7 +443,7 @@ public class MarketDataController {
             List<Object> symbols = marketDataService.getSymbolsForExchange(exchange, null);
             return ResponseEntity.ok(symbols);
         } catch (Exception e) {
-            log.error("Error getting symbols for exchange: {}", e.getMessage(), e);
+            log.error("getSymbolsForExchange", "Error getting symbols for exchange: " + e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -401,7 +464,7 @@ public class MarketDataController {
             Map<String, Object> response = marketDataService.logout(null);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error logging out: {}", e.getMessage(), e);
+            log.error("logout", "Error logging out", e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -457,7 +520,8 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while getting option chain: {}", e.getMessage(), e);
+            log.error("getOptionChain", "Unexpected error in controller while getting option chain: " + e.getMessage(),
+                    e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch option chain");
             errorResponse.put("message", e.getMessage());
@@ -500,7 +564,8 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while fetching mutual fund details: {}", e.getMessage(), e);
+            log.error("getMutualFundDetails",
+                    "Unexpected error in controller while fetching mutual fund details: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch mutual fund details");
             errorResponse.put("message", e.getMessage());
@@ -562,7 +627,8 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while fetching mutual fund NAV history: {}", e.getMessage(), e);
+            log.error("getMutualFundNavHistory",
+                    "Unexpected error in controller while fetching mutual fund NAV history: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch mutual fund NAV history");
             errorResponse.put("message", e.getMessage());
@@ -607,7 +673,8 @@ public class MarketDataController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Unexpected error in controller while fetching live prices: {}", e.getMessage(), e);
+            log.error("getLivePrices", "Unexpected error in controller while fetching live prices: " + e.getMessage(),
+                    e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch live prices");
             errorResponse.put("message", e.getMessage());

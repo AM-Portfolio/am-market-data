@@ -137,4 +137,13 @@ public interface MarketDataFetchService {
          */
         Map<String, Object> processHistoricalDataRequest(com.am.marketdata.api.dto.HistoricalDataRequest request)
                         throws Exception;
+
+        /**
+         * Get historical charts data (1Y Daily or 5Y Monthly)
+         * 
+         * @param symbol Symbol to fetch data for
+         * @param range  Range (1Y or 5Y)
+         * @return Historical data map
+         */
+        Map<String, Object> getHistoricalChartsData(String symbol, String range);
 }

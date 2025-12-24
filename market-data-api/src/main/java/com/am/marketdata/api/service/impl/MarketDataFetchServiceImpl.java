@@ -590,4 +590,43 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
         return missingSymbols;
     }
+
+    public Map<String, Object> getHistoricalChartsData(String symbol, String range) {
+        log.info(
+                "[MarketDataFetchServiceImpl.getHistoricalChartsData] Fetching historical charts for symbol: {}, range: {}",
+                symbol, range);
+
+        String interval;
+        java.time.LocalDate to = java.time.LocalDate.now();
+        java.time.LocalDate from;
+
+        if ("5Y".equalsIgnoreCase(range)) {
+            interval = "month"; // Monthly
+            from = to.minusYears(5);
+        } else {
+            // Default to 1Y
+            interval = "day"; // Daily
+            from = to.minusYears(1);
+        }
+
+        // Construct HistoricalDataRequest
+        HistoricalDataRequest request = new HistoricalDataRequest();
+        request.setSymbols(symbol); // Expects String, not List
+        request.setFrom(from.toString());
+        request.setTo(to.toString());
+        request.setInterval(interval);
+        request.setFilterType("price");
+
+        try {
+            return processHistoricalDataRequest(request);
+        } catch (Exception e) {
+            log.error(
+                    "[MarketDataFetchServiceImpl.getHistoricalChartsData] Error fetching historical charts for {}: {}",
+                    symbol, e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch chart data");
+            errorResponse.put("message", e.getMessage());
+            return errorResponse;
+        }
+    }
 }
