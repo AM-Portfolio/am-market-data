@@ -34,7 +34,18 @@ class _HomePageState extends State<HomePage> {
     final isStreamer = provider.selectedIndex == "Streamer";
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: _buildAppBar(provider, isAllIndices, isStreamer),
+      body: Row(
+        children: [
+          _buildSidebar(provider, isAllIndices, isStreamer),
+          _buildContent(provider, isAllIndices, isStreamer),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+    return AppBar(
         title: Text(isAllIndices ? 'Market Overview' : isStreamer ? 'Streamer Config' : (provider.selectedIndex ?? 'Market Data')),
         actions: [
           // Force Refresh Toggle
@@ -80,11 +91,11 @@ class _HomePageState extends State<HomePage> {
             },
           ),
         ],
-      ),
-      body: Row(
-        children: [
-          // Sidebar
-          Container(
+      );
+  }
+
+  Widget _buildSidebar(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+    return Container(
             width: 260,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -196,9 +207,11 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 10),
               ],
             ),
-          ),
-          // Main Content
-          Expanded(
+          );
+  }
+
+  Widget _buildContent(MarketProvider provider, bool isAllIndices, bool isStreamer) {
+    return Expanded(
             child: Container(
               color: const Color(0xFF1E1E2F), // Ensure dark background matches main theme
               child: IndexedStack(
@@ -221,9 +234,6 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 }

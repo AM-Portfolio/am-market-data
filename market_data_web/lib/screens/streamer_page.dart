@@ -207,313 +207,328 @@ class _StreamerPageState extends State<StreamerPage> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Panel: Configuration
+          _buildConfigPanel(),
+          Expanded(child: _buildRightPanel()),
+        ],
+      ),
+    );
+  }
+
+  // --- UI Helper Methods ---
+
+  Widget _buildConfigPanel() {
+    return Container(
+      width: 350,
+      padding: const EdgeInsets.all(16),
+      color: const Color(0xFF1E1E2E), // Dark background
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Configuration", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 20),
+          
+          // Auth Provider
+          const Text("Auth Provider", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 5),
           Container(
-            width: 350,
-            padding: const EdgeInsets.all(16),
-            color: const Color(0xFF1E1E2E), // Dark background
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Configuration", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(height: 20),
-                
-                // Auth Provider
-                const Text("Auth Provider", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade600), borderRadius: BorderRadius.circular(4)),
-                  child: DropdownButton<String>(
-                    value: _provider,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF2E2E3E),
-                    underline: const SizedBox(),
-                    style: const TextStyle(color: Colors.white),
-                    items: ['UPSTOX', 'ZERODHA'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (val) => setState(() => _provider = val!),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _getLoginUrl,
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white)),
-                    child: const Text("Login & Get Token"),
-                  ),
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Exchange Segment
-                const Text("Exchange Segment", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade600), borderRadius: BorderRadius.circular(4)),
-                  child: DropdownButton<String>(
-                    value: _exchangeSegment,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF2E2E3E),
-                    underline: const SizedBox(),
-                    style: const TextStyle(color: Colors.white),
-                    items: [
-                      'NSE_EQ', 'NFO', 'CDS', 'MCX', 'BSE_EQ', 'BSE_FO', 'None'
-                    ].map((e) => DropdownMenuItem(value: e, child: Text(e == 'NSE_EQ' ? 'NSE Equity (NSE_EQ)' : e))).toList(),
-                    onChanged: (val) => setState(() => _exchangeSegment = val!),
-                  ),
-                ),
-                
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _autoPrefix, 
-                      onChanged: (val) => setState(() => _autoPrefix = val!),
-                      checkColor: Colors.black,
-                      fillColor: MaterialStateProperty.all(Colors.white),
-                    ),
-                    const Text("Auto-prefix Exchange?", style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-                
-                const SizedBox(height: 10),
-                const Text("Symbols (Comma Separated)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 5),
-                TextField(
-                  controller: _symbolsController,
-                  decoration: InputDecoration(
-                    hintText: "e.g. INFY, RELIANCE, TCS",
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                    filled: true,
-                    fillColor: const Color(0xFF2E2E3E),
-                  ),
-                  maxLines: 3,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const Text("Enter symbols without exchange if Auto-prefix is on.", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                
-                const SizedBox(height: 20),
-                
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _startStream,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text("Start Stream"),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _stopStream,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text("Stop"),
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const Spacer(),
-                const Text("System Logs", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 5),
-                Container(
-                  height: 150,
-                  color: Colors.black,
-                  padding: const EdgeInsets.all(8),
-                  child: ListView.builder(
-                    reverse: true,
-                    itemCount: _logs.length,
-                    itemBuilder: (ctx, i) => Text(_logs[i], style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontFamily: 'monospace')),
-                  ),
-                )
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade600), borderRadius: BorderRadius.circular(4)),
+            child: DropdownButton<String>(
+              value: _provider,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF2E2E3E),
+              underline: const SizedBox(),
+              style: const TextStyle(color: Colors.white),
+              items: ['UPSTOX', 'ZERODHA'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (val) => setState(() => _provider = val!),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _getLoginUrl,
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white)),
+              child: const Text("Login & Get Token"),
             ),
           ),
           
-          // Right Panel: Search & Feed
-          Expanded(
-            child: Container(
-              color: Colors.white,
-               padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Search Header
-                  Row(
-                    children: const [
-                       Icon(Icons.search, size: 28, color: Colors.blueAccent),
-                       SizedBox(width: 8),
-                       Text("Instrument Search", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Search Bar
-                  TextField(
-                    controller: _searchInputController,
-                    decoration: InputDecoration(
-                      hintText: "Search Symbol (e.g. Reliance, Nifty Bank)...",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    style: const TextStyle(color: Colors.black87),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _search,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text("Search", style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  
-                  if (_isSearching) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
-
-                  const SizedBox(height: 20),
-                  
-                   // Results / Placeholder
-                  if (_searchResults.isEmpty && _feedHistory.isEmpty && _quotes.isEmpty)
-                     const Padding(
-                       padding: EdgeInsets.all(32.0),
-                       child: Center(
-                         child: Text("Enter a query to find instruments.", style: TextStyle(fontSize: 16, color: Colors.grey)),
-                       ),
-                     ),
-
-                  // Search Results List
-                  if (_searchResults.isNotEmpty)
-                    Expanded(
-                      flex: 1,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2E2E3E).withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white10),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
-                          ],
-                        ),
-                        child: ListView.builder(
-                          itemCount: _searchResults.length,
-                          itemBuilder: (context, index) {
-                            final item = _searchResults[index];
-                            final symbol = item['tradingSymbol'] ?? item['symbol'] ?? 'Unknown';
-                            final key = item['instrumentKey'] ?? symbol;
-                            final name = item['name'] ?? '';
-                            final exchange = item['exchange'] ?? '';
-                            
-                            return ListTile(
-                              title: Text(symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                              subtitle: Text("$name ($exchange)", style: const TextStyle(color: Colors.grey)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent), 
-                                onPressed: () => _addSymbol(key)
-                              ),
-                              onTap: () => _addSymbol(key),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    
-                   if (_searchResults.isNotEmpty) const SizedBox(height: 20),
-                   
-                   // Live Data Feed (If streaming or has data)
-                   if (_feedHistory.isNotEmpty || _quotes.isNotEmpty) ...[
-                      const Row(
-                         children: [
-                            Icon(Icons.monitor_heart, color: Colors.blueAccent),
-                             SizedBox(width: 8),
-                            Text("Live Feed (Last 10 Updates)", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                         ],
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                           decoration: BoxDecoration(
-                             gradient: LinearGradient(
-                               colors: [const Color(0xFF2E2E3E), const Color(0xFF252535)],
-                               begin: Alignment.topLeft,
-                               end: Alignment.bottomRight,
-                             ),
-                             borderRadius: BorderRadius.circular(12),
-                             boxShadow: [
-                               BoxShadow(color: Colors.black45, blurRadius: 12, offset: const Offset(0, 6)),
-                             ],
-                             border: Border.all(color: Colors.white10),
-                           ),
-                           child: ClipRRect(
-                             borderRadius: BorderRadius.circular(12),
-                             child: SingleChildScrollView(
-                                scrollDirection: Axis.vertical,
-                                child: Theme(
-                                  data: Theme.of(context).copyWith(dividerColor: Colors.white10),
-                                  child: DataTable(
-                                    headingRowColor: MaterialStateProperty.all(Colors.black26),
-                                    dataRowColor: MaterialStateProperty.all(Colors.transparent),
-                                    columnSpacing: 20,
-                                    headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
-                                    dataTextStyle: const TextStyle(color: Colors.white),
-                                    columns: const [
-                                      DataColumn(label: Text('Time')),
-                                      DataColumn(label: Text('Symbol')),
-                                      DataColumn(label: Text('LTP')),
-                                      DataColumn(label: Text('Change')),
-                                      DataColumn(label: Text('% Change')),
-                                      DataColumn(label: Text('Prev Close')), // New Column
-                                    ],
-                                    rows: _feedHistory.map((data) {
-                                      final key = data['symbol'] ?? 'UNKNOWN';
-                                      final ltp = (data['lastPrice'] as num?)?.toDouble() ?? 0.0;
-                                      final change = (data['change'] as num?)?.toDouble() ?? 0.0;
-                                      final pChange = (data['changePercent'] as num?)?.toDouble() ?? 0.0;
-                                      final color = change >= 0 ? const Color(0xFF4CAF50) : const Color(0xFFEF5350); // Muted Green/Red
-                                      final time = data['timestamp'] as DateTime? ?? DateTime.now();
-                                      final prevClose = ltp - change;
-
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text(DateFormat('HH:mm:ss').format(time), style: const TextStyle(color: Colors.grey))),
-                                          DataCell(Text(key, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                          DataCell(Text(ltp.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
-                                          DataCell(Text(change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                                          DataCell(Text('${pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                                          DataCell(Text(prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.white70))),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                             ),
-                           ),
-                        ),
-                      ),
-                   ]
-                ],
+          const SizedBox(height: 20),
+          
+          // Exchange Segment
+          const Text("Exchange Segment", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade600), borderRadius: BorderRadius.circular(4)),
+            child: DropdownButton<String>(
+              value: _exchangeSegment,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF2E2E3E),
+              underline: const SizedBox(),
+              style: const TextStyle(color: Colors.white),
+              items: [
+                'NSE_EQ', 'NFO', 'CDS', 'MCX', 'BSE_EQ', 'BSE_FO', 'None'
+              ].map((e) => DropdownMenuItem(value: e, child: Text(e == 'NSE_EQ' ? 'NSE Equity (NSE_EQ)' : e))).toList(),
+              onChanged: (val) => setState(() => _exchangeSegment = val!),
+            ),
+          ),
+          
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Checkbox(
+                value: _autoPrefix, 
+                onChanged: (val) => setState(() => _autoPrefix = val!),
+                checkColor: Colors.black,
+                fillColor: MaterialStateProperty.all(Colors.white),
               ),
+              const Text("Auto-prefix Exchange?", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          
+          const SizedBox(height: 10),
+          const Text("Symbols (Comma Separated)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 5),
+          TextField(
+            controller: _symbolsController,
+            decoration: InputDecoration(
+              hintText: "e.g. INFY, RELIANCE, TCS",
+              hintStyle: const TextStyle(color: Colors.grey),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+              filled: true,
+              fillColor: const Color(0xFF2E2E3E),
+            ),
+            maxLines: 3,
+            style: const TextStyle(color: Colors.white),
+          ),
+          const Text("Enter symbols without exchange if Auto-prefix is on.", style: TextStyle(fontSize: 10, color: Colors.grey)),
+          
+          const SizedBox(height: 20),
+          
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _startStream,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text("Start Stream"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _stopStream,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text("Stop"),
+                ),
+              ),
+            ],
+          ),
+          
+          const Spacer(),
+          const Text("System Logs", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 5),
+          Container(
+            height: 150,
+            color: Colors.black,
+            padding: const EdgeInsets.all(8),
+            child: ListView.builder(
+              reverse: true,
+              itemCount: _logs.length,
+              itemBuilder: (ctx, i) => Text(_logs[i], style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontFamily: 'monospace')),
             ),
           )
         ],
       ),
+    );
+  }
+
+  Widget _buildRightPanel() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSearchSection(),
+          if (_isSearching) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
+          const SizedBox(height: 20),
+          Expanded(
+            child: Column(
+              children: [
+                if (_searchResults.isNotEmpty) Expanded(child: _buildSearchResults()),
+                if (_searchResults.isEmpty && _feedHistory.isEmpty && _quotes.isEmpty)
+                   const Padding(
+                     padding: EdgeInsets.all(32.0),
+                     child: Center(
+                       child: Text("Enter a query to find instruments.", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                     ),
+                   ),
+                if (_feedHistory.isNotEmpty || _quotes.isNotEmpty) 
+                  Expanded(flex: 2, child: _buildLiveFeedSection()),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: const [
+             Icon(Icons.search, size: 28, color: Colors.blueAccent),
+             SizedBox(width: 8),
+             Text("Instrument Search", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _searchInputController,
+          decoration: InputDecoration(
+            hintText: "Search Symbol (e.g. Reliance, Nifty Bank)...",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          style: const TextStyle(color: Colors.black87),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _search,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text("Search", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E2E3E).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: ListView.builder(
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final item = _searchResults[index];
+          final symbol = item['tradingSymbol'] ?? item['symbol'] ?? 'Unknown';
+          final key = item['instrumentKey'] ?? symbol;
+          final name = item['name'] ?? '';
+          final exchange = item['exchange'] ?? '';
+          
+          return ListTile(
+            title: Text(symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            subtitle: Text("$name ($exchange)", style: const TextStyle(color: Colors.grey)),
+            trailing: IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent), 
+              onPressed: () => _addSymbol(key)
+            ),
+            onTap: () => _addSymbol(key),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLiveFeedSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_searchResults.isNotEmpty) const SizedBox(height: 20),
+        const Row(
+           children: [
+              Icon(Icons.monitor_heart, color: Colors.blueAccent),
+               SizedBox(width: 8),
+              Text("Live Feed (Last 10 Updates)", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+           ],
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: Container(
+             decoration: BoxDecoration(
+               gradient: LinearGradient(
+                 colors: [const Color(0xFF2E2E3E), const Color(0xFF252535)],
+                 begin: Alignment.topLeft,
+                 end: Alignment.bottomRight,
+               ),
+               borderRadius: BorderRadius.circular(12),
+               boxShadow: [
+                 BoxShadow(color: Colors.black45, blurRadius: 12, offset: const Offset(0, 6)),
+               ],
+               border: Border.all(color: Colors.white10),
+             ),
+             child: ClipRRect(
+               borderRadius: BorderRadius.circular(12),
+               child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.white10),
+                    child: DataTable(
+                      headingRowColor: MaterialStateProperty.all(Colors.black26),
+                      dataRowColor: MaterialStateProperty.all(Colors.transparent),
+                      columnSpacing: 20,
+                      headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+                      dataTextStyle: const TextStyle(color: Colors.white),
+                      columns: const [
+                        DataColumn(label: Text('Time')),
+                        DataColumn(label: Text('Symbol')),
+                        DataColumn(label: Text('LTP')),
+                        DataColumn(label: Text('Change')),
+                        DataColumn(label: Text('% Change')),
+                        DataColumn(label: Text('Prev Close')),
+                      ],
+                      rows: _feedHistory.map((data) {
+                        final key = data['symbol'] ?? 'UNKNOWN';
+                        final ltp = (data['lastPrice'] as num?)?.toDouble() ?? 0.0;
+                        final change = (data['change'] as num?)?.toDouble() ?? 0.0;
+                        final pChange = (data['changePercent'] as num?)?.toDouble() ?? 0.0;
+                        final color = change >= 0 ? const Color(0xFF4CAF50) : const Color(0xFFEF5350);
+                        final time = data['timestamp'] as DateTime? ?? DateTime.now();
+                        final prevClose = ltp - change;
+
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(DateFormat('HH:mm:ss').format(time), style: const TextStyle(color: Colors.grey))),
+                            DataCell(Text(key, style: const TextStyle(fontWeight: FontWeight.bold))),
+                            DataCell(Text(ltp.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
+                            DataCell(Text(change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                            DataCell(Text('${pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                            DataCell(Text(prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.white70))),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+               ),
+             ),
+          ),
+        ),
+      ],
     );
   }
 }
