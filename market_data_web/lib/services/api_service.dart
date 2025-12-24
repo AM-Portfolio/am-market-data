@@ -36,4 +36,123 @@ class ApiService {
       throw Exception('Failed to load index data');
     }
   }
+
+  // Fetch all available indices (Broad + Sectoral) flattened
+  Future<List<String>> fetchAllIndices() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/v1/indices/available'));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        List<String> all = [];
+        if (data['broad'] != null) all.addAll(List<String>.from(data['broad']));
+        if (data['sector'] != null) all.addAll(List<String>.from(data['sector']));
+        return all; 
+      } else {
+        throw Exception('Failed to load indices');
+      }
+    } catch (e) {
+      throw Exception('Error fetching indices: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchHistory(String symbol, String range) async {
+      try {
+        final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/historical-charts/$symbol?range=$range'));
+
+        if (response.statusCode == 200) {
+           final Map<String, dynamic> jsonResponse = json.decode(response.body);
+             if (jsonResponse.containsKey('data')) {
+                 return List<Map<String, dynamic>>.from(jsonResponse['data']);
+             } else {
+                 return [];
+             }
+        } else {
+          throw Exception('Failed to load history');
+        }
+      } catch (e) {
+        throw Exception('Error fetching history: $e');
+      }
+  }
+
+  Future<bool> refreshCookies() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/scraper/cookies'));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error refreshing cookies: $e');
+      return false;
+    }
+  }
+
+  // --- Streamer & Auth Methods ---
+
+  Future<String?> getLoginUrl(String provider) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/auth/login-url?provider=$provider'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['loginUrl'] ?? data['url'] ?? data['authUrl'];
+      }
+    } catch (e) {
+      print('Error fetching login URL: $e');
+    }
+    return null;
+  }
+
+  Future<bool> connectStream(List<String> symbols, String provider) async {
+    try {
+      final payload = {
+        'instrumentKeys': symbols,
+        'mode': 'FULL',
+        'provider': provider
+      };
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/market-data/stream/connect'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(payload),
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error connecting stream: $e');
+      return false;
+    }
+  }
+
+    Future<bool> disconnectStream(String provider) async {
+    try {
+      final response = await http.post(
+          Uri.parse('$baseUrl/api/v1/market-data/stream/disconnect?provider=$provider')
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error disconnecting stream: $e');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchInstruments(String query, String provider) async {
+    if (query.isEmpty) return [];
+    
+    try {
+      final payload = {
+        'queries': [query],
+        'provider': provider
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/instruments/search'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(payload)
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(json.decode(response.body));
+      }
+    } catch (e) {
+      print('Error searching instruments: $e');
+    }
+    return [];
+  }
 }

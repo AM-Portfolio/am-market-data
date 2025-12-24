@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/market_provider.dart';
+import '../screens/stock_detail_page.dart';
 
 class ConstituentsTable extends StatelessWidget {
   const ConstituentsTable({super.key});
@@ -19,6 +20,7 @@ class ConstituentsTable extends StatelessWidget {
       child: SizedBox(
         width: double.infinity,
         child: DataTable(
+          showCheckboxColumn: false, // Hide checkboxes
           columns: const [
             DataColumn(label: Text('Symbol')),
             DataColumn(label: Text('Price')),
@@ -30,6 +32,16 @@ class ConstituentsTable extends StatelessWidget {
           rows: data.stocks.map((stock) {
             final isPositive = stock.pChange >= 0;
             return DataRow(
+              onSelectChanged: (selected) {
+                if (selected == true) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StockDetailPage(symbol: stock.symbol),
+                    ),
+                  );
+                }
+              },
               cells: [
                 DataCell(Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold))),
                 DataCell(Text(stock.lastPrice.toStringAsFixed(2))),
@@ -48,3 +60,4 @@ class ConstituentsTable extends StatelessWidget {
     );
   }
 }
+
