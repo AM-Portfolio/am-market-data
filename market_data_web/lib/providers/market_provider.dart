@@ -16,6 +16,7 @@ class MarketProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _forceRefresh = false; // "Force Refresh" toggle state
+  bool _indexSymbol = true; // True = fetch index data only, False = expand to constituents
 
   Map<String, Map<String, dynamic>> _livePrices = {}; // Global live price cache
   final StreamController<Map<String, dynamic>> _livePriceController = StreamController<Map<String, dynamic>>.broadcast();
@@ -30,10 +31,20 @@ class MarketProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get forceRefresh => _forceRefresh;
+  bool get indexSymbol => _indexSymbol;
 
   void toggleForceRefresh(bool value) {
     _forceRefresh = value;
     notifyListeners();
+  }
+
+  void toggleIndexSymbol(bool value) {
+    _indexSymbol = value;
+    notifyListeners();
+    // Auto-reload data when toggle changes
+    if (_selectedIndex == "All Indices") {
+      loadAllIndicesData();
+    }
   }
 
   void updateLivePrice(Map<String, dynamic> data) {
@@ -69,11 +80,8 @@ class MarketProvider with ChangeNotifier {
       _availableIndices = await _apiService.fetchAvailableIndices();
       AppLogger.info("MarketProvider.loadIndices", "Fetched available indices: ${_availableIndices?.broad.length ?? 0} broad, ${_availableIndices?.sectoral.length ?? 0} sectoral");
       if (_availableIndices?.broad.isNotEmpty ?? false) {
-        // Auto-select NIFTY 50 if available, otherwise first
-        String defaultIndex = _availableIndices!.broad.contains("NIFTY 50") 
-            ? "NIFTY 50" 
-            : _availableIndices!.broad.first;
-        selectIndex(defaultIndex);
+        // Auto-select "All Indices" by default to show overview
+        selectIndex("All Indices");
       }
     } catch (e) {
       _error = e.toString();
@@ -119,43 +127,63 @@ class MarketProvider with ChangeNotifier {
 
     try {
       List<String> allSymbols = await _apiService.fetchAllIndices();
+      AppLogger.info("MarketProvider.loadAllIndicesData", "Fetched ${allSymbols.length} index symbols");
       
       // User Request: Call live-prices with list of symbols instead of batch loop
-      final Map<String, dynamic> liveDataMap = await _apiService.fetchLivePrices(allSymbols);
+      // Pass indexSymbol parameter to control whether to fetch index-level or constituent data
+      final Map<String, dynamic> response = await _apiService.fetchLivePrices(allSymbols, _indexSymbol);
+      AppLogger.info("MarketProvider.loadAllIndicesData", "Response keys: ${response.keys.toList()}");
+      
+      // Extract the actual prices - it's a List, not a Map
+      final List<dynamic> pricesList = response['prices'] as List<dynamic>? ?? [];
+      AppLogger.info("MarketProvider.loadAllIndicesData", "Prices list size: ${pricesList.length}");
+      
+      // Convert list to map by UPPERCASE symbol for case-insensitive lookup
+      final Map<String, dynamic> pricesMap = {};
+      for (var item in pricesList) {
+        if (item is Map<String, dynamic> && item.containsKey('symbol')) {
+          String symbol = item['symbol'].toString().toUpperCase();
+          pricesMap[symbol] = item;
+        }
+      }
+      AppLogger.info("MarketProvider.loadAllIndicesData", "Prices map keys: ${pricesMap.keys.toList()}");
       
       List<StockIndicesMarketData> results = [];
       
       for (String sym in allSymbols) {
-          if (liveDataMap.containsKey(sym)) {
+          // Use uppercase for lookup
+          String lookupKey = sym.toUpperCase();
+          if (pricesMap.containsKey(lookupKey)) {
              try {
-               final item = liveDataMap[sym];
-               // We need to map the flat Map<String, dynamic> to StockIndicesMarketData
-               // Assuming StockIndicesMarketData.fromJson or similar can handle the live-price format
-               // Or manually map:
+               final item = pricesMap[lookupKey];
+               AppLogger.debug("MarketProvider.loadAllIndicesData", "Processing $sym with data: $item");
                
                double ltp = (item['lastPrice'] as num).toDouble();
-               double change = (item['change'] as num?)?.toDouble() ?? 0.0; // Handles missing change/pChange if any
+               double change = (item['change'] as num?)?.toDouble() ?? 0.0;
                double pChange = (item['changePercent'] as num?)?.toDouble() ?? 0.0;
                
-               // Construct manually since the live-price format might differ slightly from batch index format
-               // using a minimal construction or helper
                final indexData = StockIndicesMarketData(
                  indexSymbol: sym,
                  lastPrice: ltp,
                  change: change,
                  pChange: pChange,
-                 stocks: [], // Empty list for overview
+                 stocks: [],
                );
                
                results.add(indexData);
+               AppLogger.debug("MarketProvider.loadAllIndicesData", "Successfully added $sym to results");
              } catch (e) {
-                AppLogger.warning("MarketProvider.loadAllIndicesData", "Error parsing $sym", e);
+                AppLogger.warning("MarketProvider.loadAllIndicesData", "Error parsing $sym: $e", e);
              }
+          } else {
+             AppLogger.warning("MarketProvider.loadAllIndicesData", "Symbol $sym (lookup: $lookupKey) not found in prices map");
           }
       }
       
+      AppLogger.info("MarketProvider.loadAllIndicesData", "Total results parsed: ${results.length}");
       _allIndicesData = results;
     } catch (e) {
+      AppLogger.error("MarketProvider.loadAllIndicesData", "Error loading all indices data", e);
       _error = e.toString();
     } finally {
       _isLoading = false;

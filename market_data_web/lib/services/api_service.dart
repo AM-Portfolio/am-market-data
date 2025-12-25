@@ -243,10 +243,12 @@ class ApiService {
 
 
 
-  Future<Map<String, dynamic>> fetchLivePrices(List<String> symbols) async {
+  Future<Map<String, dynamic>> fetchLivePrices(List<String> symbols, [bool indexSymbol = true]) async {
     try {
       final query = symbols.join(',');
-      final response = await http.get(Uri.parse('$baseUrl/api/v1/market-data/live-prices?symbols=$query'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/market-data/live-prices?symbols=$query&isIndexSymbol=$indexSymbol')
+      );
       
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(json.decode(response.body));

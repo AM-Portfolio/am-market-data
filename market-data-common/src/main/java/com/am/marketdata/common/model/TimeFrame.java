@@ -18,7 +18,7 @@ public enum TimeFrame {
     DAY("1D", "60minute", "1d"),
     WEEK("1W", "60minute", "week", true, 7), // Weekly - requires aggregation from daily data
     MONTH("1M", "60minute", "month", true, 30), // Monthly - requires aggregation from daily data
-    YEAR("1Y", "60minute", "year", true, 365); // Yearly - requires aggregation from daily data
+    YEAR("1Y", "60minute", "year", true, 365), LIVE; // Yearly - requires aggregation from daily data
 
     private final String userValue;
     private final String zerodhaValue;

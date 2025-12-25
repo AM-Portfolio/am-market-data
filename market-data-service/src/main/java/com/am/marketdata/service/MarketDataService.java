@@ -26,8 +26,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -417,8 +419,55 @@ public class MarketDataService {
         try {
             log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
 
-            // Get data directly from provider - caching is handled at the service level
-            return fetchLivePricesFromProvider(tradingSymbols, providerName);
+            if (tradingSymbols == null || tradingSymbols.isEmpty()) {
+                log.warn("No trading symbols provided");
+                return Collections.emptyList();
+            }
+
+            // Step 1: Try to get data from cache first
+            log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
+            Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
+
+            Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
+            List<EquityPrice> result = new ArrayList<>();
+
+            if (cachedData != null && !cachedData.isEmpty()) {
+                log.info("[CACHE] Found {} live prices in cache", cachedData.size());
+
+                // Convert cached OHLC data to EquityPrice
+                Map<String, LTPQuote> ltpMap = new HashMap<>();
+                for (Map.Entry<String, OHLCQuote> entry : cachedData.entrySet()) {
+                    LTPQuote ltp = new LTPQuote();
+                    ltp.lastPrice = entry.getValue().getLastPrice();
+                    ltp.instrumentToken = 0;
+                    ltpMap.put(entry.getKey(), ltp);
+                }
+
+                List<EquityPrice> cachedPrices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpMap);
+                result.addAll(cachedPrices);
+
+                // Remove symbols found in cache from remaining
+                cachedData.keySet().forEach(symbol -> remainingSymbols.remove(symbol.replace("NSE:", "")));
+
+                log.info("[CACHE] {} symbols remaining after cache lookup", remainingSymbols.size());
+            } else {
+                log.info("[CACHE] No live prices found in cache");
+            }
+
+            // Step 2: Fetch remaining symbols from provider
+            if (!remainingSymbols.isEmpty()) {
+                log.info("[PROVIDER] Fetching {} remaining symbols from provider", remainingSymbols.size());
+                List<EquityPrice> providerPrices = fetchLivePricesFromProvider(
+                        new ArrayList<>(remainingSymbols), providerName);
+                result.addAll(providerPrices);
+            }
+
+            log.info("Successfully retrieved {} total live prices ({} from cache, {} from provider)",
+                    result.size(),
+                    cachedData != null ? cachedData.size() : 0,
+                    result.size() - (cachedData != null ? cachedData.size() : 0));
+
+            return result;
         } catch (Exception e) {
             log.error("Error fetching live prices: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getLivePrices").increment();
