@@ -240,36 +240,60 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
     return Card(
       color: const Color(0xFF16213E),
       child: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowColor: MaterialStateProperty.all(const Color(0xFF0F3460)),
-            dataRowColor: MaterialStateProperty.all(Colors.transparent),
-            columns: const [
-              DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Segment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Type', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            ],
-            rows: _results.map((item) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.white))),
-                  DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis))),
-                  DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                  DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.white70))),
-                   DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.white54, fontSize: 11))),
-                ]
-              );
-            }).toList(),
-          ),
+        child: PaginatedDataTable(
+          headingRowColor: MaterialStateProperty.all(const Color(0xFF0F3460)),
+          columns: const [
+            DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Segment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Type', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          ],
+          source: _InstrumentDataSource(_results),
+          rowsPerPage: _results.isEmpty ? 1 : (_results.length < 100 ? _results.length : 100),
+          availableRowsPerPage: const [10, 20, 50, 100, 200],
+          onRowsPerPageChanged: (val) {
+             // Basic support if needed, but setState logic is tricky purely inside build
+          },
+          showCheckboxColumn: false,
+          arrowHeadColor: Colors.white,
         ),
       ),
     );
   }
+}
+
+class _InstrumentDataSource extends DataTableSource {
+  final List<Map<String, dynamic>> _data;
+
+  _InstrumentDataSource(this._data);
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= _data.length) return null;
+    final item = _data[index];
+    
+    return DataRow(
+      cells: [
+        DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.white))),
+        DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis))),
+        DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.white70))),
+        DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.white70))),
+        DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.white70))),
+        DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.white70))),
+        DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.white54, fontSize: 11))),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => _data.length;
+
+  @override
+  int get selectedRowCount => 0;
 }

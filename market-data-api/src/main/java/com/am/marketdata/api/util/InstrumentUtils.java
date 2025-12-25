@@ -20,14 +20,14 @@ public class InstrumentUtils {
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
 
     /**
-     * Resolves a comma-separated string of symbols (or indices) into a unique set
-     * of individual stock symbols.
-     * If a symbol is an index, all its constituent stocks are added.
+     * Resolves a comma-separated string of symbols with optional index expansion.
      *
      * @param commaSeparatedSymbols String containing symbols separated by commas.
+     * @param expandIndices         If true, expand indices to constituents. If
+     *                              false, return as-is.
      * @return Set of unique stock symbols.
      */
-    public Set<String> resolveSymbols(String commaSeparatedSymbols) {
+    public Set<String> resolveSymbols(String commaSeparatedSymbols, boolean expandIndices) {
         if (commaSeparatedSymbols == null || commaSeparatedSymbols.trim().isEmpty()) {
             return new HashSet<>();
         }
@@ -35,20 +35,28 @@ public class InstrumentUtils {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
-        return resolveSymbols(rawSymbols);
+        return resolveSymbols(rawSymbols, expandIndices);
     }
 
     /**
-     * Resolves a list of symbols (or indices) into a unique set of individual stock
-     * symbols.
-     * If a symbol is an index, all its constituent stocks are added.
+     * Resolves a list of symbols with optional index expansion.
      *
-     * @param rawSymbols List of symbols or indices.
+     * @param rawSymbols    List of symbols or indices.
+     * @param expandIndices If true, expand indices to their constituent stocks via
+     *                      DB lookup.
+     *                      If false, return symbols as-is without DB expansion.
      * @return Set of unique stock symbols.
      */
-    public Set<String> resolveSymbols(List<String> rawSymbols) {
+    public Set<String> resolveSymbols(List<String> rawSymbols, boolean expandIndices) {
         Set<String> finalSymbols = new HashSet<>();
 
+        if (!expandIndices) {
+            // If expandIndices is false, return symbols as-is without database lookup
+            log.debug("expandIndices=false, returning symbols as-is: {}", rawSymbols);
+            return new HashSet<>(rawSymbols);
+        }
+
+        // If expandIndices is true, perform database lookup and expansion
         for (String symbol : rawSymbols) {
             try {
                 // Check if the symbol is an index

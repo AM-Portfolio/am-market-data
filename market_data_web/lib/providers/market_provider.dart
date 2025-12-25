@@ -119,19 +119,41 @@ class MarketProvider with ChangeNotifier {
 
     try {
       List<String> allSymbols = await _apiService.fetchAllIndices();
+      
+      // User Request: Call live-prices with list of symbols instead of batch loop
+      final Map<String, dynamic> liveDataMap = await _apiService.fetchLivePrices(allSymbols);
+      
       List<StockIndicesMarketData> results = [];
       
-      // Fetch in parallel for better performance
-      // Note: Backend might rate limit, but for local it's fine.
-      // Batch size or sequential might be safer for large lists.
       for (String sym in allSymbols) {
-          try {
-             var data = await _apiService.fetchIndexData(sym, forceRefresh: _forceRefresh);
-             results.add(data);
-          } catch (e) {
-             AppLogger.warning("MarketProvider.loadAllIndicesData", "Error loading $sym", e);
+          if (liveDataMap.containsKey(sym)) {
+             try {
+               final item = liveDataMap[sym];
+               // We need to map the flat Map<String, dynamic> to StockIndicesMarketData
+               // Assuming StockIndicesMarketData.fromJson or similar can handle the live-price format
+               // Or manually map:
+               
+               double ltp = (item['lastPrice'] as num).toDouble();
+               double change = (item['change'] as num?)?.toDouble() ?? 0.0; // Handles missing change/pChange if any
+               double pChange = (item['changePercent'] as num?)?.toDouble() ?? 0.0;
+               
+               // Construct manually since the live-price format might differ slightly from batch index format
+               // using a minimal construction or helper
+               final indexData = StockIndicesMarketData(
+                 indexSymbol: sym,
+                 lastPrice: ltp,
+                 change: change,
+                 pChange: pChange,
+                 stocks: [], // Empty list for overview
+               );
+               
+               results.add(indexData);
+             } catch (e) {
+                AppLogger.warning("MarketProvider.loadAllIndicesData", "Error parsing $sym", e);
+             }
           }
       }
+      
       _allIndicesData = results;
     } catch (e) {
       _error = e.toString();

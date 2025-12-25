@@ -152,6 +152,10 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                 .filter(s -> !resolvedIndices.containsKey(s))
                 .collect(Collectors.toList());
 
+        if (!symbolsForDb.isEmpty()) {
+            log.info("resolveContext", "Symbols not resolved as indices (will lookup in DB): " + symbolsForDb);
+        }
+
         // 3. Lookup remaining symbols
         List<com.am.marketdata.service.model.UpstoxInstrument> dbInstruments = resolveInstruments(symbolsForDb);
 
@@ -171,7 +175,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                 return new HashMap<>();
             }
 
-            log.debug("getOHLC", "Fetching OHLC from Upstox API for keys: " + context.instrumentKeys);
+            log.info("getOHLC", "Fetching OHLC from Upstox API for keys: " + context.instrumentKeys);
 
             // Upstox requires interval for HOhlc. Defaulting to 1 day as it's common for
             // general OHLC quote
@@ -250,6 +254,9 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                 return new HashMap<>();
             }
 
+            // Log for debugging
+            log.info("getLTP", "Fetching LTP for keys: " + context.instrumentKeys);
+
             GetMarketQuoteLastTradedPriceResponseV3 response = upstoxSdkService.getLtp(context.instrumentKeys);
             Map<String, LTPQuote> result = new HashMap<>();
 
@@ -258,6 +265,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                     String instrumentKey = entry.getKey();
                     MarketQuoteSymbolLtpV3 data = entry.getValue();
 
+                    // Map back to symbol using the context map
                     String symbol = context.keyToSymbolMap.getOrDefault(instrumentKey, instrumentKey);
 
                     LTPQuote quote = new LTPQuote();
@@ -299,7 +307,8 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             // 1. Try SDK Service if key resolved
             if (instrumentKey != null) {
                 try {
-                    log.info("getHistoricalData", "Fetching historical data via SDK for key: " + instrumentKey);
+                    log.info("getHistoricalData",
+                            "Fetching historical data via SDK for instrument key: " + instrumentKey);
                     response = upstoxSdkService.getHistoricalCandleData(instrumentKey, "days", 1, toDateStr,
                             fromDateStr);
                 } catch (Exception e) {
@@ -309,8 +318,10 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             // 2. Fallback to API Service (uses symbol directly, or internal logic)
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                log.info("getHistoricalData", "Falling back to API Service for historical data: " + symbol);
-                response = upstoxApiService.getHistoricalCandleData(symbol, upstoxInterval, fromDateStr, toDateStr);
+                String keyToUse = instrumentKey != null ? instrumentKey : symbol;
+                log.info("getHistoricalData",
+                        "Falling back to API Service for historical data with key/symbol: " + keyToUse);
+                response = upstoxApiService.getHistoricalCandleData(keyToUse, upstoxInterval, fromDateStr, toDateStr);
             }
 
             // Map to Common HistoricalData model

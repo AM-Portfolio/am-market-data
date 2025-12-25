@@ -138,10 +138,9 @@ public class MarketDataCacheService {
     public Map<String, OHLCQuote> getOHLCFromCache(List<String> tradingSymbols, TimeFrame timeFrame) {
         try {
             // Clean symbols (remove NSE: prefix if present AND filter out index symbols)
-            List<String> knownIndices = Arrays.asList("NIFTY 50", "NIFTY BANK", "SENSEX", "NIFTY", "BANKNIFTY");
+            // Clean symbols (remove NSE: prefix if present)
             List<String> cleanSymbols = tradingSymbols.stream()
                     .map(symbol -> symbol.replace("NSE:", "").replace("NSE_EQ:", ""))
-                    .filter(symbol -> !knownIndices.contains(symbol)) // Filter out indices
                     .collect(Collectors.toList());
 
             if (cleanSymbols.isEmpty()) {

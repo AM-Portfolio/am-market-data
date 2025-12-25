@@ -88,8 +88,8 @@ class _StreamerPageState extends State<StreamerPage> {
                }
              });
   
-             if (_feedHistory.length > 10) {
-               _feedHistory = _feedHistory.sublist(0, 10);
+             if (_feedHistory.length > 200) {
+               _feedHistory = _feedHistory.sublist(0, 200);
              }
            });
          } catch (e) {

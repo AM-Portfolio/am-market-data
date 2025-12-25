@@ -64,7 +64,11 @@ public class UpstoxIndexIdentifier {
     public String getInstrumentKey(String name) {
         if (name == null)
             return null;
-        return indexKeyMap.get(name.toUpperCase());
+        String cleanName = name.toUpperCase();
+        if (cleanName.startsWith("NSE:") || cleanName.startsWith("BSE:")) {
+            cleanName = cleanName.substring(4);
+        }
+        return indexKeyMap.get(cleanName);
     }
 
     /**

@@ -98,10 +98,27 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         return investmentInstrumentService.getLivePrices(new ArrayList<>(symbolsSet));
     }
 
+    /**
+     * Resolves symbols based on whether they are index symbols or not.
+     * 
+     * @param symbols     Set of input symbols
+     * @param indexSymbol If true, symbols are treated as index symbols and returned
+     *                    as-is without DB expansion.
+     *                    If false, symbols are resolved; indices are expanded to
+     *                    their constituent stocks via DB lookup.
+     * @return Set of resolved symbols
+     */
     private Set<String> getSymbols(Set<String> symbols, boolean indexSymbol) {
-        // Use InstrumentUtils to resolve symbols (handles both indices and regular
-        // symbols)
-        return instrumentUtils.resolveSymbols(new ArrayList<>(symbols));
+        // Pass !indexSymbol as expandIndices flag to InstrumentUtils
+        // If indexSymbol=true, we want expandIndices=false (don't expand, return as-is)
+        // If indexSymbol=false, we want expandIndices=true (expand indices to
+        // constituent stocks)
+        boolean expandIndices = !indexSymbol;
+
+        log.debug("getSymbols",
+                String.format("indexSymbol=%b, expandIndices=%b, symbols=%s", indexSymbol, expandIndices, symbols));
+
+        return instrumentUtils.resolveSymbols(new ArrayList<>(symbols), expandIndices);
     }
 
     /**
