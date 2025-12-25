@@ -8,7 +8,6 @@ import io.swagger.client.api.MarketQuoteV3Api;
 import io.swagger.client.api.HistoryV3Api;
 import com.upstox.api.GetMarketQuoteLastTradedPriceResponseV3;
 import com.upstox.api.GetHistoricalCandleResponse;
-import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -250,7 +249,8 @@ public class UpstoxSdkService {
 
             HistoryV3Api historyV3Api = new HistoryV3Api(apiClient);
 
-            log.info("Fetching historical data for key: {}, interval: {}, from: {}, to: {}", instrumentKey, interval,
+            log.info("Fetching historical data for key: {}, unit: {}, interval: {}, from: {}, to: {}", instrumentKey,
+                    unit, interval,
                     fromDate, toDate);
 
             // Call SDK

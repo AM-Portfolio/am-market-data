@@ -20,8 +20,8 @@ public class UpStockClient {
     private final UpstoxConfig upstoxConfig;
     private final StringRedisTemplate redisTemplate;
 
-    private static final String BASE_URL = "https://api-v2.upstox.com/v2";
-    private static final String REDIS_KEY_ACCESS_TOKEN = "market_data:upstox:access_token";
+    private static final String BASE_URL = "https://api.upstox.com/v2";
+    private static final String REDIS_KEY_ACCESS_TOKEN = "market-data:upstox:access_token";
 
     // Market Data APIs
     public MarketQuoteResponse getMarketQuotes(List<String> symbols) {

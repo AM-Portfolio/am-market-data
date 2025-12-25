@@ -13,22 +13,14 @@ import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.zerodhatech.models.Instrument;
 import com.zerodhatech.models.LTPQuote;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
-
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import com.am.marketdata.common.log.AppLogger;
 import org.springframework.stereotype.Service;
-
-import java.text.SimpleDateFormat;
-
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Service("upstoxMarketDataProvider")
 public class UpstoxMarketDataProvider implements MarketDataProvider {
@@ -290,7 +282,8 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             String fromDateStr = dateFormat.format(from);
             String toDateStr = dateFormat.format(to);
 
-            String upstoxInterval = mapToUpstoxInterval(interval);
+            String unit = mapToUpstoxInterval(interval);
+            int intervalValue = getUpstoxIntervalValue(interval);
 
             // Resolve instrument key first as SDK works with keys
             List<String> symbolsList = Collections.singletonList(symbol);
@@ -308,20 +301,13 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             if (instrumentKey != null) {
                 try {
                     log.info("getHistoricalData",
-                            "Fetching historical data via SDK for instrument key: " + instrumentKey);
-                    response = upstoxSdkService.getHistoricalCandleData(instrumentKey, "days", 1, toDateStr,
+                            "Fetching historical data via SDK for instrument key: " + instrumentKey + ", unit: " + unit
+                                    + ", interval: " + intervalValue);
+                    response = upstoxSdkService.getHistoricalCandleData(instrumentKey, unit, intervalValue, toDateStr,
                             fromDateStr);
                 } catch (Exception e) {
                     log.warn("getHistoricalData", "Failed to fetch historical data via SDK: " + e.getMessage());
                 }
-            }
-
-            // 2. Fallback to API Service (uses symbol directly, or internal logic)
-            if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                String keyToUse = instrumentKey != null ? instrumentKey : symbol;
-                log.info("getHistoricalData",
-                        "Falling back to API Service for historical data with key/symbol: " + keyToUse);
-                response = upstoxApiService.getHistoricalCandleData(keyToUse, upstoxInterval, fromDateStr, toDateStr);
             }
 
             // Map to Common HistoricalData model
@@ -369,28 +355,55 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         }
     }
 
-    private String mapToUpstoxInterval(TimeFrame interval) {
+    private int getUpstoxIntervalValue(TimeFrame interval) {
         if (interval == null)
-            return "1minute";
+            return 1;
         switch (interval) {
             case MINUTE:
-                return "1minute";
+                return 1;
             case FIVE_MINUTE:
-                return "5minute";
+                return 5;
+            case TEN_MINUTE:
+                return 10;
             case FIFTEEN_MINUTE:
-                return "15minute";
+                return 15;
             case THIRTY_MINUTE:
-                return "30minute";
+                return 30;
             case HOUR:
-                return "60minute";
+                return 1;
             case DAY:
-                return "day";
+                return 1;
             case WEEK:
-                return "week";
+                return 1;
             case MONTH:
-                return "month";
+                return 1;
             default:
-                return "1minute";
+                return 1;
+        }
+    }
+
+    private String mapToUpstoxInterval(TimeFrame interval) {
+        if (interval == null)
+            return "minutes";
+        switch (interval) {
+            case MINUTE:
+                return "minutes";
+            case FIVE_MINUTE:
+                return "minutes";
+            case FIFTEEN_MINUTE:
+                return "minutes";
+            case THIRTY_MINUTE:
+                return "minutes";
+            case HOUR:
+                return "hours";
+            case DAY:
+                return "days";
+            case WEEK:
+                return "weeks";
+            case MONTH:
+                return "months";
+            default:
+                return "days";
         }
     }
 
