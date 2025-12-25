@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 
-import com.am.common.investment.model.stockindice.StockData;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.dto.HistoricalDataRequest;
@@ -165,10 +164,15 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
             // Detect if this might be an index symbol (single symbol requests are often
             // indices)
-            boolean isIndexSymbol = symbols.size() == 1;
-            if (additionalParams != null && additionalParams.containsKey("isIndexSymbol")
-                    && Boolean.TRUE.equals(additionalParams.get("isIndexSymbol"))) {
-                isIndexSymbol = true;
+            // Detect if this is an index symbol from parameters
+            boolean isIndexSymbol = false;
+            if (additionalParams != null && additionalParams.containsKey("isIndexSymbol")) {
+                Object paramValue = additionalParams.get("isIndexSymbol");
+                if (paramValue instanceof Boolean) {
+                    isIndexSymbol = (Boolean) paramValue;
+                } else if (paramValue instanceof String) {
+                    isIndexSymbol = Boolean.parseBoolean((String) paramValue);
+                }
             }
             Map<String, HistoricalData> batchResult = marketDataService.getHistoricalDataBatch(
                     new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null, isIndexSymbol);

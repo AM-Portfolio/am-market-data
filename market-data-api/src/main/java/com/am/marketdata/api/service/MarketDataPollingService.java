@@ -46,21 +46,43 @@ public class MarketDataPollingService {
             try {
                 Set<String> keys = new HashSet<>(instrumentKeys);
 
-                // Step 1: Fetch live OHLC data
-                Map<String, OHLCQuote> liveOhlcData = marketDataFetchService.getOHLC(
-                        keys, false, TimeFrame.DAY, false);
+                // Parallel Execution using CompletableFuture for independent tasks
 
-                // Step 2: Fetch historical data if timeFrame is 1D
-                Map<String, OHLCQuote> enrichedData = new HashMap<>();
+                // Task 1: Fetch Live OHLC Data
+                CompletableFuture<Map<String, OHLCQuote>> liveDataFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, false);
+                    } catch (Exception e) {
+                        log.error("Error fetching live OHLC data", e);
+                        return new HashMap<>();
+                    }
+                });
 
+                // Task 2: Fetch Historical Data (if applicable)
+                CompletableFuture<Map<String, Object>> historicalDataFuture;
                 if ("1D".equalsIgnoreCase(finalTimeFrame) || "1W".equalsIgnoreCase(finalTimeFrame)
                         || "1M".equalsIgnoreCase(finalTimeFrame)) {
-                    // Fetch historical data for previous close and OHLC based on timeFrame
-                    enrichedData = fetchAndMergeHistoricalData(keys, liveOhlcData, finalTimeFrame, isIndexSymbol);
+                    historicalDataFuture = CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return fetchHistoricalData(keys, finalTimeFrame, isIndexSymbol);
+                        } catch (Exception e) {
+                            log.error("Error fetching historical data", e);
+                            return new HashMap<>();
+                        }
+                    });
                 } else {
-                    // For other timeframes, use live data as-is
-                    enrichedData = liveOhlcData;
+                    historicalDataFuture = CompletableFuture.completedFuture(new HashMap<>());
                 }
+
+                // Wait for both tasks to complete
+                CompletableFuture.allOf(liveDataFuture, historicalDataFuture).join();
+
+                // Get results
+                Map<String, OHLCQuote> liveOhlcData = liveDataFuture.get();
+                Map<String, Object> historicalResponse = historicalDataFuture.get();
+
+                // Merge Data
+                Map<String, OHLCQuote> enrichedData = mergeData(liveOhlcData, historicalResponse);
 
                 // Step 3: Build and broadcast quote updates
                 if (enrichedData != null && !enrichedData.isEmpty()) {
@@ -103,116 +125,102 @@ public class MarketDataPollingService {
     }
 
     /**
-     * Fetches historical data based on timeFrame and merges with live OHLC data
-     * to calculate complete OHLC and previous close
-     * 
-     * @param symbols   Symbols to fetch data for
-     * @param liveData  Current live OHLC data
-     * @param timeFrame TimeFrame (1D, 1W, 1M, etc.)
-     * @return Enriched OHLC data with historical previous close
+     * Fetches historical data based on timeFrame
      */
-    private Map<String, OHLCQuote> fetchAndMergeHistoricalData(
-            Set<String> symbols, Map<String, OHLCQuote> liveData, String timeFrame, Boolean isIndexSymbol) {
-        try {
-            // Calculate historical date range based on timeFrame
-            java.time.LocalDate today = java.time.LocalDate.now();
-            java.time.LocalDate historicalDate;
+    private Map<String, Object> fetchHistoricalData(Set<String> symbols, String timeFrame, Boolean isIndexSymbol) {
+        // Calculate historical date range based on timeFrame
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate historicalDate;
 
-            switch (timeFrame.toUpperCase()) {
-                case "1D":
-                case "DAY":
-                    // Fetch yesterday's data
-                    historicalDate = today.minusDays(1);
-                    break;
-                case "1W":
-                case "WEEK":
-                    // Fetch last week's data (7 days ago)
-                    historicalDate = today.minusWeeks(1);
-                    break;
-                case "1M":
-                case "MONTH":
-                    // Fetch last month's data (30 days ago)
-                    historicalDate = today.minusMonths(1);
-                    break;
-                default:
-                    // Default to yesterday
-                    historicalDate = today.minusDays(1);
-            }
+        switch (timeFrame.toUpperCase()) {
+            case "1D":
+            case "DAY":
+                historicalDate = today.minusDays(1);
+                break;
+            case "1W":
+            case "WEEK":
+                historicalDate = today.minusWeeks(1);
+                break;
+            case "1M":
+            case "MONTH":
+                historicalDate = today.minusMonths(1);
+                break;
+            default:
+                historicalDate = today.minusDays(1);
+        }
 
-            String historicalDateStr = historicalDate.toString();
+        String historicalDateStr = historicalDate.toString();
 
-            // Convert LocalDate to Date for API call
-            java.util.Date fromDate = java.util.Date.from(
-                    historicalDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
-            java.util.Date toDate = fromDate;
+        // Convert LocalDate to Date for API call
+        java.util.Date fromDate = java.util.Date.from(
+                historicalDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        java.util.Date toDate = fromDate;
 
-            log.info("Fetching historical data for {} symbols from {} (timeFrame: {})",
-                    symbols.size(), historicalDateStr, timeFrame);
+        log.info("Fetching historical data for {} symbols from {} (timeFrame: {})",
+                symbols.size(), historicalDateStr, timeFrame);
 
-            // Fetch historical data for the calculated date
-            Map<String, Object> additionalParams = new HashMap<>();
-            if (isIndexSymbol != null && isIndexSymbol) {
-                additionalParams.put("isIndexSymbol", true);
-            }
+        Map<String, Object> additionalParams = new HashMap<>();
+        if (isIndexSymbol != null && isIndexSymbol) {
+            additionalParams.put("isIndexSymbol", true);
+        }
 
-            Map<String, Object> historicalResponse = marketDataFetchService.getHistoricalDataMultipleSymbols(
-                    symbols,
-                    fromDate,
-                    toDate,
-                    TimeFrame.DAY,
-                    "STOCK",
-                    additionalParams,
-                    false);
+        return marketDataFetchService.getHistoricalDataMultipleSymbols(
+                symbols,
+                fromDate,
+                toDate,
+                TimeFrame.DAY,
+                "STOCK",
+                additionalParams,
+                false);
+    }
 
-            // Merge historical and live data
-            Map<String, OHLCQuote> enrichedData = new HashMap<>();
+    /**
+     * Merges historical data into live OHLC data
+     */
+    private Map<String, OHLCQuote> mergeData(Map<String, OHLCQuote> liveData, Map<String, Object> historicalResponse) {
+        Map<String, OHLCQuote> enrichedData = new HashMap<>();
 
-            for (String symbol : symbols) {
-                OHLCQuote liveQuote = liveData.get(symbol);
-                if (liveQuote == null)
-                    continue;
+        if (liveData == null || liveData.isEmpty()) {
+            return enrichedData;
+        }
 
-                double previousClose = liveQuote.getPreviousClose();
+        for (Map.Entry<String, OHLCQuote> entry : liveData.entrySet()) {
+            String symbol = entry.getKey();
+            OHLCQuote liveQuote = entry.getValue();
 
-                // Extract historical data from response
-                if (historicalResponse != null && historicalResponse.containsKey(symbol)) {
-                    Object symbolData = historicalResponse.get(symbol);
+            double previousClose = liveQuote.getPreviousClose();
 
-                    if (symbolData instanceof com.am.common.investment.model.historical.HistoricalData) {
-                        com.am.common.investment.model.historical.HistoricalData historicalData = (com.am.common.investment.model.historical.HistoricalData) symbolData;
+            // Extract historical data from response
+            if (historicalResponse != null && historicalResponse.containsKey(symbol)) {
+                Object symbolData = historicalResponse.get(symbol);
 
-                        if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
-                            // Get the last data point (historical close)
-                            var dataPoints = historicalData.getDataPoints();
-                            var lastPoint = dataPoints.get(dataPoints.size() - 1);
+                if (symbolData instanceof com.am.common.investment.model.historical.HistoricalData) {
+                    com.am.common.investment.model.historical.HistoricalData historicalData = (com.am.common.investment.model.historical.HistoricalData) symbolData;
 
-                            if (lastPoint.getClose() > 0) {
-                                previousClose = lastPoint.getClose();
-                                log.debug("Updated previous close for {}: {} (from historical data)",
-                                        symbol, previousClose);
-                            }
+                    if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
+                        // Get the last data point (historical close)
+                        var dataPoints = historicalData.getDataPoints();
+                        var lastPoint = dataPoints.get(dataPoints.size() - 1);
+
+                        if (lastPoint.getClose() > 0) {
+                            previousClose = lastPoint.getClose();
+                            log.debug("Updated previous close for {}: {} (from historical data)",
+                                    symbol, previousClose);
                         }
                     }
                 }
-
-                // Build enriched quote with previous close from historical data
-                OHLCQuote enrichedQuote = OHLCQuote.builder()
-                        .lastPrice(liveQuote.getLastPrice())
-                        .previousClose(previousClose)
-                        .ohlc(liveQuote.getOhlc())
-                        .build();
-
-                enrichedData.put(symbol, enrichedQuote);
             }
 
-            log.info("Enriched {} symbols with historical data from {}",
-                    enrichedData.size(), historicalDateStr);
-            return enrichedData;
+            // Build enriched quote with previous close from historical data
+            OHLCQuote enrichedQuote = OHLCQuote.builder()
+                    .lastPrice(liveQuote.getLastPrice())
+                    .previousClose(previousClose)
+                    .ohlc(liveQuote.getOhlc())
+                    .build();
 
-        } catch (Exception e) {
-            log.error("Error fetching/merging historical data, falling back to live data", e);
-            return liveData;
+            enrichedData.put(symbol, enrichedQuote);
         }
+        return enrichedData;
     }
 
     /**

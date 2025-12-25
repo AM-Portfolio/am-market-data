@@ -307,7 +307,10 @@ public class MarketDataPersistenceService {
             // Get historical data from database using HistoricalDataService
             // Convert LocalDate to Instant at the start of the day in UTC
             Instant fromInstant = from.atStartOfDay(ZoneId.systemDefault()).toInstant();
-            Instant toInstant = to.atStartOfDay(ZoneId.systemDefault()).toInstant();
+            // For 'to' date, we want to include the entire day, so we move to the start of
+            // the next day
+            // This also prevents "empty range" errors in InfluxDB if from == to
+            Instant toInstant = to.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
 
             // Handle Optional return type
             HistoricalData historicalData = historicalDataService.getHistoricalData(
