@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../services/stream_service.dart';
+import '../widgets/stock_chart.dart';
+import '../utils/app_logger.dart';
 
 class PriceTestPage extends StatefulWidget {
   const PriceTestPage({super.key});
@@ -12,15 +16,22 @@ class PriceTestPage extends StatefulWidget {
 class _PriceTestPageState extends State<PriceTestPage> {
   final TextEditingController _symbolController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final StreamService _streamService = StreamService();
+  StreamSubscription? _streamSubscription;
   
   bool _isLoading = false;
-  Map<String, dynamic>? _result;
   String? _error;
-  bool _isHistoricalMode = false;
+  bool _showDateRange = false;
   bool _showFilters = false;
-  bool _showDateRange = false; // Date range is optional
   bool _useIndexDropdown = true;
   
+  // Live data for all symbols
+  Map<String, dynamic> _liveDataMap = {};
+  
+  // Historical data cache per symbol
+  Map<String, List<Map<String, dynamic>>> _historicalDataCache = {};
+  
+  // Expanded cards tracking
   Set<String> _expandedCards = {};
   
   String _selectedInterval = '1D';
@@ -43,7 +54,42 @@ class _PriceTestPageState extends State<PriceTestPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _streamService.connect();
+    
+    // Listen to WebSocket stream for real-time price updates
+    _streamSubscription = _streamService.stream.listen((message) {
+      if (!mounted) return;
+      
+      if (message.containsKey('quotes')) {
+        setState(() {
+          final newQuotes = message['quotes'] as Map<String, dynamic>;
+          
+          // Update live data map with streaming prices
+          newQuotes.forEach((symbol, quoteData) {
+            if (_liveDataMap.containsKey(symbol)) {
+              // Update existing entry with new price
+              _liveDataMap[symbol] = {
+                ..._liveDataMap[symbol],
+                ...quoteData,
+                'lastPrice': quoteData['lastPrice'],
+                'change': quoteData['change'],
+                'changePercent': quoteData['changePercent'],
+              };
+            }
+          });
+        });
+      }
+    });
+    
+    AppLogger.info("PriceTestPage.initState", "StreamService connected and listening");
+  }
+
+  @override
   void dispose() {
+    _streamSubscription?.cancel();
+    _streamService.dispose();
     _symbolController.dispose();
     super.dispose();
   }
@@ -65,19 +111,29 @@ class _PriceTestPageState extends State<PriceTestPage> {
     setState(() {
       _isLoading = true;
       _error = null;
-      _result = null;
+      _liveDataMap = {};
+      _historicalDataCache = {};
       _expandedCards.clear();
     });
 
     try {
-      final hasDateRange = _fromDate != null && _toDate != null;
+      AppLogger.info("PriceTestPage.fetchPrices", "Fetching data for symbols: $symbol");
       
-      if (hasDateRange) {
-        await _fetchHistoricalData(symbol);
-      } else {
+      // Check if we have a complete date range
+      final hasCompleteDateRange = _fromDate != null && _toDate != null;
+      
+      if (!hasCompleteDateRange) {
+        // Only fetch live data if no date range is selected
         await _fetchLiveData(symbol);
+      } else {
+        // Fetch both live and historical data when date range is provided
+        await _fetchLiveData(symbol);
+        await _fetchHistoricalData(symbol);
       }
+      
+      setState(() => _isLoading = false);
     } catch (e) {
+      AppLogger.error("PriceTestPage.fetchPrices", "Error fetching data", e);
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -87,27 +143,46 @@ class _PriceTestPageState extends State<PriceTestPage> {
 
   Future<void> _fetchLiveData(String symbol) async {
     try {
+      AppLogger.info("PriceTestPage.fetchLiveData", "Fetching live data for: $symbol");
       final data = await _apiService.fetchLivePrices([symbol], _isIndexSymbol);
       
-      setState(() {
-        _isHistoricalMode = false;
-        if (data.containsKey('prices') && data['prices'] is List) {
-          final prices = data['prices'] as List;
-          if (prices.isNotEmpty) {
-            _result = {'mode': 'live', 'data': prices, 'timestamp': data['timestamp']};
-          } else {
-            _error = 'No data found';
-          }
-        } else {
-          _error = 'Unexpected response format';
+      if (data.containsKey('prices') && data['prices'] is List) {
+        final prices = data['prices'] as List;
+        final Map<String, dynamic> liveMap = {};
+        
+        for (var price in prices) {
+          final sym = price['tradingSymbol'] ?? price['symbol'] ?? 'Unknown';
+          liveMap[sym] = price;
         }
-        _isLoading = false;
-      });
+        
+        setState(() => _liveDataMap = liveMap);
+        AppLogger.info("PriceTestPage.fetchLiveData", "Loaded live data for ${liveMap.length} symbols");
+        
+        // Subscribe to streaming for these symbols
+        await _subscribeToStreaming(liveMap.keys.toList());
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Error: $e';
-        _isLoading = false;
-      });
+      AppLogger.error("PriceTestPage.fetchLiveData", "Error fetching live data", e);
+      throw Exception('Error fetching live data: $e');
+    }
+  }
+
+  Future<void> _subscribeToStreaming(List<String> symbols) async {
+    if (symbols.isEmpty) return;
+    
+    try {
+      AppLogger.info("PriceTestPage.subscribeToStreaming", "Subscribing to streaming for ${symbols.length} symbols: ${symbols.join(', ')}");
+      
+      // Use UPSTOX as default provider (can be made configurable)
+      final success = await _apiService.connectStream(symbols, 'UPSTOX');
+      
+      if (success) {
+        AppLogger.info("PriceTestPage.subscribeToStreaming", "Successfully subscribed to streaming");
+      } else {
+        AppLogger.error("PriceTestPage.subscribeToStreaming", "Failed to subscribe to streaming", null);
+      }
+    } catch (e) {
+      AppLogger.error("PriceTestPage.subscribeToStreaming", "Error subscribing to streaming", e);
     }
   }
 
@@ -117,6 +192,8 @@ class _PriceTestPageState extends State<PriceTestPage> {
       final fromStr = dateFormat.format(_fromDate!);
       final toStr = dateFormat.format(_toDate!);
 
+      AppLogger.info("PriceTestPage.fetchHistoricalData", "Fetching historical data from $fromStr to $toStr");
+      
       final data = await _apiService.fetchHistoricalData(
         symbols: [symbol],
         from: fromStr,
@@ -128,31 +205,33 @@ class _PriceTestPageState extends State<PriceTestPage> {
         continuous: _continuous,
       );
 
-      setState(() {
-        _isHistoricalMode = true;
-        if (data.containsKey('data')) {
-          _result = {
-            'mode': 'historical',
-            'data': data['data'],
-            'metadata': {
-              'from': fromStr,
-              'to': toStr,
-              'interval': _selectedInterval,
-              'count': data['count'] ?? 0,
+      if (data.containsKey('data')) {
+        final historicalData = data['data'] as Map<String, dynamic>;
+        final Map<String, List<Map<String, dynamic>>> cache = {};
+        
+        AppLogger.info("PriceTestPage.fetchHistoricalData", "Processing ${historicalData.length} symbols from response");
+        
+        historicalData.forEach((sym, stockData) {
+          AppLogger.info("PriceTestPage.fetchHistoricalData", "Processing symbol: $sym");
+          
+          if (stockData is Map && stockData['dataPoints'] != null) {
+            final dataPoints = (stockData['dataPoints'] as List)
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+            
+            if (dataPoints.isNotEmpty) {
+              cache[sym] = dataPoints;
+              AppLogger.info("PriceTestPage.fetchHistoricalData", "Cached ${dataPoints.length} data points for $sym");
             }
-          };
-        } else if (data.containsKey('error')) {
-          _error = data['error'].toString();
-        } else {
-          _error = 'No data found';
-        }
-        _isLoading = false;
-      });
+          }
+        });
+        
+        setState(() => _historicalDataCache = cache);
+        AppLogger.info("PriceTestPage.fetchHistoricalData", "Loaded historical data for ${cache.length} symbols: ${cache.keys.join(', ')}");
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Error: $e';
-        _isLoading = false;
-      });
+      AppLogger.error("PriceTestPage.fetchHistoricalData", "Error fetching historical data", e);
+      // Don't throw - historical data is optional
     }
   }
 
@@ -177,6 +256,16 @@ class _PriceTestPageState extends State<PriceTestPage> {
     }
   }
 
+  void _toggleCard(String symbol) {
+    setState(() {
+      if (_expandedCards.contains(symbol)) {
+        _expandedCards.remove(symbol);
+      } else {
+        _expandedCards.add(symbol);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,7 +275,7 @@ class _PriceTestPageState extends State<PriceTestPage> {
           SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(child: _buildInputSection()),
           
-          if (_result != null)
+          if (_liveDataMap.isNotEmpty)
             _buildResultsSection()
           else if (_error != null)
             SliverToBoxAdapter(child: _buildErrorCard())
@@ -261,15 +350,12 @@ class _PriceTestPageState extends State<PriceTestPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Symbol/Indices Dropdown
               _buildSymbolSelector(),
               const SizedBox(height: 16),
-              
-              // Interval
               _buildIntervalDropdown(),
               const SizedBox(height: 16),
               
-              // Optional Date Range Toggle
+              // Date Range Toggle
               InkWell(
                 onTap: () => setState(() => _showDateRange = !_showDateRange),
                 child: Container(
@@ -286,16 +372,10 @@ class _PriceTestPageState extends State<PriceTestPage> {
                         children: [
                           Icon(Icons.calendar_today, color: Colors.grey[700], size: 18),
                           const SizedBox(width: 10),
-                          Text(
-                            'Date Range (Optional)',
-                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                          ),
+                          Text('Date Range (Optional)', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
                         ],
                       ),
-                      Icon(
-                        _showDateRange ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.grey[600],
-                      ),
+                      Icon(_showDateRange ? Icons.expand_less : Icons.expand_more, color: Colors.grey[600]),
                     ],
                   ),
                 ),
@@ -322,10 +402,7 @@ class _PriceTestPageState extends State<PriceTestPage> {
               ],
               
               const SizedBox(height: 16),
-              
-              // Advanced Filters
               _buildAdvancedFilters(),
-              
               const SizedBox(height: 20),
               _buildFetchButton(),
             ],
@@ -336,27 +413,20 @@ class _PriceTestPageState extends State<PriceTestPage> {
   }
 
   Widget _buildSymbolSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _useIndexDropdown
-                  ? _buildIndexDropdown()
-                  : _buildTextInput(),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              onPressed: () => setState(() => _useIndexDropdown = !_useIndexDropdown),
-              icon: Icon(_useIndexDropdown ? Icons.edit : Icons.list),
-              tooltip: _useIndexDropdown ? 'Switch to text input' : 'Switch to index selector',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.grey[100],
-                foregroundColor: Colors.grey[700],
-              ),
-            ),
-          ],
+        Expanded(
+          child: _useIndexDropdown ? _buildIndexDropdown() : _buildTextInput(),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          onPressed: () => setState(() => _useIndexDropdown = !_useIndexDropdown),
+          icon: Icon(_useIndexDropdown ? Icons.edit : Icons.list),
+          tooltip: _useIndexDropdown ? 'Switch to text input' : 'Switch to index selector',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.grey[100],
+            foregroundColor: Colors.grey[700],
+          ),
         ),
       ],
     );
@@ -539,11 +609,7 @@ class _PriceTestPageState extends State<PriceTestPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.black87, fontSize: 13)),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.blue,
-          ),
+          Switch(value: value, onChanged: onChanged, activeColor: Colors.blue),
         ],
       ),
     );
@@ -569,85 +635,39 @@ class _PriceTestPageState extends State<PriceTestPage> {
   }
 
   Widget _buildResultsSection() {
-    if (_result == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
-
-    final mode = _result!['mode'];
-    final data = _result!['data'];
-
-    if (mode == 'live') {
-      final prices = data as List;
-      return SliverPadding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final priceData = prices[index];
-              final symbol = priceData['tradingSymbol'] ?? priceData['symbol'] ?? 'Unknown';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildStockCard(symbol, priceData, isLive: true),
-              );
-            },
-            childCount: prices.length,
-          ),
+    // Combine symbols from both live and historical data
+    final allSymbols = <String>{
+      ..._liveDataMap.keys,
+      ..._historicalDataCache.keys,
+    }.toList();
+    
+    AppLogger.info("PriceTestPage.buildResultsSection", "Displaying ${allSymbols.length} symbols");
+    
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final symbol = allSymbols[index];
+            final liveData = _liveDataMap[symbol];
+            final historicalData = _historicalDataCache[symbol];
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildStockCard(symbol, liveData, historicalData),
+            );
+          },
+          childCount: allSymbols.length,
         ),
-      );
-    } else {
-      final historicalData = data as Map<String, dynamic>;
-      final symbols = historicalData.keys.toList();
-      
-      return SliverPadding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final symbol = symbols[index];
-              final stockData = historicalData[symbol];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildStockCard(symbol, stockData, isLive: false),
-              );
-            },
-            childCount: symbols.length,
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 
-  Widget _buildStockCard(String symbol, dynamic data, {required bool isLive}) {
+  Widget _buildStockCard(String symbol, dynamic liveData, List<Map<String, dynamic>>? historicalData) {
     final isExpanded = _expandedCards.contains(symbol);
-    
     final isIndex = symbol.toUpperCase().contains('NIFTY') || 
                     symbol.toUpperCase().contains('SENSEX') ||
                     symbol.toUpperCase().contains('INDEX');
-    
-    DateTime? actualFromDate;
-    DateTime? actualToDate;
-    
-    if (!isLive && data['dataPoints'] != null && (data['dataPoints'] as List).isNotEmpty) {
-      final dataPoints = data['dataPoints'] as List;
-      try {
-        final firstPoint = dataPoints.first;
-        final lastPoint = dataPoints.last;
-        
-        if (firstPoint['time'] != null) {
-          if (firstPoint['time'] is int) {
-            actualFromDate = DateTime.fromMillisecondsSinceEpoch(firstPoint['time']);
-          } else if (firstPoint['time'] is String) {
-            actualFromDate = DateTime.parse(firstPoint['time']);
-          }
-        }
-        
-        if (lastPoint['time'] != null) {
-          if (lastPoint['time'] is int) {
-            actualToDate = DateTime.fromMillisecondsSinceEpoch(lastPoint['time']);
-          } else if (lastPoint['time'] is String) {
-            actualToDate = DateTime.parse(lastPoint['time']);
-          }
-        }
-      } catch (e) {}
-    }
     
     return Container(
       decoration: BoxDecoration(
@@ -665,223 +685,134 @@ class _PriceTestPageState extends State<PriceTestPage> {
       child: Column(
         children: [
           InkWell(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedCards.remove(symbol);
-                } else {
-                  _expandedCards.add(symbol);
-                }
-              });
-            },
+            onTap: () => _toggleCard(symbol),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)]),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(isLive ? Icons.show_chart : Icons.bar_chart, color: Colors.white, size: 18),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)]),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.show_chart, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    symbol,
-                                    style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.bold),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isIndex ? Colors.purple[50] : Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: isIndex ? Colors.purple : Colors.blue),
-                                  ),
-                                  child: Text(
-                                    isIndex ? 'INDEX' : 'STOCK',
-                                    style: TextStyle(
-                                      color: isIndex ? Colors.purple : Colors.blue,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            Flexible(
+                              child: Text(
+                                symbol,
+                                style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isLive ? Colors.green[50] : Colors.orange[50],
+                                color: isIndex ? Colors.purple[50] : Colors.blue[50],
                                 borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: isIndex ? Colors.purple : Colors.blue),
                               ),
                               child: Text(
-                                isLive ? 'LIVE' : 'HISTORICAL',
+                                isIndex ? 'INDEX' : 'STOCK',
                                 style: TextStyle(
-                                  color: isLive ? Colors.green[700] : Colors.orange[700],
+                                  color: isIndex ? Colors.purple : Colors.blue,
                                   fontSize: 9,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      if (isLive && data['lastPrice'] != null)
-                        Text('₹${_formatNumber(data['lastPrice'])}', style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 12),
-                      Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.grey[600]),
-                    ],
-                  ),
-                  
-                  if (!isLive && actualFromDate != null && actualToDate != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, left: 42),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today, color: Colors.grey[600], size: 12),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${DateFormat('dd MMM yyyy').format(actualFromDate)} - ${DateFormat('dd MMM yyyy').format(actualToDate)}',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        ],
-                      ),
+                          child: Text(
+                            'LIVE',
+                            style: TextStyle(color: Colors.green[700], fontSize: 9, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                // Always show price section (even if null, show loading)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (liveData != null && liveData['lastPrice'] != null)
+                      Text(
+                        '₹${_formatNumber(liveData['lastPrice'])}',
+                        style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+                      )
+                    else
+                      Text(
+                        '---',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    const SizedBox(height: 4),
+                    if (liveData != null && liveData['changePercent'] != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (liveData['changePercent'] >= 0) ? Colors.green[50] : Colors.red[50],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${liveData['changePercent'] >= 0 ? '+' : ''}${_formatNumber(liveData['changePercent'])}%',
+                          style: TextStyle(
+                            color: (liveData['changePercent'] >= 0) ? Colors.green[700] : Colors.red[700],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.grey[600]),
+              ],
             ),
           ),
+        ),
           
-          if (isExpanded)
+          if (isExpanded && historicalData != null && historicalData.isNotEmpty)
             Container(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
                   Divider(color: Colors.grey[200], height: 1),
                   const SizedBox(height: 12),
-                  if (isLive)
-                    _buildLiveDataTable(data)
-                  else
-                    _buildHistoricalDataTable(data),
+                  SizedBox(
+                    height: 300,
+                    child: StockChart(
+                      chartData: historicalData,
+                      isLoading: false,
+                    ),
+                  ),
                 ],
+              ),
+            )
+          else if (isExpanded && (historicalData == null || historicalData.isEmpty))
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No historical data available. Please select a date range.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLiveDataTable(dynamic data) {
-    return Table(
-      border: TableBorder.all(color: Colors.grey[300]!),
-      columnWidths: const {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(1),
-      },
-      children: [
-        _buildTableRow('Open', '₹${_formatNumber(data['ohlc']?['open'])}', isHeader: false),
-        _buildTableRow('High', '₹${_formatNumber(data['ohlc']?['high'])}', isHeader: false),
-        _buildTableRow('Low', '₹${_formatNumber(data['ohlc']?['low'])}', isHeader: false),
-        _buildTableRow('Close', '₹${_formatNumber(data['ohlc']?['close'])}', isHeader: false),
-        if (data['volume'] != null)
-          _buildTableRow('Volume', _formatNumber(data['volume']), isHeader: false),
-      ],
-    );
-  }
-
-  Widget _buildHistoricalDataTable(dynamic data) {
-    if (data['dataPoints'] == null || (data['dataPoints'] as List).isEmpty) {
-      return Text('No data', style: TextStyle(color: Colors.grey[600], fontSize: 12));
-    }
-
-    final dataPoints = data['dataPoints'] as List;
-    
-    return Column(
-      children: [
-        Text('${dataPoints.length} Data Points', style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Container(
-          constraints: const BoxConstraints(maxHeight: 300),
-          child: SingleChildScrollView(
-            child: Table(
-              border: TableBorder.all(color: Colors.grey[300]!),
-              columnWidths: const {
-                0: FlexColumnWidth(2.5),
-                1: FlexColumnWidth(1),
-                2: FlexColumnWidth(1),
-                3: FlexColumnWidth(1),
-                4: FlexColumnWidth(1),
-              },
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(color: Colors.grey[100]),
-                  children: ['Time', 'Open', 'High', 'Low', 'Close'].map((h) => 
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(h, style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    )
-                  ).toList(),
-                ),
-                ...dataPoints.map((point) => TableRow(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(_formatTimestamp(point['time']), style: TextStyle(color: Colors.grey[700], fontSize: 10)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(_formatNumber(point['open']), style: const TextStyle(color: Colors.black87, fontSize: 10), textAlign: TextAlign.right),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(_formatNumber(point['high']), style: TextStyle(color: Colors.green[700], fontSize: 10), textAlign: TextAlign.right),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(_formatNumber(point['low']), style: TextStyle(color: Colors.red[700], fontSize: 10), textAlign: TextAlign.right),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(_formatNumber(point['close']), style: const TextStyle(color: Colors.black87, fontSize: 10), textAlign: TextAlign.right),
-                    ),
-                  ],
-                )).toList(),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  TableRow _buildTableRow(String label, String value, {bool isHeader = false}) {
-    return TableRow(
-      decoration: isHeader ? BoxDecoration(color: Colors.grey[100]) : null,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 12, fontWeight: isHeader ? FontWeight.bold : FontWeight.normal)),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Text(value, style: const TextStyle(color: Colors.black87, fontSize: 12), textAlign: TextAlign.right),
-        ),
-      ],
     );
   }
 
@@ -923,18 +854,5 @@ class _PriceTestPageState extends State<PriceTestPage> {
     if (value == null) return '-';
     if (value is num) return value.toStringAsFixed(2);
     return value.toString();
-  }
-
-  String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null) return '-';
-    try {
-      if (timestamp is int) {
-        return DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(timestamp));
-      }
-      if (timestamp is String) {
-        return DateFormat('dd/MM HH:mm').format(DateTime.parse(timestamp));
-      }
-    } catch (e) {}
-    return timestamp.toString();
   }
 }
