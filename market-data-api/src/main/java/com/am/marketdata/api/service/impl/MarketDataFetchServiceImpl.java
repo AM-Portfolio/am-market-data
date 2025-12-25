@@ -129,15 +129,9 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             Map<String, Object> additionalParams, boolean forceRefresh,
             FilterParams filterParams, String providerName) {
         try {
-            // Get raw historical data - InvestmentInstrumentService updated to NOT take
-            // providerName
-            // But wait, InvestmentInstrumentService.getHistoricalData DOES NOT take
-            // providerName anymore.
-            // So 'providerName' passed here is useless unless I use marketDataService
-            // directly?
-            // InvestmentInstrumentService delegates to MarketDataService with null
-            // provider.
-            // So we can ignore providerName here.
+            log.info("processSymbolHistoricalData", String.format(
+                    "[INTERVAL_TRACE] processSymbolHistoricalData → InvestmentInstrumentService: Fetching data for symbol: %s, interval: %s (apiValue: %s), forceRefresh: %b",
+                    symbol, interval, interval.getApiValue(), forceRefresh));
 
             Map<String, Object> singleResult = investmentInstrumentService.getHistoricalData(
                     symbol, fromDate, toDate, interval, instrumentType, additionalParams);
@@ -187,8 +181,9 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             TimeFrame interval, String instrumentType,
             Map<String, Object> additionalParams, boolean forceRefresh) {
         String methodName = "getHistoricalDataMultipleSymbols";
-        log.info(methodName, String.format("Processing historical data request for multiple symbols: %s from %s to %s",
-                symbols, fromDate, toDate));
+        log.info(methodName, String.format(
+                "[INTERVAL_TRACE] getHistoricalDataMultipleSymbols: Processing historical data request for multiple symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), forceRefresh: %b",
+                symbols, fromDate, toDate, interval, interval.name(), interval.getApiValue(), forceRefresh));
 
         Map<String, Object> aggregatedResult = new HashMap<>();
         Map<String, Object> symbolsData = new HashMap<>();
@@ -207,6 +202,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         int totalFilteredDataPoints = 0;
 
         for (String symbol : symbols) {
+            log.info(methodName, String.format(
+                    "[INTERVAL_TRACE] Processing symbol: %s with interval: %s (apiValue: %s)",
+                    symbol, interval, interval.getApiValue()));
+
             // Passing null provider
             SymbolProcessingResult result = processSymbolHistoricalData(
                     symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams,
@@ -254,7 +253,8 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         aggregatedResult.put("symbols", symbols);
         aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
         aggregatedResult.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
-        aggregatedResult.put("interval", interval);
+        aggregatedResult.put("interval", interval.getApiValue()); // Store as API value string
+        aggregatedResult.put("intervalEnum", interval.name()); // Also store enum name for debugging
         aggregatedResult.put("totalSymbols", symbols.size());
         aggregatedResult.put("successfulSymbols", successCount);
         aggregatedResult.put("totalDataPoints", totalDataPoints);
@@ -265,6 +265,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
         }
         aggregatedResult.put("processingTimeMs", (endTime - startTime));
+
+        log.info(methodName, String.format(
+                "[INTERVAL_TRACE] getHistoricalDataMultipleSymbols: Completed processing. Interval used: %s (apiValue: %s), Total symbols: %d, Successful: %d, Total data points: %d",
+                interval, interval.getApiValue(), symbols.size(), successCount, totalDataPoints));
 
         return aggregatedResult;
     }
@@ -481,8 +485,11 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
         String methodName = "processHistoricalDataRequest";
         log.info(methodName, String.format(
-                "Processing historical data request for symbols: %s from %s to %s, interval: %s, filterType: %s",
-                request.getSymbols(), request.getFrom(), request.getTo(), TimeFrame.fromApiValue(request.getInterval()),
+                "[INTERVAL_TRACE] Controller → Service: Processing historical data request for symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), filterType: %s",
+                request.getSymbols(), request.getFrom(), request.getTo(),
+                request.getInterval(),
+                request.getInterval().name(),
+                request.getInterval().getApiValue(),
                 request.getFilterType()));
 
         Set<String> symbolList = parseSymbols(request.getSymbols());
@@ -523,14 +530,22 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         // enforced.
         // This is consistent with "sticky session" goal.
 
+        log.info(methodName, String.format(
+                "[INTERVAL_TRACE] Service → getHistoricalDataMultipleSymbols: Calling with interval: %s (apiValue: %s)",
+                request.getInterval(), request.getInterval().getApiValue()));
+
         Map<String, Object> response = getHistoricalDataMultipleSymbols(
-                symbolList, fromDate, toDate, TimeFrame.fromApiValue(request.getInterval()),
+                symbolList, fromDate, toDate, request.getInterval(),
                 request.getInstrumentType(),
                 additionalParams, request.isForceRefresh());
 
         if (!response.containsKey("cached")) {
             response.put("cached", !request.isForceRefresh());
         }
+
+        log.info(methodName, String.format(
+                "[INTERVAL_TRACE] Service → Controller: Returning response with interval: %s",
+                response.get("interval")));
 
         return response;
     }
@@ -629,7 +644,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         request.setSymbols(symbol); // Expects String, not List
         request.setFrom(from.toString());
         request.setTo(to.toString());
-        request.setInterval(interval);
+        request.setInterval(TimeFrame.fromApiValue(interval)); // Convert string to TimeFrame
         request.setFilterType("price");
 
         try {

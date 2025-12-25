@@ -27,7 +27,7 @@ public class HistoricalDataRequest {
     private String to;
 
     @Builder.Default
-    private String interval = TimeFrame.DAY.getApiValue();
+    private TimeFrame interval = TimeFrame.MINUTE;
 
     private boolean continuous;
 

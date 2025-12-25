@@ -298,7 +298,7 @@ public class MarketDataController {
                 String.format(
                         "Controller received POST request for historical data for symbols: %s from %s to %s, interval: %s, filterType: %s, forceRefresh: %s",
                         request.getSymbols(), request.getFrom(), request.getTo(),
-                        TimeFrame.fromApiValue(request.getInterval()),
+                        request.getInterval().name(),
                         request.getFilterType(), request.isForceRefresh()));
 
         try {
@@ -624,6 +624,117 @@ public class MarketDataController {
                     e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch live prices");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * Get live LTP with change calculation based on historical closing price
+     * 
+     * @param symbols     Comma-separated list of symbols
+     * @param timeframe   Timeframe for historical comparison (1D, 1W, 1M, 1Y)
+     * @param indexSymbol Whether symbols are indices
+     * @return Map containing LTP, change, and changePercent for each symbol
+     */
+    @GetMapping(value = "/live-ltp", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get live LTP with change calculation", description = "Retrieves current LTP and calculates change based on historical closing price for the specified timeframe")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Live LTP with change retrieved successfully"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> getLiveLTP(
+            @RequestParam(name = "symbols", required = true) String symbols,
+            @RequestParam(name = "timeframe", defaultValue = "1D") String timeframe,
+            @RequestParam(name = "isIndexSymbol", required = false, defaultValue = "true") boolean indexSymbol) {
+        try {
+            log.info("getLiveLTP", "Fetching live LTP for symbols: " + symbols + ", timeframe: " + timeframe);
+
+            Set<String> symbolList = parseSymbols(symbols);
+            if (symbolList.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "No symbols provided");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            // Parse timeframe
+            TimeFrame tf;
+            try {
+                tf = TimeFrame.fromApiValue(timeframe);
+            } catch (Exception e) {
+                log.warn("getLiveLTP", "Invalid timeframe: " + timeframe + ", defaulting to 1D");
+                tf = TimeFrame.DAY;
+            }
+
+            // Step 1: Fetch historical data (last closing price) via cache → DB → provider
+            log.info("getLiveLTP", "Fetching historical OHLC data for " + symbolList.size()
+                    + " symbols with timeframe: " + tf.getApiValue());
+            Map<String, OHLCQuote> historicalData = marketDataCacheService.getOHLC(symbolList, indexSymbol, tf, false);
+
+            // Step 2: Fetch current live prices
+            log.info("getLiveLTP", "Fetching current live prices for " + symbolList.size() + " symbols");
+            Map<String, Object> livePrices = marketDataCacheService.getLivePrices(symbolList, indexSymbol, false);
+
+            // Step 3: Calculate change and percentage change
+            Map<String, Map<String, Object>> result = new HashMap<>();
+
+            // Extract prices from live prices response
+            Object pricesObj = livePrices.get("prices");
+            if (pricesObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> pricesList = (List<Map<String, Object>>) pricesObj;
+
+                for (Map<String, Object> priceData : pricesList) {
+                    String symbol = (String) priceData.get("symbol");
+                    if (symbol == null)
+                        continue;
+
+                    Double currentPrice = ((Number) priceData.get("lastPrice")).doubleValue();
+
+                    // Get historical closing price
+                    OHLCQuote historical = historicalData.get(symbol);
+                    if (historical == null) {
+                        // Try with NSE: prefix
+                        historical = historicalData.get("NSE:" + symbol);
+                    }
+
+                    double previousClose = 0.0;
+                    if (historical != null && historical.getOhlc() != null) {
+                        previousClose = historical.getOhlc().getClose();
+                    } else {
+                        log.warn("getLiveLTP",
+                                "No historical data found for symbol: " + symbol + ", using 0 as previous close");
+                    }
+
+                    // Calculate change and percentage
+                    double change = currentPrice - previousClose;
+                    double changePercent = previousClose != 0 ? (change / previousClose) * 100 : 0.0;
+
+                    Map<String, Object> ltpData = new HashMap<>();
+                    ltpData.put("symbol", symbol);
+                    ltpData.put("lastPrice", currentPrice);
+                    ltpData.put("previousClose", previousClose);
+                    ltpData.put("change", change);
+                    ltpData.put("changePercent", changePercent);
+                    ltpData.put("timeframe", tf.getApiValue());
+
+                    result.put(symbol, ltpData);
+                }
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", result.size());
+            response.put("timeframe", tf.getApiValue());
+            response.put("data", result);
+            response.put("timestamp", new Date());
+
+            log.info("getLiveLTP", "Successfully calculated LTP with change for " + result.size() + " symbols");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("getLiveLTP", "Unexpected error while fetching live LTP: " + e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to fetch live LTP");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }

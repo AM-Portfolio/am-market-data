@@ -27,14 +27,16 @@ public class MarketAnalyticsService {
     /**
      * Get Top Gainers or Losers
      * 
-     * @param limit       Number of records
-     * @param type        "gainers" or "losers"
-     * @param indexSymbol Index to use for filtering (e.g., "NIFTY 50", "NIFTY 500")
-     * @param timeFrame   Time frame for price data (e.g., 1D, 1W, 1M)
+     * @param limit         Number of records
+     * @param type          "gainers" or "losers"
+     * @param indexSymbol   Index to use for filtering (e.g., "NIFTY 50", "NIFTY
+     *                      500")
+     * @param timeFrame     Time frame for price data (e.g., 1D, 1W, 1M)
+     * @param expandIndices Whether to expand index symbols to constituent stocks
      * @return List of enriched stock data sorted by percentage change
      */
     public List<Map<String, Object>> getMovers(int limit, String type, String indexSymbol,
-            com.am.marketdata.common.model.TimeFrame timeFrame) {
+            com.am.marketdata.common.model.TimeFrame timeFrame, boolean expandIndices) {
         // Use provided index or default
         String targetIndex = indexSymbol != null && !indexSymbol.isEmpty() ? indexSymbol : DEFAULT_MARKET_INDEX;
 
@@ -46,8 +48,11 @@ public class MarketAnalyticsService {
             return Collections.emptyList();
         }
 
-        // Enrich stock data with live prices
-        List<EnrichedStockData> enrichedData = stockDataEnricher.enrichWithPrices(indexData.getData());
+        // Enrich stock data with live prices, passing expandIndices parameter
+        List<EnrichedStockData> enrichedData = stockDataEnricher.enrichWithPrices(
+                indexData.getData(),
+                timeFrame != null ? timeFrame : com.am.marketdata.common.model.TimeFrame.DAY,
+                expandIndices);
 
         if (enrichedData.isEmpty()) {
             log.warn("getMovers", "No price data available for index: " + targetIndex);
@@ -69,12 +74,14 @@ public class MarketAnalyticsService {
      * Get Sector Performance
      * Aggregates performance of stocks grouped by their Industry (Sector)
      * 
-     * @param indexSymbol Index to use for filtering (e.g., "NIFTY 50", "NIFTY 500")
-     * @param timeFrame   Time frame for price data (e.g., 1D, 1W, 1M)
+     * @param indexSymbol   Index to use for filtering (e.g., "NIFTY 50", "NIFTY
+     *                      500")
+     * @param timeFrame     Time frame for price data (e.g., 1D, 1W, 1M)
+     * @param expandIndices Whether to expand index symbols to constituent stocks
      * @return List of sector performance data
      */
     public List<Map<String, Object>> getSectorPerformance(String indexSymbol,
-            com.am.marketdata.common.model.TimeFrame timeFrame) {
+            com.am.marketdata.common.model.TimeFrame timeFrame, boolean expandIndices) {
         // Use provided index or default
         String targetIndex = indexSymbol != null && !indexSymbol.isEmpty() ? indexSymbol : DEFAULT_MARKET_INDEX;
 
@@ -86,8 +93,11 @@ public class MarketAnalyticsService {
             return Collections.emptyList();
         }
 
-        // Enrich stock data with live prices
-        List<EnrichedStockData> enrichedData = stockDataEnricher.enrichWithPrices(indexData.getData());
+        // Enrich stock data with live prices, passing expandIndices parameter
+        List<EnrichedStockData> enrichedData = stockDataEnricher.enrichWithPrices(
+                indexData.getData(),
+                timeFrame != null ? timeFrame : com.am.marketdata.common.model.TimeFrame.DAY,
+                expandIndices);
 
         if (enrichedData.isEmpty()) {
             log.warn("getSectorPerformance", "No price data available for index: " + targetIndex);

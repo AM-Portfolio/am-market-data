@@ -25,10 +25,15 @@ public class MarketDataStreamController {
         try {
             log.info("Received stream connection request for provider: {}", request.getProvider());
 
-            // Resolve symbols/indices
-            java.util.Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(request.getInstrumentKeys());
-            log.info("Resolved {} symbols to {} for stream", request.getInstrumentKeys().size(),
-                    resolvedSymbols.size());
+            // Use expandIndices from request (defaults to false if not provided)
+            boolean expandIndices = request.getExpandIndices() != null ? request.getExpandIndices() : false;
+
+            // Resolve symbols/indices based on expandIndices parameter
+            java.util.Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(
+                    request.getInstrumentKeys(),
+                    expandIndices);
+            log.info("Resolved {} symbols to {} for stream (expandIndices={})",
+                    request.getInstrumentKeys().size(), resolvedSymbols.size(), expandIndices);
 
             pollingService.connectStream(new java.util.ArrayList<>(resolvedSymbols), request.getMode(),
                     request.getProvider());

@@ -261,6 +261,39 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchHistoricalData({
+    required List<String> symbols,
+    required String from,
+    required String to,
+    required String interval,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final requestBody = {
+        'symbols': symbols,
+        'from': from,
+        'to': to,
+        'interval': interval,
+        'forceRefresh': forceRefresh,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/market-data/historical-data'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to fetch historical data: ${response.statusCode}');
+      }
+    } catch (e) {
+      AppLogger.error("ApiService.fetchHistoricalData", "Error fetching historical data", e);
+      rethrow;
+    }
+  }
+
   // Legacy GET search
   Future<List<dynamic>> searchSecurities(String query) async {
     return searchSecuritiesAdvanced({'query': query});

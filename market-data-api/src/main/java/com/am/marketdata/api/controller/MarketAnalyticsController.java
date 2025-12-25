@@ -4,6 +4,7 @@ import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.service.MarketAnalyticsService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.log.AppLogger;
+import com.am.marketdata.common.model.TimeFrame;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,15 +41,18 @@ public class MarketAnalyticsController {
             @RequestParam(defaultValue = "gainers") String type,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) String indexSymbol,
-            @RequestParam(required = false) String timeFrame) {
+            @RequestParam(required = false) String timeFrame,
+            @RequestParam(defaultValue = "false") boolean expandIndices) {
         try {
             String index = indexSymbol != null ? indexSymbol : "NIFTY 50";
             com.am.marketdata.common.model.TimeFrame tf = timeFrame != null
                     ? com.am.marketdata.common.model.TimeFrame.fromApiValue(timeFrame)
                     : null;
             log.info("getMovers",
-                    "Fetching top " + limit + " " + type + " from " + index + " with timeFrame: " + timeFrame);
-            List<Map<String, Object>> movers = marketAnalyticsService.getMovers(limit, type, indexSymbol, tf);
+                    "Fetching top " + limit + " " + type + " from " + index + " with timeFrame: " + timeFrame
+                            + ", expandIndices: " + expandIndices);
+            List<Map<String, Object>> movers = marketAnalyticsService.getMovers(limit, type, indexSymbol, tf,
+                    expandIndices);
             return ResponseEntity.ok(movers);
         } catch (Exception e) {
             log.error("getMovers", "Error fetching movers", e);
@@ -67,15 +71,18 @@ public class MarketAnalyticsController {
     })
     public ResponseEntity<List<Map<String, Object>>> getSectorPerformance(
             @RequestParam(required = false) String indexSymbol,
-            @RequestParam(required = false) String timeFrame) {
+            @RequestParam(required = false) String timeFrame,
+            @RequestParam(defaultValue = "false") boolean expandIndices) {
         try {
             String index = indexSymbol != null ? indexSymbol : "NIFTY 50";
             com.am.marketdata.common.model.TimeFrame tf = timeFrame != null
                     ? com.am.marketdata.common.model.TimeFrame.fromApiValue(timeFrame)
                     : null;
             log.info("getSectorPerformance",
-                    "Fetching sector performance from " + index + " with timeFrame: " + timeFrame);
-            List<Map<String, Object>> sectors = marketAnalyticsService.getSectorPerformance(indexSymbol, tf);
+                    "Fetching sector performance from " + index + " with timeFrame: " + timeFrame + ", expandIndices: "
+                            + expandIndices);
+            List<Map<String, Object>> sectors = marketAnalyticsService.getSectorPerformance(indexSymbol, tf,
+                    expandIndices);
             return ResponseEntity.ok(sectors);
         } catch (Exception e) {
             log.error("getSectorPerformance", "Error fetching sector performance", e);
@@ -151,7 +158,7 @@ public class MarketAnalyticsController {
                     .symbols(symbol)
                     .from(from.toLocalDate().toString())
                     .to(to.toLocalDate().toString())
-                    .interval(interval)
+                    .interval(TimeFrame.fromApiValue(interval)) // Convert string to TimeFrame
                     .filterType("price")
                     .build();
 

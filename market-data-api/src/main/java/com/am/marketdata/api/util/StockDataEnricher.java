@@ -98,7 +98,7 @@ public class StockDataEnricher {
      * @return List of EnrichedStockData with price information
      */
     public List<EnrichedStockData> enrichWithPrices(List<StockData> stockDataList) {
-        return enrichWithPrices(stockDataList, TimeFrame.DAY);
+        return enrichWithPrices(stockDataList, TimeFrame.DAY, false);
     }
 
     /**
@@ -110,6 +110,19 @@ public class StockDataEnricher {
      */
     public List<EnrichedStockData> enrichWithPrices(List<StockData> stockDataList,
             com.am.marketdata.common.model.TimeFrame timeFrame) {
+        return enrichWithPrices(stockDataList, timeFrame, false);
+    }
+
+    /**
+     * Enrich a list of StockData with price information for a specific time frame
+     * 
+     * @param stockDataList List of StockData to enrich
+     * @param timeFrame     TimeFrame for price data (null for current/live prices)
+     * @param expandIndices Whether to expand index symbols to constituent stocks
+     * @return List of EnrichedStockData with price information
+     */
+    public List<EnrichedStockData> enrichWithPrices(List<StockData> stockDataList,
+            com.am.marketdata.common.model.TimeFrame timeFrame, boolean expandIndices) {
         if (stockDataList == null || stockDataList.isEmpty()) {
             return Collections.emptyList();
         }
@@ -127,8 +140,8 @@ public class StockDataEnricher {
             return Collections.emptyList();
         }
 
-        // Fetch prices for all symbols (with optional time frame)
-        Map<String, OHLCQuote> priceData = fetchLivePrices(symbols, timeFrame);
+        // Fetch prices for all symbols (with optional time frame and expansion control)
+        Map<String, OHLCQuote> priceData = fetchLivePrices(symbols, timeFrame, expandIndices);
 
         // Normalize price data keys to remove exchange prefix (NSE_EQ:, NSE:, etc.)
         Map<String, OHLCQuote> normalizedPriceData = new HashMap<>();
@@ -169,17 +182,18 @@ public class StockDataEnricher {
     /**
      * Fetch prices for a list of symbols with optional time frame
      * 
-     * @param symbols   List of symbols to fetch prices for
-     * @param timeFrame TimeFrame for price data (null for current/live)
+     * @param symbols       List of symbols to fetch prices for
+     * @param timeFrame     TimeFrame for price data (null for current/live)
+     * @param expandIndices Whether to expand index symbols to constituent stocks
      * @return Map of symbol to OHLCQuote
      */
     private Map<String, OHLCQuote> fetchLivePrices(List<String> symbols,
-            com.am.marketdata.common.model.TimeFrame timeFrame) {
+            com.am.marketdata.common.model.TimeFrame timeFrame, boolean expandIndices) {
         try {
             String timeFrameStr = timeFrame != null ? timeFrame.getApiValue() : TimeFrame.DAY.getApiValue();
 
-            // Resolve any index symbols to their constituent stocks
-            Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(symbols);
+            // Use the expandIndices parameter to control symbol resolution
+            Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(symbols, expandIndices);
             if (resolvedSymbols.isEmpty()) {
                 return Collections.emptyMap();
             }

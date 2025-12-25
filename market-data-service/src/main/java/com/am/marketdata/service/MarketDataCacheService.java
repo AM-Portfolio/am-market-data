@@ -46,8 +46,9 @@ public class MarketDataCacheService {
             String interval = timeFrame != null ? timeFrame.getApiValue() : "1D";
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-            log.info("cacheOHLCData", "Caching {} symbols with timeframe: {} for date: {}",
-                    ohlcData.size(), interval, today);
+            log.info("[INTERVAL_TRACE]", String.format(
+                    "MarketDataCacheService.cacheOHLCData: Caching %d symbols with timeFrame: %s (enum: %s, apiValue: %s) for date: %s",
+                    ohlcData.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null", interval, today));
 
             // Convert OHLC quotes to OHLCV objects and cache per symbol with timeframe
             List<String> cachedKeys = new ArrayList<>();
@@ -159,9 +160,10 @@ public class MarketDataCacheService {
                 expectedKeys.add(symbol + " -> " + redisKey);
             }
 
-            log.info("getOHLCFromCache",
-                    "Attempting to retrieve OHLC data from cache for {} symbols with timeFrame {} on date: {}",
-                    cleanSymbols.size(), timeFrame.getApiValue(), today);
+            log.info("[INTERVAL_TRACE]", String.format(
+                    "MarketDataCacheService.getOHLCFromCache: Attempting to retrieve OHLC data from cache for %d symbols with timeFrame: %s (enum: %s, apiValue: %s) on date: %s",
+                    cleanSymbols.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null",
+                    timeFrame.getApiValue(), today));
 
             log.debug("getOHLCFromCache", "Expected Redis keys: {}", expectedKeys);
 
@@ -222,10 +224,10 @@ public class MarketDataCacheService {
         try {
             // Log the cache retrieval attempt
             // Log the cache retrieval attempt
-            log.debug("getHistoricalDataFromCache",
-                    String.format(
-                            "Attempting to retrieve historical data from cache for symbol: %s with timeFrame: %s from: %s to: %s",
-                            symbol, timeFrame.getApiValue(), fromDate, toDate));
+            log.debug("[INTERVAL_TRACE]", String.format(
+                    "MarketDataCacheService.getHistoricalDataFromCache: Attempting to retrieve historical data from cache for symbol: %s, timeFrame: %s (enum: %s, apiValue: %s), from: %s, to: %s",
+                    symbol, timeFrame, timeFrame != null ? timeFrame.name() : "null",
+                    timeFrame != null ? timeFrame.getApiValue() : "null", fromDate, toDate));
 
             // Parse dates
             LocalDate from = LocalDate.parse(fromDate, DateTimeFormatter.ISO_LOCAL_DATE);

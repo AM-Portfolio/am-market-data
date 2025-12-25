@@ -159,24 +159,31 @@ public class MarketDataService {
 
     public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh,
             String providerName) {
-        String methodName = "getOHLC";
         String tfValue = timeFrame != null ? timeFrame.getApiValue() : "default";
         Timer.Sample timer = Timer.start(meterRegistry);
-        log.info(methodName, String.format("Getting OHLC for %d symbols with timeFrame: %s, forceRefresh: %b",
-                tradingSymbols.size(), tfValue, forceRefresh));
+        log.info(
+                "[INTERVAL_TRACE] MarketDataService.getOHLC: Getting OHLC for {} symbols with timeFrame: {} (enum: {}, apiValue: {}), forceRefresh: {}",
+                tradingSymbols.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null", tfValue, forceRefresh);
 
         try {
 
             providerName = resolveProviderName(providerName);
+            log.info(
+                    "[INTERVAL_TRACE] MarketDataService.getOHLC → OHLCDataRetriever: Creating retriever with timeFrame: {} (apiValue: {})",
+                    timeFrame, tfValue);
+
             OHLCDataRetriever retriever = createOHLCDataRetriever(providerName);
             Map<String, OHLCQuote> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
+
+            log.info("[INTERVAL_TRACE] MarketDataService.getOHLC: Retrieved {} OHLC quotes for timeFrame: {}",
+                    result != null ? result.size() : 0, tfValue);
 
             // Original success metric, adapted with tfValue
             meterRegistry.counter("market.data.success.count", "operation", "getOHLC", "timeFrame", tfValue)
                     .increment();
             return result;
         } catch (Exception e) {
-            log.error("Error getting OHLC data for timeFrame {}: {}", tfValue, e.getMessage(), e);
+            log.error("[INTERVAL_TRACE] Error getting OHLC data for timeFrame {}: {}", tfValue, e.getMessage(), e);
             meterRegistry
                     .counter("market.data.failure.count", "operation", "getOHLC", "timeFrame", tfValue)
                     .increment();
@@ -189,8 +196,17 @@ public class MarketDataService {
     public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, TimeFrame interval,
             boolean continuous, Map<String, Object> additionalParams, String providerName) {
         Timer.Sample timer = Timer.start(meterRegistry);
+        log.info(
+                "[INTERVAL_TRACE] MarketDataService.getHistoricalData: Fetching historical data for symbol: {}, interval: {} (enum: {}, apiValue: {}), from: {}, to: {}, continuous: {}",
+                symbol, interval, interval != null ? interval.name() : "null",
+                interval != null ? interval.getApiValue() : "null", fromDate, toDate, continuous);
+
         try {
             providerName = resolveProviderName(providerName);
+
+            log.info(
+                    "[INTERVAL_TRACE] MarketDataService.getHistoricalData → HistoricalDataRetriever: Building retriever with interval: {} (apiValue: {})",
+                    interval, interval != null ? interval.getApiValue() : "null");
 
             HistoricalDataRetriever retriever = HistoricalDataRetriever.builder()
                     .persistenceService(persistenceService)
@@ -206,14 +222,27 @@ public class MarketDataService {
                     .targetProviderName(providerName)
                     .build();
 
+            log.info(
+                    "[INTERVAL_TRACE] MarketDataService.getHistoricalData → HistoricalDataRetriever.retrieveData: Calling with interval: {}",
+                    interval);
+
             Map<String, HistoricalData> result = retriever.retrieveData(
                     Collections.singletonList(symbol),
                     interval,
                     false);
 
-            return result.get(symbol);
+            HistoricalData historicalData = result.get(symbol);
+            log.info(
+                    "[INTERVAL_TRACE] MarketDataService.getHistoricalData: Retrieved {} data points for symbol: {}, interval: {}",
+                    historicalData != null && historicalData.getDataPoints() != null
+                            ? historicalData.getDataPoints().size()
+                            : 0,
+                    symbol, interval != null ? interval.getApiValue() : "null");
+
+            return historicalData;
         } catch (Exception e) {
-            log.error("Error getting historical data: {}", e.getMessage(), e);
+            log.error("[INTERVAL_TRACE] Error getting historical data for interval {}: {}",
+                    interval != null ? interval.getApiValue() : "null", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getHistoricalData").increment();
             throw new RuntimeException("Failed to get historical data", e);
         } finally {
