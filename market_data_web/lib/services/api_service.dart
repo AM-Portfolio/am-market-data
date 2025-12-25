@@ -292,7 +292,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(json.decode(response.body));
       } else {
-        throw Exception('Failed to fetch historical data: ${response.statusCode}');
+        AppLogger.error("ApiService.fetchHistoricalData", 
+          "Failed with ${response.statusCode}: ${response.body}");
+        throw Exception('Failed to fetch historical data: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       AppLogger.error("ApiService.fetchHistoricalData", "Error fetching historical data", e);
