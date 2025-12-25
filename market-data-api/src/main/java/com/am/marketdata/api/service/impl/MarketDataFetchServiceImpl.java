@@ -12,7 +12,6 @@ import com.am.common.investment.model.stockindice.StockData;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.dto.HistoricalDataRequest;
-import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.common.model.OHLCQuote;
@@ -40,16 +39,13 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
     private final AppLogger log = AppLogger.getLogger();
 
-    private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataService marketDataService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final com.am.marketdata.api.util.InstrumentUtils instrumentUtils;
 
-    public MarketDataFetchServiceImpl(InvestmentInstrumentService investmentInstrumentService,
-            MarketDataService marketDataService,
+    public MarketDataFetchServiceImpl(MarketDataService marketDataService,
             StockIndicesMarketDataService stockIndicesMarketDataService,
             com.am.marketdata.api.util.InstrumentUtils instrumentUtils) {
-        this.investmentInstrumentService = investmentInstrumentService;
         this.marketDataService = marketDataService;
         this.stockIndicesMarketDataService = stockIndicesMarketDataService;
         this.instrumentUtils = instrumentUtils;
@@ -57,12 +53,25 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
     @Override
     public Map<String, Map<String, Object>> getQuotes(Set<String> tradingSymbols, boolean forceRefresh) {
-        // Pass null for providerName (InvestmentInstrumentService no longer takes it
-        // anyway,
-        // wait, I removed it from InvestmentInstrumentService too)
-        // investmentInstrumentService.getQuotes signature updated to
-        // getQuotes(List<String>)
-        return investmentInstrumentService.getQuotes(new ArrayList<>(tradingSymbols));
+        // Use marketDataService.getOHLC with DAY timeframe for quotes
+        Map<String, OHLCQuote> ohlcData = marketDataService.getOHLC(
+                new ArrayList<>(tradingSymbols), TimeFrame.DAY, forceRefresh, null);
+
+        // Convert to expected format
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
+            Map<String, Object> quoteData = new HashMap<>();
+            OHLCQuote quote = entry.getValue();
+            quoteData.put("lastPrice", quote.getLastPrice());
+            if (quote.getOhlc() != null) {
+                quoteData.put("open", quote.getOhlc().getOpen());
+                quoteData.put("high", quote.getOhlc().getHigh());
+                quoteData.put("low", quote.getOhlc().getLow());
+                quoteData.put("close", quote.getOhlc().getClose());
+            }
+            result.put(entry.getKey(), quoteData);
+        }
+        return result;
     }
 
     @Override
@@ -95,7 +104,13 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     @Override
     public Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh) {
         Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
-        return investmentInstrumentService.getLivePrices(new ArrayList<>(symbolsSet));
+        List<com.am.common.investment.model.equity.EquityPrice> prices = marketDataService.getLivePrices(
+                new ArrayList<>(symbolsSet), null);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("prices", prices);
+        result.put("count", prices.size());
+        return result;
     }
 
     /**
@@ -119,61 +134,6 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 String.format("indexSymbol=%b, expandIndices=%b, symbols=%s", indexSymbol, expandIndices, symbols));
 
         return instrumentUtils.resolveSymbols(new ArrayList<>(symbols), expandIndices);
-    }
-
-    /**
-     * Process historical data for a single symbol with filtering if requested
-     */
-    private SymbolProcessingResult processSymbolHistoricalData(String symbol, Date fromDate, Date toDate,
-            TimeFrame interval, String instrumentType,
-            Map<String, Object> additionalParams, boolean forceRefresh,
-            FilterParams filterParams, String providerName) {
-        try {
-            log.info("processSymbolHistoricalData", String.format(
-                    "[INTERVAL_TRACE] processSymbolHistoricalData → InvestmentInstrumentService: Fetching data for symbol: %s, interval: %s (apiValue: %s), forceRefresh: %b",
-                    symbol, interval, interval.getApiValue(), forceRefresh));
-
-            Map<String, Object> singleResult = investmentInstrumentService.getHistoricalData(
-                    symbol, fromDate, toDate, interval, instrumentType, additionalParams);
-
-            if (singleResult != null && !singleResult.containsKey("error")) {
-                int originalCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : 0;
-                if (filterParams.isFiltered) {
-                    singleResult = applyDataFiltering(singleResult, additionalParams);
-                }
-                int filteredCount = singleResult.containsKey("count") ? (int) singleResult.get("count") : originalCount;
-                return new SymbolProcessingResult(symbol, singleResult, true, originalCount, filteredCount, null);
-            } else {
-                log.warn("processSymbolHistoricalData", "Failed to get historical data for symbol: " + symbol);
-                return new SymbolProcessingResult(symbol,
-                        Collections.singletonMap("error", "Failed to fetch data"),
-                        false, 0, 0, null);
-            }
-        } catch (Exception e) {
-            log.error("processSymbolHistoricalData",
-                    "Error processing historical data for symbol " + symbol + ": " + e.getMessage(), e);
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("error", "Failed to fetch historical data");
-            errorResult.put("message", e.getMessage());
-            return new SymbolProcessingResult(symbol, errorResult, false, 0, 0, e);
-        }
-    }
-
-    private static class SymbolProcessingResult {
-        final Map<String, Object> data;
-        final boolean success;
-        final int originalCount;
-        final int filteredCount;
-        final Exception error;
-
-        SymbolProcessingResult(String symbol, Map<String, Object> data, boolean success,
-                int originalCount, int filteredCount, Exception error) {
-            this.data = data;
-            this.success = success;
-            this.originalCount = originalCount;
-            this.filteredCount = filteredCount;
-            this.error = error;
-        }
     }
 
     @Override
@@ -471,20 +431,29 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Object> getOptionChain(String underlyingSymbol, Date expiryDate, boolean forceRefresh) {
         log.debug("getOptionChain",
                 "Fetching option chain for symbol: " + underlyingSymbol + " with expiry date: " + expiryDate);
-        return investmentInstrumentService.getOptionChain(underlyingSymbol, expiryDate);
+        // Option chain functionality not yet migrated to MarketDataService
+        Map<String, Object> result = new HashMap<>();
+        result.put("error", "Option chain not yet supported");
+        return result;
     }
 
     @Override
     public Map<String, Object> getMutualFundDetails(String schemeCode, boolean forceRefresh) {
         log.debug("getMutualFundDetails", "Fetching mutual fund details for scheme code: " + schemeCode);
-        return investmentInstrumentService.getMutualFundDetails(schemeCode);
+        // Mutual fund functionality not yet migrated to MarketDataService
+        Map<String, Object> result = new HashMap<>();
+        result.put("error", "Mutual fund details not yet supported");
+        return result;
     }
 
     @Override
     public Map<String, Object> getMutualFundNavHistory(String schemeCode, Date from, Date to, boolean forceRefresh) {
         log.debug("getMutualFundNavHistory",
                 "Fetching mutual fund NAV history for scheme code: " + schemeCode + " from: " + from + " to: " + to);
-        return investmentInstrumentService.getMutualFundNavHistory(schemeCode, from, to);
+        // Mutual fund functionality not yet migrated to MarketDataService
+        Map<String, Object> result = new HashMap<>();
+        result.put("error", "Mutual fund NAV history not yet supported");
+        return result;
     }
 
     @Override

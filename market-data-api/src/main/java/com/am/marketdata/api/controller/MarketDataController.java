@@ -15,12 +15,10 @@ import java.util.stream.Collectors;
 import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.model.OHLCRequest;
 import com.am.marketdata.api.model.QuotesRequest;
-import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataService;
-import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -46,15 +44,12 @@ public class MarketDataController {
 
     private final AppLogger log = AppLogger.getLogger(MarketDataController.class);
     private final MarketDataService marketDataService;
-    private final InvestmentInstrumentService investmentInstrumentService;
     private final MarketDataFetchService marketDataCacheService;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
     public MarketDataController(MarketDataService marketDataService,
-            InvestmentInstrumentService investmentInstrumentService,
             MarketDataFetchService marketDataCacheService) {
         this.marketDataService = marketDataService;
-        this.investmentInstrumentService = investmentInstrumentService;
         this.marketDataCacheService = marketDataCacheService;
         dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
     }
@@ -322,51 +317,6 @@ public class MarketDataController {
                     "Unexpected error in controller while getting historical data: " + e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch historical data");
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
-    }
-
-    /**
-     * Get all available symbols with pagination and filtering
-     * 
-     * @param page     Page number for pagination
-     * @param size     Page size for pagination
-     * @param symbol   Symbol filter
-     * @param type     Instrument type filter
-     * @param exchange Exchange filter
-     * @return List of symbols with pagination metadata
-     */
-    @GetMapping(value = "/symbols", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Search for available trading symbols", description = "Search for available trading symbols with pagination and filtering options")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Symbols retrieved successfully"),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<Map<String, Object>> searchSymbols(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String symbol,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String exchange) {
-        try {
-            log.info("searchSymbols", String.format(
-                    "Controller received request to search symbols with page=%d, size=%d, symbol=%s, type=%s, exchange=%s",
-                    page, size, symbol, type, exchange));
-
-            Map<String, Object> response = investmentInstrumentService.searchInstruments(page, size, symbol, type,
-                    exchange);
-
-            // Check if there was an error
-            if (response.containsKey("error")) {
-                return ResponseEntity.internalServerError().body(response);
-            }
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("searchSymbols", "Unexpected error in controller while searching symbols: " + e.getMessage(), e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to search symbols");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
