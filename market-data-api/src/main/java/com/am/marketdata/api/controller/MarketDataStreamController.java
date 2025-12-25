@@ -23,7 +23,8 @@ public class MarketDataStreamController {
     @Operation(summary = "Connect to market data stream", description = "Initiates a WebSocket connection for the specified provider and instruments")
     public ResponseEntity<String> connect(@RequestBody StreamConnectRequest request) {
         try {
-            log.info("Received stream connection request for provider: {}", request.getProvider());
+            log.info("Received stream connection request for provider: {}, timeFrame: {}",
+                    request.getProvider(), request.getTimeFrame());
 
             // Use expandIndices from request (defaults to false if not provided)
             boolean expandIndices = request.getExpandIndices() != null ? request.getExpandIndices() : false;
@@ -35,9 +36,15 @@ public class MarketDataStreamController {
             log.info("Resolved {} symbols to {} for stream (expandIndices={})",
                     request.getInstrumentKeys().size(), resolvedSymbols.size(), expandIndices);
 
-            pollingService.connectStream(new java.util.ArrayList<>(resolvedSymbols), request.getMode(),
-                    request.getProvider());
-            return ResponseEntity.ok("Stream connection initiated successfully");
+            // Pass timeFrame to polling service for historical data enrichment
+            pollingService.connectStream(
+                    new java.util.ArrayList<>(resolvedSymbols),
+                    request.getMode(),
+                    request.getProvider(),
+                    request.getTimeFrame());
+
+            return ResponseEntity
+                    .ok("Stream connection initiated successfully with timeFrame: " + request.getTimeFrame());
         } catch (Exception e) {
             log.error("Failed to initiate stream connection: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Failed: " + e.getMessage());
