@@ -25,6 +25,7 @@ class _StreamerPageState extends State<StreamerPage> {
   String _provider = 'UPSTOX'; // UPSTOX, ZERODHA
   String _exchangeSegment = 'None'; // Default to None
   bool _autoPrefix = true;
+  bool _isIndexSymbol = false;
   final TextEditingController _symbolsController = TextEditingController(text: 'NIFTY 50'); // Default to NIFTY 50
   final TextEditingController _searchInputController = TextEditingController();
   
@@ -179,8 +180,8 @@ class _StreamerPageState extends State<StreamerPage> {
       }).toList();
     }
 
-    _log("Starting stream for ${symbols.length} symbols: ${symbols.join(', ')}", method: "StreamerPage._startStream");
-    final success = await _apiService.connectStream(symbols, _provider);
+    _log("Starting stream for ${symbols.length} symbols: ${symbols.join(', ')} (Index: $_isIndexSymbol)", method: "StreamerPage._startStream");
+    final success = await _apiService.connectStream(symbols, _provider, isIndexSymbol: _isIndexSymbol);
     if (success) {
       setState(() => _isStreaming = true);
       _log("Stream Connect Request Sent: OK", method: "StreamerPage._startStream");
@@ -307,6 +308,18 @@ class _StreamerPageState extends State<StreamerPage> {
                 fillColor: MaterialStateProperty.all(Colors.white),
               ),
               const Text("Auto-prefix Exchange?", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          
+          Row(
+            children: [
+              Checkbox(
+                value: _isIndexSymbol, 
+                onChanged: (val) => setState(() => _isIndexSymbol = val!),
+                checkColor: Colors.black,
+                fillColor: MaterialStateProperty.all(Colors.white),
+              ),
+              const Text("Is Index Symbol?", style: TextStyle(color: Colors.white)),
             ],
           ),
           

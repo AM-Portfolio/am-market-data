@@ -22,6 +22,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
     private final TimeFrame interval;
     private final boolean continuous;
     private final Map<String, Object> additionalParams;
+    private final boolean isIndexSymbol;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
     private HistoricalDataRetriever(
@@ -34,13 +35,15 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             TimeFrame interval,
             boolean continuous,
             Map<String, Object> additionalParams,
-            String targetProviderName) {
+            String targetProviderName,
+            boolean isIndexSymbol) {
         super(persistenceService, providerFactory, retrievalOrder, cacheResults, targetProviderName);
         this.fromDate = fromDate;
         this.toDate = toDate;
         this.interval = interval;
         this.continuous = continuous;
         this.additionalParams = additionalParams != null ? additionalParams : new HashMap<>();
+        this.isIndexSymbol = isIndexSymbol;
     }
 
     /**
@@ -66,9 +69,10 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
         String fromDateStr = dateFormat.format(fromDate);
         String toDateStr = dateFormat.format(toDate);
 
-        // Use batch retrieval instead of individual symbol lookups
+        // Use batch retrieval with isIndexSymbol parameter
         Map<String, HistoricalData> result = persistenceService.getMarketDataCacheService()
-                .getHistoricalDataFromCacheBatch(new ArrayList<>(remainingSymbols), interval, fromDateStr, toDateStr);
+                .getHistoricalDataFromCacheBatch(new ArrayList<>(remainingSymbols), interval, fromDateStr, toDateStr,
+                        isIndexSymbol);
 
         // Remove all symbols found in cache from remainingSymbols
         if (!result.isEmpty()) {
@@ -225,6 +229,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
         private TimeFrame interval;
         private boolean continuous;
         private Map<String, Object> additionalParams;
+        private boolean isIndexSymbol;
 
         public Builder fromDate(Date fromDate) {
             this.fromDate = fromDate;
@@ -248,6 +253,11 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
 
         public Builder additionalParams(Map<String, Object> additionalParams) {
             this.additionalParams = additionalParams;
+            return this;
+        }
+
+        public Builder isIndexSymbol(boolean isIndexSymbol) {
+            this.isIndexSymbol = isIndexSymbol;
             return this;
         }
 
@@ -279,7 +289,8 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
                     interval,
                     continuous,
                     additionalParams,
-                    targetProviderName);
+                    targetProviderName,
+                    isIndexSymbol);
         }
     }
 

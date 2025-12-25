@@ -126,12 +126,13 @@ class ApiService {
     return null;
   }
 
-  Future<bool> connectStream(List<String> symbols, String provider) async {
+  Future<bool> connectStream(List<String> symbols, String provider, {bool isIndexSymbol = false}) async {
     try {
       final payload = {
         'instrumentKeys': symbols,
         'mode': 'FULL',
-        'provider': provider
+        'provider': provider,
+        'isIndexSymbol': isIndexSymbol
       };
       
       final response = await http.post(

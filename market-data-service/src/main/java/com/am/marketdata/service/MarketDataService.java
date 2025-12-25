@@ -260,10 +260,13 @@ public class MarketDataService {
      * @param continuous       Whether to use continuous data
      * @param additionalParams Additional parameters
      * @param providerName     Provider name
+     * @param isIndexSymbol    Whether the symbols are index symbols (for index
+     *                         cache checking)
      * @return Map of symbol to HistoricalData
      */
     public Map<String, HistoricalData> getHistoricalDataBatch(List<String> symbols, Date fromDate, Date toDate,
-            TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName) {
+            TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName,
+            boolean isIndexSymbol) {
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
                 "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch: Fetching historical data for {} symbols, interval: {} (apiValue: {}), from: {}, to: {}",

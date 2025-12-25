@@ -27,12 +27,14 @@ public class MarketDataPollingService {
     @org.springframework.beans.factory.annotation.Value("${market-data.stream.poll-interval-seconds:10}")
     private int pollIntervalSeconds;
 
-    public void connectStream(List<String> instrumentKeys, String modeStr, String provider, String timeFrame) {
+    public void connectStream(List<String> instrumentKeys, String modeStr, String provider, String timeFrame,
+            Boolean isIndexSymbol) {
         // Symbols are already resolved by the controller based on expandIndices
         // parameter
         // No need to resolve again here
-        log.info("Initiating stream simulation via polling for {} instruments. Provider: {}, TimeFrame: {}",
-                instrumentKeys.size(), provider, timeFrame);
+        log.info(
+                "Initiating stream simulation via polling for {} instruments. Provider: {}, TimeFrame: {}, IsIndexSymbol: {}",
+                instrumentKeys.size(), provider, timeFrame, isIndexSymbol);
 
         String providerKey = provider != null ? provider.toUpperCase() : "UNKNOWN";
         final String finalTimeFrame = timeFrame != null ? timeFrame : "1D";
@@ -54,7 +56,7 @@ public class MarketDataPollingService {
                 if ("1D".equalsIgnoreCase(finalTimeFrame) || "1W".equalsIgnoreCase(finalTimeFrame)
                         || "1M".equalsIgnoreCase(finalTimeFrame)) {
                     // Fetch historical data for previous close and OHLC based on timeFrame
-                    enrichedData = fetchAndMergeHistoricalData(keys, liveOhlcData, finalTimeFrame);
+                    enrichedData = fetchAndMergeHistoricalData(keys, liveOhlcData, finalTimeFrame, isIndexSymbol);
                 } else {
                     // For other timeframes, use live data as-is
                     enrichedData = liveOhlcData;
@@ -110,7 +112,7 @@ public class MarketDataPollingService {
      * @return Enriched OHLC data with historical previous close
      */
     private Map<String, OHLCQuote> fetchAndMergeHistoricalData(
-            Set<String> symbols, Map<String, OHLCQuote> liveData, String timeFrame) {
+            Set<String> symbols, Map<String, OHLCQuote> liveData, String timeFrame, Boolean isIndexSymbol) {
         try {
             // Calculate historical date range based on timeFrame
             java.time.LocalDate today = java.time.LocalDate.now();
@@ -148,13 +150,18 @@ public class MarketDataPollingService {
                     symbols.size(), historicalDateStr, timeFrame);
 
             // Fetch historical data for the calculated date
+            Map<String, Object> additionalParams = new HashMap<>();
+            if (isIndexSymbol != null && isIndexSymbol) {
+                additionalParams.put("isIndexSymbol", true);
+            }
+
             Map<String, Object> historicalResponse = marketDataFetchService.getHistoricalDataMultipleSymbols(
                     symbols,
                     fromDate,
                     toDate,
                     TimeFrame.DAY,
                     "STOCK",
-                    new HashMap<>(),
+                    additionalParams,
                     false);
 
             // Merge historical and live data

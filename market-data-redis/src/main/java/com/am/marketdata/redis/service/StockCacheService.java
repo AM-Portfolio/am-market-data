@@ -138,10 +138,61 @@ public class StockCacheService {
 
     /**
      * Get historical bars for multiple symbols within a date range
+     * 
+     * @param symbols       List of symbols to retrieve
+     * @param startDate     Start date (yyyy-MM-dd)
+     * @param endDate       End date (yyyy-MM-dd)
+     * @param interval      Time interval
+     * @param isIndexSymbol If true, check index cache first before falling back to
+     *                      stock cache
+     * @return Map of symbol to list of StockBars
+     */
+    public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate,
+            String endDate, String interval, boolean isIndexSymbol) {
+
+        // If this is an index symbol request and we only have one symbol, check index
+        // cache first
+        if (isIndexSymbol && symbols.size() == 1) {
+            String indexSymbol = symbols.get(0);
+            String cacheKey = String.format("index:historical:%s:%s:%s:%s",
+                    indexSymbol, interval, startDate, endDate);
+
+            log.info("[INDEX_CACHE]", String.format(
+                    "Checking index cache for symbol: %s, interval: %s, dateRange: %s to %s",
+                    indexSymbol, interval, startDate, endDate));
+
+            // Try to get from index cache
+            Map<String, String> indexCacheData = stockRedisCache.getIndexHistoricalData(cacheKey);
+
+            if (indexCacheData != null && !indexCacheData.isEmpty()) {
+                log.info("[INDEX_CACHE]", String.format(
+                        "Index cache HIT for %s with %d constituent symbols",
+                        indexSymbol, indexCacheData.size()));
+
+                // Convert cached data back to StockBars format
+                // For now, we'll fall through to regular cache since the index cache
+                // stores HistoricalData format, not StockBars format
+                // This is a design consideration - we may need to align formats
+                log.debug("[INDEX_CACHE]",
+                        "Index cache data found but format conversion needed, falling back to stock cache");
+            } else {
+                log.info("[INDEX_CACHE]", String.format(
+                        "Index cache MISS for %s, falling back to stock cache",
+                        indexSymbol));
+            }
+        }
+
+        // Fall back to regular historical service (stock-level cache)
+        return historicalService.getHistoricalBarsWithStats(symbols, startDate, endDate, interval);
+    }
+
+    /**
+     * Get historical bars for multiple symbols within a date range (backward
+     * compatibility)
      */
     public Map<String, List<StockBars>> getHistoricalBarsWithStats(List<String> symbols, String startDate,
             String endDate, String interval) {
-        return historicalService.getHistoricalBarsWithStats(symbols, startDate, endDate, interval);
+        return getHistoricalBarsWithStats(symbols, startDate, endDate, interval, false);
     }
 
     /**

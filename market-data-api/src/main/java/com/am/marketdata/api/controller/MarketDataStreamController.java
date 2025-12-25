@@ -41,7 +41,8 @@ public class MarketDataStreamController {
                     new java.util.ArrayList<>(resolvedSymbols),
                     request.getMode(),
                     request.getProvider(),
-                    request.getTimeFrame());
+                    request.getTimeFrame(),
+                    request.getIsIndexSymbol() != null ? request.getIsIndexSymbol() : false);
 
             return ResponseEntity
                     .ok("Stream connection initiated successfully with timeFrame: " + request.getTimeFrame());

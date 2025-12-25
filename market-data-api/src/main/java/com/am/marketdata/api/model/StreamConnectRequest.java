@@ -10,4 +10,5 @@ public class StreamConnectRequest {
     private String mode; // e.g., "FULL", "LTPC"
     private Boolean expandIndices = false; // Whether to expand index symbols to constituents (default: false)
     private String timeFrame = "1D"; // TimeFrame for historical data calculation (default: 1D)
+    private Boolean isIndexSymbol = false; // Whether the symbol is an index (for caching purposes)
 }

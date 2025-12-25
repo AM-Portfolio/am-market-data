@@ -225,14 +225,16 @@ public class MarketDataCacheService {
     /**
      * Batch retrieval of historical data from cache for multiple symbols
      * 
-     * @param symbols   List of symbols to retrieve
-     * @param timeFrame The timeframe for the data
-     * @param fromDate  Start date in ISO format (yyyy-MM-dd)
-     * @param toDate    End date in ISO format (yyyy-MM-dd)
+     * @param symbols       List of symbols to retrieve
+     * @param timeFrame     The timeframe for the data
+     * @param fromDate      Start date in ISO format (yyyy-MM-dd)
+     * @param toDate        End date in ISO format (yyyy-MM-dd)
+     * @param isIndexSymbol Whether the symbols are index symbols (for index cache
+     *                      checking)
      * @return Map of symbol to HistoricalData for all symbols found in cache
      */
     public Map<String, HistoricalData> getHistoricalDataFromCacheBatch(List<String> symbols, TimeFrame timeFrame,
-            String fromDate, String toDate) {
+            String fromDate, String toDate, boolean isIndexSymbol) {
         try {
             if (symbols == null || symbols.isEmpty()) {
                 return Collections.emptyMap();
@@ -251,7 +253,7 @@ public class MarketDataCacheService {
 
                 // Use the date range method to get all data in a single call
                 Map<String, List<StockBars>> batchBars = stockCacheService.getHistoricalBarsWithStats(symbols,
-                        fromDate, toDate, timeFrame.getApiValue());
+                        fromDate, toDate, timeFrame.getApiValue(), isIndexSymbol);
 
                 if (batchBars != null && !batchBars.isEmpty()) {
                     // Process each symbol's data

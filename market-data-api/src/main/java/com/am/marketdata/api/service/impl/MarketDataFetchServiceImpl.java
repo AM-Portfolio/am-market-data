@@ -163,8 +163,15 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                     "[BATCH_HISTORICAL] Calling marketDataService.getHistoricalDataBatch for %d symbols",
                     symbols.size()));
 
+            // Detect if this might be an index symbol (single symbol requests are often
+            // indices)
+            boolean isIndexSymbol = symbols.size() == 1;
+            if (additionalParams != null && additionalParams.containsKey("isIndexSymbol")
+                    && Boolean.TRUE.equals(additionalParams.get("isIndexSymbol"))) {
+                isIndexSymbol = true;
+            }
             Map<String, HistoricalData> batchResult = marketDataService.getHistoricalDataBatch(
-                    new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null);
+                    new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null, isIndexSymbol);
 
             int successCount = 0;
             int totalDataPoints = 0;
