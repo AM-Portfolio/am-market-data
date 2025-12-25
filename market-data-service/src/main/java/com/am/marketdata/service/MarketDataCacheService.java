@@ -11,6 +11,7 @@ import com.am.marketdata.redis.service.StockCacheService;
 import com.am.marketdata.redis.util.CacheLoggingUtil;
 
 import com.am.marketdata.common.log.AppLogger;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
@@ -36,9 +37,11 @@ public class MarketDataCacheService {
     private static final String DEFAULT_INTERVAL = "5m";
 
     private final StockCacheService stockCacheService;
+    private final ObjectMapper objectMapper;
 
-    public MarketDataCacheService(StockCacheService stockCacheService) {
+    public MarketDataCacheService(StockCacheService stockCacheService, ObjectMapper objectMapper) {
         this.stockCacheService = stockCacheService;
+        this.objectMapper = objectMapper;
     }
 
     public void cacheOHLCData(Map<String, OHLCQuote> ohlcData, TimeFrame timeFrame) {
@@ -217,6 +220,224 @@ public class MarketDataCacheService {
                     "Error retrieving OHLC data from cache", e);
             return Collections.emptyMap();
         }
+    }
+
+    /**
+     * Batch retrieval of historical data from cache for multiple symbols
+     * 
+     * @param symbols   List of symbols to retrieve
+     * @param timeFrame The timeframe for the data
+     * @param fromDate  Start date in ISO format (yyyy-MM-dd)
+     * @param toDate    End date in ISO format (yyyy-MM-dd)
+     * @return Map of symbol to HistoricalData for all symbols found in cache
+     */
+    public Map<String, HistoricalData> getHistoricalDataFromCacheBatch(List<String> symbols, TimeFrame timeFrame,
+            String fromDate, String toDate) {
+        try {
+            if (symbols == null || symbols.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
+            log.info("[BATCH_CACHE]", String.format(
+                    "Attempting to retrieve historical data from cache for %d symbols with timeFrame: %s (apiValue: %s), from: %s, to: %s",
+                    symbols.size(), timeFrame, timeFrame != null ? timeFrame.getApiValue() : "null", fromDate,
+                    toDate));
+
+            Map<String, HistoricalData> result = new HashMap<>();
+
+            // For daily/weekly/monthly/yearly data
+            if (timeFrame == TimeFrame.DAY || timeFrame == TimeFrame.WEEK || timeFrame == TimeFrame.MONTH
+                    || timeFrame == TimeFrame.YEAR) {
+
+                // Use the date range method to get all data in a single call
+                Map<String, List<StockBars>> batchBars = stockCacheService.getHistoricalBarsWithStats(symbols,
+                        fromDate, toDate, timeFrame.getApiValue());
+
+                if (batchBars != null && !batchBars.isEmpty()) {
+                    // Process each symbol's data
+                    for (Map.Entry<String, List<StockBars>> entry : batchBars.entrySet()) {
+                        String symbol = entry.getKey();
+                        List<StockBars> stockBarsList = entry.getValue();
+
+                        if (stockBarsList != null && !stockBarsList.isEmpty()) {
+                            // Create HistoricalData for this symbol
+                            HistoricalData historicalData = new HistoricalData();
+                            historicalData.setTradingSymbol(symbol);
+                            List<OHLCVTPoint> dataPoints = new ArrayList<>();
+
+                            // Add all bars to the data points
+                            for (StockBars stockBars : stockBarsList) {
+                                if (stockBars.getBars() != null && !stockBars.getBars().isEmpty()) {
+                                    for (OHLCV bar : stockBars.getBars()) {
+                                        OHLCVTPoint point = OHLCVTPoint.builder()
+                                                .time(bar.getTime())
+                                                .open(bar.getOpen())
+                                                .high(bar.getHigh())
+                                                .low(bar.getLow())
+                                                .close(bar.getClose())
+                                                .volume(bar.getVolume())
+                                                .build();
+                                        dataPoints.add(point);
+                                    }
+                                }
+                            }
+
+                            if (!dataPoints.isEmpty()) {
+                                historicalData.setDataPoints(dataPoints);
+                                result.put(symbol, historicalData);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // For intraday data
+                // Batch retrieve intraday bars for all symbols
+                Map<String, StockBars> batchBars = stockCacheService.getMultiSymbolBarsWithStats(symbols,
+                        timeFrame.getApiValue(), fromDate);
+
+                if (batchBars != null && !batchBars.isEmpty()) {
+                    for (Map.Entry<String, StockBars> entry : batchBars.entrySet()) {
+                        String symbol = entry.getKey();
+                        StockBars stockBars = entry.getValue();
+
+                        if (stockBars != null && stockBars.getBars() != null && !stockBars.getBars().isEmpty()) {
+                            result.put(symbol, convertToHistoricalData(symbol, stockBars.getBars()));
+                        }
+                    }
+                }
+            }
+
+            if (!result.isEmpty()) {
+                log.info("[BATCH_CACHE]",
+                        String.format("Retrieved historical data from cache for %d/%d symbols with timeFrame: %s",
+                                result.size(), symbols.size(), timeFrame.getApiValue()));
+            } else {
+                log.debug("[BATCH_CACHE]",
+                        String.format("No historical data found in cache for any of the %d symbols with timeFrame: %s",
+                                symbols.size(), timeFrame.getApiValue()));
+            }
+
+            return result;
+        } catch (Exception e) {
+            CacheLoggingUtil.logCacheException(log, "BATCH_GET_HISTORICAL_CACHE", String.join(", ", symbols),
+                    "Error retrieving historical data from cache in batch", e);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * Cache aggregated historical data at index level
+     * 
+     * @param indexSymbol     The index symbol (e.g., "NIFTY 50")
+     * @param timeFrame       The timeframe for the data
+     * @param fromDate        Start date in ISO format (yyyy-MM-dd)
+     * @param toDate          End date in ISO format (yyyy-MM-dd)
+     * @param constituentData Map of constituent symbol to HistoricalData
+     */
+    public void cacheIndexHistoricalData(String indexSymbol, TimeFrame timeFrame, String fromDate, String toDate,
+            Map<String, HistoricalData> constituentData) {
+        try {
+            if (constituentData == null || constituentData.isEmpty()) {
+                log.warn("[INDEX_CACHE]", "No constituent data to cache for index: " + indexSymbol);
+                return;
+            }
+
+            String cacheKey = String.format("index:historical:%s:%s:%s:%s",
+                    indexSymbol.toUpperCase(), timeFrame.getApiValue(), fromDate, toDate);
+
+            // Convert the map to a format suitable for Redis storage
+            // We'll store it as a hash with each constituent as a field
+            Map<String, String> hashData = new HashMap<>();
+            for (Map.Entry<String, HistoricalData> entry : constituentData.entrySet()) {
+                String symbol = entry.getKey();
+                HistoricalData data = entry.getValue();
+
+                // Serialize the HistoricalData to JSON string
+                try {
+                    String jsonData = serializeHistoricalData(data);
+                    hashData.put(symbol, jsonData);
+                } catch (Exception e) {
+                    log.warn("[INDEX_CACHE]", "Failed to serialize data for symbol: " + symbol, e);
+                }
+            }
+
+            if (!hashData.isEmpty()) {
+                stockCacheService.cacheIndexHistoricalData(cacheKey, hashData);
+                log.info("[INDEX_CACHE]",
+                        String.format("Cached index historical data for %s with %d constituents (key: %s)",
+                                indexSymbol, constituentData.size(), cacheKey));
+            }
+        } catch (Exception e) {
+            CacheLoggingUtil.logCacheException(log, "CACHE_INDEX_HISTORICAL", indexSymbol,
+                    "Error caching index historical data", e);
+        }
+    }
+
+    /**
+     * Retrieve cached index-level historical data
+     * 
+     * @param indexSymbol The index symbol (e.g., "NIFTY 50")
+     * @param timeFrame   The timeframe for the data
+     * @param fromDate    Start date in ISO format (yyyy-MM-dd)
+     * @param toDate      End date in ISO format (yyyy-MM-dd)
+     * @return Map of constituent symbol to HistoricalData if found, null otherwise
+     */
+    public Map<String, HistoricalData> getIndexHistoricalDataFromCache(String indexSymbol, TimeFrame timeFrame,
+            String fromDate, String toDate) {
+        try {
+            String cacheKey = String.format("index:historical:%s:%s:%s:%s",
+                    indexSymbol.toUpperCase(), timeFrame.getApiValue(), fromDate, toDate);
+
+            log.debug("[INDEX_CACHE]", String.format(
+                    "Attempting to retrieve index historical data from cache for %s (key: %s)",
+                    indexSymbol, cacheKey));
+
+            Map<String, String> hashData = stockCacheService.getIndexHistoricalData(cacheKey);
+
+            if (hashData != null && !hashData.isEmpty()) {
+                Map<String, HistoricalData> result = new HashMap<>();
+
+                for (Map.Entry<String, String> entry : hashData.entrySet()) {
+                    String symbol = entry.getKey();
+                    String jsonData = entry.getValue();
+
+                    try {
+                        HistoricalData data = deserializeHistoricalData(jsonData);
+                        result.put(symbol, data);
+                    } catch (Exception e) {
+                        log.warn("[INDEX_CACHE]", "Failed to deserialize data for symbol: " + symbol, e);
+                    }
+                }
+
+                if (!result.isEmpty()) {
+                    log.info("[INDEX_CACHE]",
+                            String.format("Retrieved index historical data from cache for %s with %d constituents",
+                                    indexSymbol, result.size()));
+                    return result;
+                }
+            }
+
+            log.debug("[INDEX_CACHE]", "No index historical data found in cache for: " + indexSymbol);
+            return null;
+        } catch (Exception e) {
+            CacheLoggingUtil.logCacheException(log, "GET_INDEX_HISTORICAL_CACHE", indexSymbol,
+                    "Error retrieving index historical data from cache", e);
+            return null;
+        }
+    }
+
+    /**
+     * Serialize HistoricalData to JSON string using Jackson
+     */
+    private String serializeHistoricalData(HistoricalData data) throws Exception {
+        return objectMapper.writeValueAsString(data);
+    }
+
+    /**
+     * Deserialize JSON string to HistoricalData using Jackson
+     */
+    private HistoricalData deserializeHistoricalData(String jsonData) throws Exception {
+        return objectMapper.readValue(jsonData, HistoricalData.class);
     }
 
     public HistoricalData getHistoricalDataFromCache(String symbol, TimeFrame timeFrame, String fromDate,

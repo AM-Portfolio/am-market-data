@@ -250,6 +250,68 @@ public class MarketDataService {
         }
     }
 
+    /**
+     * Batch retrieval of historical data for multiple symbols
+     * 
+     * @param symbols          List of symbols to retrieve
+     * @param fromDate         Start date
+     * @param toDate           End date
+     * @param interval         Time interval
+     * @param continuous       Whether to use continuous data
+     * @param additionalParams Additional parameters
+     * @param providerName     Provider name
+     * @return Map of symbol to HistoricalData
+     */
+    public Map<String, HistoricalData> getHistoricalDataBatch(List<String> symbols, Date fromDate, Date toDate,
+            TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName) {
+        Timer.Sample timer = Timer.start(meterRegistry);
+        log.info(
+                "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch: Fetching historical data for {} symbols, interval: {} (apiValue: {}), from: {}, to: {}",
+                symbols.size(), interval, interval != null ? interval.getApiValue() : "null", fromDate, toDate);
+
+        try {
+            providerName = resolveProviderName(providerName);
+
+            HistoricalDataRetriever retriever = HistoricalDataRetriever.builder()
+                    .persistenceService(persistenceService)
+                    .providerFactory(providerFactory)
+                    .retrievalOrder(
+                            Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                    .cacheResults(true)
+                    .fromDate(fromDate)
+                    .toDate(toDate)
+                    .interval(interval)
+                    .continuous(continuous)
+                    .additionalParams(additionalParams)
+                    .targetProviderName(providerName)
+                    .build();
+
+            log.info(
+                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch → HistoricalDataRetriever.retrieveData: Calling with {} symbols",
+                    symbols.size());
+
+            Map<String, HistoricalData> result = retriever.retrieveData(symbols, interval, false);
+
+            int totalDataPoints = result.values().stream()
+                    .filter(hd -> hd != null && hd.getDataPoints() != null)
+                    .mapToInt(hd -> hd.getDataPoints().size())
+                    .sum();
+
+            log.info(
+                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch: Retrieved data for {}/{} symbols with {} total data points",
+                    result.size(), symbols.size(), totalDataPoints);
+
+            meterRegistry.counter("market.data.success.count", "operation", "getHistoricalDataBatch").increment();
+            return result;
+        } catch (Exception e) {
+            log.error("[BATCH_HISTORICAL] Error getting batch historical data: {}", e.getMessage(), e);
+            meterRegistry.counter("market.data.failure.count", "operation", "getHistoricalDataBatch").increment();
+            throw new RuntimeException("Failed to get batch historical data", e);
+        } finally {
+            timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getHistoricalDataBatch"));
+        }
+    }
+
     public List<Instrument> getAllSymbols(String providerName) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {

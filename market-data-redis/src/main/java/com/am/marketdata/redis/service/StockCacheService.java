@@ -252,4 +252,18 @@ public class StockCacheService {
     public String getActiveProvider() {
         return stockRedisCache.getActiveProvider();
     }
+
+    /**
+     * Cache index-level historical data
+     */
+    public void cacheIndexHistoricalData(String cacheKey, Map<String, String> hashData) {
+        stockRedisCache.cacheIndexHistoricalData(cacheKey, hashData);
+    }
+
+    /**
+     * Get index-level historical data
+     */
+    public Map<String, String> getIndexHistoricalData(String cacheKey) {
+        return stockRedisCache.getIndexHistoricalData(cacheKey);
+    }
 }

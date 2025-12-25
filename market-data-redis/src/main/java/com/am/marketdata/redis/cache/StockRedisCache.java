@@ -310,7 +310,7 @@ public class StockRedisCache {
         }
 
         // Log first 3 keys for debugging
-        log.info("getMultiSymbolBars", "[REDIS_TRACE] Fetching {} keys from Redis. First 3 keys: {}",
+        log.debug("getMultiSymbolBars", "[REDIS_TRACE] Fetching {} keys from Redis. First 3 keys: {}",
                 keys.size(), keys.subList(0, Math.min(3, keys.size())));
 
         // Fetch all values in a single Redis operation
@@ -323,7 +323,7 @@ public class StockRedisCache {
 
         // Count how many values were found
         long foundCount = jsonValues.stream().filter(Objects::nonNull).count();
-        log.info("getMultiSymbolBars", "[REDIS_TRACE] Redis returned {} non-null values out of {} keys",
+        log.debug("getMultiSymbolBars", "[REDIS_TRACE] Redis returned {} non-null values out of {} keys",
                 foundCount, keys.size());
 
         Map<String, StockBars> result = new HashMap<>();
@@ -545,6 +545,63 @@ public class StockRedisCache {
             return redisTemplate.opsForValue().get("market-data:config:active-provider");
         } catch (Exception e) {
             log.error("getActiveProvider", "Error getting active provider: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Cache index-level historical data as a Redis hash
+     * 
+     * @param cacheKey The Redis key for the index data
+     * @param hashData Map of constituent symbol to serialized HistoricalData
+     */
+    public void cacheIndexHistoricalData(String cacheKey, Map<String, String> hashData) {
+        try {
+            if (hashData == null || hashData.isEmpty()) {
+                log.warn("[INDEX_CACHE]", "No hash data to cache for key: " + cacheKey);
+                return;
+            }
+
+            // Store as Redis hash
+            redisTemplate.opsForHash().putAll(cacheKey, hashData);
+
+            // Set TTL to 24 hours for index cache
+            redisTemplate.expire(cacheKey, 24, TimeUnit.HOURS);
+
+            log.info("[INDEX_CACHE]", String.format("Cached index data with key: %s (%d constituents)",
+                    cacheKey, hashData.size()));
+        } catch (Exception e) {
+            log.error("[INDEX_CACHE]", "Error caching index historical data: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retrieve index-level historical data from Redis hash
+     * 
+     * @param cacheKey The Redis key for the index data
+     * @return Map of constituent symbol to serialized HistoricalData, or null if
+     *         not found
+     */
+    public Map<String, String> getIndexHistoricalData(String cacheKey) {
+        try {
+            Map<Object, Object> rawData = redisTemplate.opsForHash().entries(cacheKey);
+
+            if (rawData == null || rawData.isEmpty()) {
+                log.debug("[INDEX_CACHE]", "No index data found for key: " + cacheKey);
+                return null;
+            }
+
+            // Convert Map<Object, Object> to Map<String, String>
+            Map<String, String> result = new HashMap<>();
+            for (Map.Entry<Object, Object> entry : rawData.entrySet()) {
+                result.put(entry.getKey().toString(), entry.getValue().toString());
+            }
+
+            log.info("[INDEX_CACHE]", String.format("Retrieved index data from cache: %s (%d constituents)",
+                    cacheKey, result.size()));
+            return result;
+        } catch (Exception e) {
+            log.error("[INDEX_CACHE]", "Error retrieving index historical data: " + e.getMessage(), e);
             return null;
         }
     }

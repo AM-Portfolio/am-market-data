@@ -63,25 +63,20 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
         log.info("[CACHE] Attempting to fetch historical data from cache for {} symbols",
                 remainingSymbols.size());
 
-        Map<String, HistoricalData> result = new HashMap<>();
         String fromDateStr = dateFormat.format(fromDate);
         String toDateStr = dateFormat.format(toDate);
 
-        for (String symbol : new ArrayList<>(remainingSymbols)) {
-            try {
-                HistoricalData data = persistenceService.getHistoricalData(symbol, interval, fromDateStr, toDateStr);
-                if (data != null && data.getDataPoints() != null && !data.getDataPoints().isEmpty()) {
-                    result.put(symbol, data);
-                    remainingSymbols.remove(symbol);
-                    log.debug("[CACHE] Found historical data for symbol: {}", symbol);
-                }
-            } catch (Exception e) {
-                log.warn("[CACHE] Error retrieving historical data for symbol {}: {}", symbol, e.getMessage());
-            }
+        // Use batch retrieval instead of individual symbol lookups
+        Map<String, HistoricalData> result = persistenceService.getMarketDataCacheService()
+                .getHistoricalDataFromCacheBatch(new ArrayList<>(remainingSymbols), interval, fromDateStr, toDateStr);
+
+        // Remove all symbols found in cache from remainingSymbols
+        if (!result.isEmpty()) {
+            remainingSymbols.removeAll(result.keySet());
+            log.info("[CACHE] Found historical data for {}/{} symbols in cache",
+                    result.size(), allSymbols.size());
         }
 
-        log.info("[CACHE] Found historical data for {}/{} symbols in cache",
-                result.size(), allSymbols.size());
         log.info("[CACHE] {} symbols remaining after cache lookup", remainingSymbols.size());
 
         return result;

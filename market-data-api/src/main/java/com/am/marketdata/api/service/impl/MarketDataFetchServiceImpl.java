@@ -182,93 +182,99 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             Map<String, Object> additionalParams, boolean forceRefresh) {
         String methodName = "getHistoricalDataMultipleSymbols";
         log.info(methodName, String.format(
-                "[INTERVAL_TRACE] getHistoricalDataMultipleSymbols: Processing historical data request for multiple symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), forceRefresh: %b",
-                symbols, fromDate, toDate, interval, interval.name(), interval.getApiValue(), forceRefresh));
+                "[BATCH_HISTORICAL] getHistoricalDataMultipleSymbols: Processing historical data request for %d symbols from %s to %s, interval: %s (apiValue: %s)",
+                symbols.size(), fromDate, toDate, interval, interval.getApiValue()));
 
         Map<String, Object> aggregatedResult = new HashMap<>();
         Map<String, Object> symbolsData = new HashMap<>();
-        aggregatedResult.put("data", symbolsData);
 
         if (symbols == null || symbols.isEmpty()) {
             log.warn(methodName, "No symbols provided for historical data request");
+            aggregatedResult.put("data", symbolsData);
             return aggregatedResult;
         }
 
         FilterParams filterParams = extractFilterParams(additionalParams);
-
         long startTime = System.currentTimeMillis();
-        int successCount = 0;
-        int totalDataPoints = 0;
-        int totalFilteredDataPoints = 0;
 
-        for (String symbol : symbols) {
+        try {
+            // Use batch retrieval instead of looping through symbols
             log.info(methodName, String.format(
-                    "[INTERVAL_TRACE] Processing symbol: %s with interval: %s (apiValue: %s)",
-                    symbol, interval, interval.getApiValue()));
+                    "[BATCH_HISTORICAL] Calling marketDataService.getHistoricalDataBatch for %d symbols",
+                    symbols.size()));
 
-            // Passing null provider
-            SymbolProcessingResult result = processSymbolHistoricalData(
-                    symbol, fromDate, toDate, interval, instrumentType, additionalParams, forceRefresh, filterParams,
-                    null);
+            Map<String, HistoricalData> batchResult = marketDataService.getHistoricalDataBatch(
+                    new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null);
 
-            if (result.success && result.data != null) {
-                // Extract points from the nested structure if possible
-                Object dataObj = result.data.get("data");
-                if (dataObj instanceof HistoricalData) {
-                    HistoricalData hd = (HistoricalData) dataObj;
+            int successCount = 0;
+            int totalDataPoints = 0;
+            int totalFilteredDataPoints = 0;
+
+            // Process batch results
+            for (String symbol : symbols) {
+                HistoricalData historicalData = batchResult.get(symbol);
+
+                if (historicalData != null && historicalData.getDataPoints() != null
+                        && !historicalData.getDataPoints().isEmpty()) {
+                    List<OHLCVTPoint> dataPoints = historicalData.getDataPoints();
+                    int originalCount = dataPoints.size();
+
+                    // Apply filtering if requested
+                    if (filterParams.isFiltered) {
+                        dataPoints = applyFilterStrategy(dataPoints, filterParams);
+                    }
+
+                    int filteredCount = dataPoints.size();
 
                     Map<String, Object> successData = new HashMap<>();
                     successData.put("status", "success");
-                    successData.put("dataPoints", hd.getDataPoints());
+                    successData.put("dataPoints", dataPoints);
+                    successData.put("count", filteredCount);
                     symbolsData.put(symbol, successData);
-                } else {
-                    // Fallback
-                    symbolsData.put(symbol, result.data);
-                }
 
-                successCount++;
-                totalDataPoints += result.originalCount;
-                totalFilteredDataPoints += result.filteredCount;
-            } else {
-                Map<String, Object> errorData = new HashMap<>();
-                errorData.put("status", "error");
-                if (result.data != null && result.data.containsKey("error")) {
-                    errorData.put("message", result.data.get("error"));
-                } else if (result.error != null) {
-                    errorData.put("message", result.error.getMessage());
+                    successCount++;
+                    totalDataPoints += originalCount;
+                    totalFilteredDataPoints += filteredCount;
                 } else {
-                    errorData.put("message", "Unknown error");
+                    Map<String, Object> errorData = new HashMap<>();
+                    errorData.put("status", "error");
+                    errorData.put("message", "No data found for symbol");
+                    symbolsData.put(symbol, errorData);
                 }
-                symbolsData.put(symbol, errorData);
             }
+
+            if (!filterParams.isFiltered) {
+                totalFilteredDataPoints = totalDataPoints;
+            }
+
+            long endTime = System.currentTimeMillis();
+
+            aggregatedResult.put("data", symbolsData);
+            aggregatedResult.put("symbols", symbols);
+            aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
+            aggregatedResult.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
+            aggregatedResult.put("interval", interval.getApiValue());
+            aggregatedResult.put("intervalEnum", interval.name());
+            aggregatedResult.put("totalSymbols", symbols.size());
+            aggregatedResult.put("successfulSymbols", successCount);
+            aggregatedResult.put("totalDataPoints", totalDataPoints);
+            aggregatedResult.put("filteredDataPoints", totalFilteredDataPoints);
+            aggregatedResult.put("filtered", filterParams.isFiltered);
+            aggregatedResult.put("filterType", filterParams.filterType);
+            if (filterParams.isFiltered) {
+                aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
+            }
+            aggregatedResult.put("processingTimeMs", (endTime - startTime));
+
+            log.info(methodName, String.format(
+                    "[BATCH_HISTORICAL] Completed batch processing. Total symbols: %d, Successful: %d, Total data points: %d, Processing time: %dms",
+                    symbols.size(), successCount, totalDataPoints, (endTime - startTime)));
+
+        } catch (Exception e) {
+            log.error(methodName, "Error in batch historical data retrieval: " + e.getMessage(), e);
+            aggregatedResult.put("error", "Failed to retrieve batch historical data");
+            aggregatedResult.put("message", e.getMessage());
         }
-
-        if (!filterParams.isFiltered) {
-            totalFilteredDataPoints = totalDataPoints;
-        }
-
-        long endTime = System.currentTimeMillis();
-
-        aggregatedResult.put("data", symbolsData);
-        aggregatedResult.put("symbols", symbols);
-        aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
-        aggregatedResult.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
-        aggregatedResult.put("interval", interval.getApiValue()); // Store as API value string
-        aggregatedResult.put("intervalEnum", interval.name()); // Also store enum name for debugging
-        aggregatedResult.put("totalSymbols", symbols.size());
-        aggregatedResult.put("successfulSymbols", successCount);
-        aggregatedResult.put("totalDataPoints", totalDataPoints);
-        aggregatedResult.put("filteredDataPoints", totalFilteredDataPoints);
-        aggregatedResult.put("filtered", filterParams.isFiltered);
-        aggregatedResult.put("filterType", filterParams.filterType);
-        if (filterParams.isFiltered) {
-            aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
-        }
-        aggregatedResult.put("processingTimeMs", (endTime - startTime));
-
-        log.info(methodName, String.format(
-                "[INTERVAL_TRACE] getHistoricalDataMultipleSymbols: Completed processing. Interval used: %s (apiValue: %s), Total symbols: %d, Successful: %d, Total data points: %d",
-                interval, interval.getApiValue(), symbols.size(), successCount, totalDataPoints));
 
         return aggregatedResult;
     }
