@@ -493,17 +493,25 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 request.getFilterType(),
                 request.isIndexSymbol()));
 
-        // Resolve symbols - expand indices if isIndexSymbol is true
+        // Resolve symbols - DON'T expand if isIndexSymbol is true
+        // isIndexSymbol=true means we want the index itself, not its constituents
+        // isIndexSymbol=false means expand indices to constituent stocks
         Set<String> symbolList;
         if (request.isIndexSymbol()) {
-            log.info(methodName, "[INTERVAL_TRACE] Expanding index symbols to constituent stocks: {}",
+            log.info(methodName, "[INTERVAL_TRACE] isIndexSymbol=true, returning index symbols as-is: {}",
                     request.getSymbols());
-            Set<String> parsedSymbols = parseSymbols(request.getSymbols());
-            symbolList = instrumentUtils.resolveSymbols(new ArrayList<>(parsedSymbols), true);
-            log.info(methodName, "[INTERVAL_TRACE] Expanded {} index symbols to {} constituent stocks",
-                    parsedSymbols.size(), symbolList.size());
-        } else {
             symbolList = parseSymbols(request.getSymbols());
+            // Pass expandIndices=false to keep index symbols as-is
+            symbolList = instrumentUtils.resolveSymbols(new ArrayList<>(symbolList), false);
+            log.info(methodName, "[INTERVAL_TRACE] Kept {} index symbols without expansion",
+                    symbolList.size());
+        } else {
+            log.info(methodName, "[INTERVAL_TRACE] isIndexSymbol=false, expanding indices to constituent stocks");
+            Set<String> parsedSymbols = parseSymbols(request.getSymbols());
+            // Pass expandIndices=true to expand indices to constituent stocks
+            symbolList = instrumentUtils.resolveSymbols(new ArrayList<>(parsedSymbols), true);
+            log.info(methodName, "[INTERVAL_TRACE] Expanded {} symbols to {} stocks",
+                    parsedSymbols.size(), symbolList.size());
         }
 
         if (symbolList.isEmpty()) {
