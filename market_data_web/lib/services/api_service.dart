@@ -267,14 +267,20 @@ class ApiService {
     required String to,
     required String interval,
     bool forceRefresh = false,
+    bool isIndexSymbol = false,
+    String instrumentType = 'STOCK',
+    bool continuous = false,
   }) async {
     try {
       final requestBody = {
-        'symbols': symbols,
+        'symbols': symbols.join(','),
         'from': from,
         'to': to,
         'interval': interval,
         'forceRefresh': forceRefresh,
+        'isIndexSymbol': isIndexSymbol,
+        'instrumentType': instrumentType,
+        'continuous': continuous,
       };
 
       final response = await http.post(

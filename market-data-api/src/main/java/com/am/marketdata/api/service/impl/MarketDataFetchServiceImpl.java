@@ -485,14 +485,27 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
         String methodName = "processHistoricalDataRequest";
         log.info(methodName, String.format(
-                "[INTERVAL_TRACE] Controller → Service: Processing historical data request for symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), filterType: %s",
+                "[INTERVAL_TRACE] Controller → Service: Processing historical data request for symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), filterType: %s, isIndexSymbol: %b",
                 request.getSymbols(), request.getFrom(), request.getTo(),
                 request.getInterval(),
                 request.getInterval().name(),
                 request.getInterval().getApiValue(),
-                request.getFilterType()));
+                request.getFilterType(),
+                request.isIndexSymbol()));
 
-        Set<String> symbolList = parseSymbols(request.getSymbols());
+        // Resolve symbols - expand indices if isIndexSymbol is true
+        Set<String> symbolList;
+        if (request.isIndexSymbol()) {
+            log.info(methodName, "[INTERVAL_TRACE] Expanding index symbols to constituent stocks: {}",
+                    request.getSymbols());
+            Set<String> parsedSymbols = parseSymbols(request.getSymbols());
+            symbolList = instrumentUtils.resolveSymbols(new ArrayList<>(parsedSymbols), true);
+            log.info(methodName, "[INTERVAL_TRACE] Expanded {} index symbols to {} constituent stocks",
+                    parsedSymbols.size(), symbolList.size());
+        } else {
+            symbolList = parseSymbols(request.getSymbols());
+        }
+
         if (symbolList.isEmpty()) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "No valid symbols provided");
@@ -505,7 +518,15 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             fromDate = dateFormat.parse(request.getFrom());
-            toDate = dateFormat.parse(request.getTo());
+
+            // If 'to' date is not provided, use current date
+            if (request.getTo() == null || request.getTo().trim().isEmpty()) {
+                toDate = new Date(); // Current date
+                log.info(methodName, "[INTERVAL_TRACE] 'to' date not provided, using current date: {}",
+                        dateFormat.format(toDate));
+            } else {
+                toDate = dateFormat.parse(request.getTo());
+            }
         } catch (ParseException e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Invalid date format");

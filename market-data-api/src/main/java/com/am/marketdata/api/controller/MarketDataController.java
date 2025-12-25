@@ -296,10 +296,10 @@ public class MarketDataController {
     public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
         log.info("getHistoricalData",
                 String.format(
-                        "Controller received POST request for historical data for symbols: %s from %s to %s, interval: %s, filterType: %s, forceRefresh: %s",
+                        "Controller received POST request for historical data for symbols: %s from %s to %s, interval: %s, filterType: %s, forceRefresh: %s, isIndexSymbol: %b",
                         request.getSymbols(), request.getFrom(), request.getTo(),
                         request.getInterval().name(),
-                        request.getFilterType(), request.isForceRefresh()));
+                        request.getFilterType(), request.isForceRefresh(), request.isIndexSymbol()));
 
         try {
             // Delegate all processing to the service

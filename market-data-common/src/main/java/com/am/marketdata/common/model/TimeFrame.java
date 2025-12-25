@@ -136,6 +136,31 @@ public enum TimeFrame {
     }
 
     /**
+     * Flexible parsing that accepts both enum names (DAY, HOUR, MINUTE) and API
+     * values (1D, 1H, 5m)
+     * This is useful for JSON deserialization where clients might send either
+     * format
+     * 
+     * @param value Either enum name or API value
+     * @return Matching TimeFrame
+     * @throws IllegalArgumentException if value is null or no matching TimeFrame is
+     *                                  found
+     */
+    public static TimeFrame fromString(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("TimeFrame value cannot be null");
+        }
+
+        // First, try to match as enum name (DAY, HOUR, MINUTE, etc.)
+        try {
+            return TimeFrame.valueOf(value.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // Not an enum name, try API value (1D, 1H, 5m, etc.)
+            return fromApiValue(value);
+        }
+    }
+
+    /**
      * Convert API value to Zerodha value
      * 
      * @param apiValue API value to convert

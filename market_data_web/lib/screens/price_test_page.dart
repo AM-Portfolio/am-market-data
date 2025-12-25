@@ -23,8 +23,18 @@ class _PriceTestPageState extends State<PriceTestPage> {
   DateTime? _fromDate;
   DateTime? _toDate;
   
+  // New filter options
+  bool _isIndexSymbol = false;
+  bool _forceRefresh = false;
+  bool _continuous = false;
+  String _instrumentType = 'STOCK';
+  
   final List<String> _intervals = [
     '1m', '5m', '15m', '30m', '1H', '1D', '1W', '1M'
+  ];
+  
+  final List<String> _instrumentTypes = [
+    'STOCK', 'INDEX', 'OPTION', 'FUTURE', 'COMMODITY'
   ];
 
   Future<void> _fetchPrices() async {
@@ -102,7 +112,10 @@ class _PriceTestPageState extends State<PriceTestPage> {
         from: fromStr,
         to: toStr,
         interval: _selectedInterval,
-        forceRefresh: false,
+        forceRefresh: _forceRefresh,
+        isIndexSymbol: _isIndexSymbol,
+        instrumentType: _instrumentType,
+        continuous: _continuous,
       );
 
       setState(() {
@@ -312,6 +325,94 @@ class _PriceTestPageState extends State<PriceTestPage> {
                 label: const Text('Clear Dates (Switch to Live Mode)', 
                   style: TextStyle(color: Colors.redAccent)),
               ),
+            const SizedBox(height: 24),
+
+            // Additional Filters Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Additional Filters',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Instrument Type Dropdown
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _instrumentType,
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF2A2A2A),
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        items: _instrumentTypes.map((String type) {
+                          return DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _instrumentType = newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Toggle Switches
+                  _buildToggleSwitch(
+                    label: 'Index Symbol',
+                    value: _isIndexSymbol,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _isIndexSymbol = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildToggleSwitch(
+                    label: 'Force Refresh',
+                    value: _forceRefresh,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _forceRefresh = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildToggleSwitch(
+                    label: 'Continuous',
+                    value: _continuous,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _continuous = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Fetch Button
@@ -742,5 +843,27 @@ class _PriceTestPageState extends State<PriceTestPage> {
       // Ignore parsing errors
     }
     return timestamp.toString();
+  }
+
+  Widget _buildToggleSwitch({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: Colors.blueAccent,
+          activeTrackColor: Colors.blueAccent.withOpacity(0.5),
+        ),
+      ],
+    );
   }
 }
