@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+
 /**
  * Configuration for thread pools used in the application
  */
@@ -19,10 +21,11 @@ public class ThreadPoolConfig {
 
     /**
      * Thread pool for market data persistence operations
+     * 
      * @return ThreadPoolTaskExecutor configured for persistence operations
      */
     @Bean(name = "marketDataPersistenceExecutor")
-    public ThreadPoolTaskExecutor marketDataPersistenceExecutor() {
+    public ThreadPoolTaskExecutor marketDataPersistenceExecutor(RedisConnectionFactory redisConnectionFactory) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(persistenceThreadPoolSize);
         executor.setMaxPoolSize(persistenceThreadPoolSize * 2);

@@ -155,9 +155,9 @@ public abstract class AbstractMarketDataRetriever<K, T> {
         Map<K, T> providerData = retrieveFromProvider(provider, keys);
 
         // Save to cache if configured to do so
-        if (cacheResults && providerData != null && !providerData.isEmpty()) {
-            saveDataAsync(providerData);
-        }
+        // if (cacheResults && providerData != null && !providerData.isEmpty()) {
+        // saveDataAsync(providerData);
+        // }
 
         return providerData != null ? providerData : Collections.emptyMap();
     }

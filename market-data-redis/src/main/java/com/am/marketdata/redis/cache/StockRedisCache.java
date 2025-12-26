@@ -224,15 +224,58 @@ public class StockRedisCache {
                 return true;
             }
 
-            // Execute pipeline with minimal logic
-            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-                for (Triple<byte[], byte[], Long> op : batchOps) {
-                    connection.setEx(op.first, op.third, op.second);
-                }
-                return null;
-            });
+            // Execute pipeline in chunks to avoid overloading connection
+            int batchSize = 500;
+            for (int i = 0; i < batchOps.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, batchOps.size());
+                List<Triple<byte[], byte[], Long>> chunk = batchOps.subList(i, end);
 
-            log.debug("saveHistoricalBar", "Executed pipeline for " + batchOps.size() + " historical bars");
+                try {
+                    redisTemplate.executePipelined(
+                            (org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                                for (Triple<byte[], byte[], Long> op : chunk) {
+                                    connection.setEx(op.first, op.third, op.second);
+                                }
+                                return null;
+                            });
+                    // Small delay between chunks to let Redis breathe
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                } catch (Exception e) {
+                    String symbolsInChunk = chunk.stream()
+                            .map(t -> {
+                                try {
+                                    String key = (String) redisTemplate.getStringSerializer().deserialize(t.first);
+                                    // Key format: stock:historical:SYMBOL:INTERVAL:DATE or INTRADAY
+                                    // Expected: stock:historical:SYMBOL:1D:2025-12-27
+                                    if (key != null) {
+                                        String[] parts = key.split(":");
+                                        return parts.length > 2 ? parts[2] : "UNKNOWN";
+                                    }
+                                    return "UNKNOWN";
+                                } catch (Exception ex) {
+                                    return "UNKNOWN";
+                                }
+                            })
+                            .distinct()
+                            .reduce((a, b) -> a + "," + b)
+                            .orElse("UNKNOWN");
+
+                    log.error("saveHistoricalBar", "Error saving chunk " + i + "-" + end + " (Symbols: "
+                            + symbolsInChunk + "): " + e.getMessage());
+                    // User request: Break process on failure to avoid hitting Redis repeatedly
+                    break;
+                }
+            }
+
+            // Cleanup
+            batchOps.clear();
+            batchOps = null;
+
+            log.debug("saveHistoricalBar", "Historical bar save process completed");
             return true;
         } catch (Exception e) {
             log.error("saveHistoricalBar", "Batch save failed", e);

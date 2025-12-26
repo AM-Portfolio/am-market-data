@@ -170,10 +170,15 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
                         log.error("[PROVIDER] Error persisting data for symbol {}: {}", symbol, e.getMessage());
                     }
 
-                    // Throttling: Wait 2 seconds before next provider call to allow
+                    // User Request: Cleanup to free memory
+                    historicalData = null;
+
+                    // Throttling: Wait 8 seconds before next provider call to allow
                     // persistence/cache catches up
+                    // Calculation: 50k records -> 100 chunks -> ~3s Redis + ~2s DB = 5s process
+                    // time. +3s buffer.
                     try {
-                        Thread.sleep(2000);
+                        Thread.sleep(8000);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         log.warn("[PROVIDER] Throttling interrupted for symbol: {}", symbol);
@@ -199,26 +204,30 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      */
     @Override
     protected void saveDataAsync(Map<String, HistoricalData> data) {
-        if (data == null || data.isEmpty()) {
-            return;
-        }
+        // if (data == null || data.isEmpty()) {
+        // return;
+        // }
 
-        String methodName = "saveDataAsync";
-        try {
-            log.info(methodName, "[PROVIDER_CACHE] Starting async save of {} symbols to DATABASE and REDIS",
-                    data.size());
+        // String methodName = "saveDataAsync";
+        // try {
+        // log.info(methodName, "[PROVIDER_CACHE] Starting async save of {} symbols to
+        // DATABASE and REDIS",
+        // data.size());
 
-            for (Map.Entry<String, HistoricalData> entry : data.entrySet()) {
-                persistenceService.saveHistoricalData(entry.getKey(), interval, entry.getValue());
-            }
+        // for (Map.Entry<String, HistoricalData> entry : data.entrySet()) {
+        // persistenceService.saveHistoricalData(entry.getKey(), interval,
+        // entry.getValue());
+        // }
 
-            log.info(methodName,
-                    "[PROVIDER_CACHE] Successfully initiated async save: {} symbols → DATABASE (InfluxDB) + REDIS cache",
-                    data.size());
-        } catch (Exception e) {
-            log.error(methodName,
-                    "[PROVIDER_CACHE] FAILED to save historical data to DATABASE/REDIS: " + e.getMessage(), e);
-        }
+        // log.info(methodName,
+        // "[PROVIDER_CACHE] Successfully initiated async save: {} symbols → DATABASE
+        // (InfluxDB) + REDIS cache",
+        // data.size());
+        // } catch (Exception e) {
+        // log.error(methodName,
+        // "[PROVIDER_CACHE] FAILED to save historical data to DATABASE/REDIS: " +
+        // e.getMessage(), e);
+        // }
     }
 
     /**
