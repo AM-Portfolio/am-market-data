@@ -11,8 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import com.am.marketdata.common.log.AppLogger;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,13 +29,12 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/v1/brokerage")
 @Tag(name = "Brokerage Calculator", description = "API for calculating brokerage, taxes, and other charges for stock trades")
 public class BrokerageCalculatorController {
-    private static final Logger log = LoggerFactory.getLogger(BrokerageCalculatorController.class);
-
+    private final AppLogger log = AppLogger.getLogger();
     private final BrokerageCalculatorApiService brokerageCalculatorApiService;
 
     public BrokerageCalculatorController(BrokerageCalculatorApiService brokerageCalculatorApiService) {
         this.brokerageCalculatorApiService = brokerageCalculatorApiService;
-        log.info("Initializing Brokerage Calculator Controller");
+        log.info("BrokerageCalculatorController", "Initializing Brokerage Calculator Controller");
     }
 
     /**
@@ -53,23 +53,24 @@ public class BrokerageCalculatorController {
     public ResponseEntity<BrokerageCalculationResponse> calculateBrokerage(
             @RequestBody BrokerageCalculationRequest request) {
 
-        log.info("Received brokerage calculation request for {} trade of {} shares of {}",
-                request.getTradeType(), request.getQuantity(), request.getTradingSymbol());
+        String methodName = "calculateBrokerage";
+        log.info(methodName, String.format("Received brokerage calculation request for %s trade of %d shares of %s",
+                request.getTradeType(), request.getQuantity(), request.getTradingSymbol()));
 
         try {
             BrokerageCalculationResponse response = brokerageCalculatorApiService.calculateBrokerage(request);
 
             if ("ERROR".equals(response.getStatus())) {
-                log.error("Error calculating brokerage: {}", response.getError());
+                log.error(methodName, "Error calculating brokerage: " + response.getError());
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, response.getError());
             }
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid brokerage calculation request: {}", e.getMessage());
+            log.error(methodName, "Invalid brokerage calculation request: " + e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
-            log.error("Error processing brokerage calculation request: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing brokerage calculation request: " + e.getMessage(), e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to calculate brokerage: " + e.getMessage());
         }
@@ -91,26 +92,28 @@ public class BrokerageCalculatorController {
     public CompletableFuture<ResponseEntity<BrokerageCalculationResponse>> calculateBrokerageAsync(
             @RequestBody BrokerageCalculationRequest request) {
 
-        log.info("Received async brokerage calculation request for {} trade of {} shares of {}",
-                request.getTradeType(), request.getQuantity(), request.getTradingSymbol());
+        String methodName = "calculateBrokerageAsync";
+        log.info(methodName,
+                String.format("Received async brokerage calculation request for %s trade of %d shares of %s",
+                        request.getTradeType(), request.getQuantity(), request.getTradingSymbol()));
 
         try {
             return brokerageCalculatorApiService.calculateBrokerageAsync(request)
                     .thenApply(response -> {
                         if ("ERROR".equals(response.getStatus())) {
-                            log.error("Error calculating brokerage asynchronously: {}", response.getError());
+                            log.error(methodName, "Error calculating brokerage asynchronously: " + response.getError());
                             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, response.getError());
                         }
 
                         return ResponseEntity.ok(response);
                     });
         } catch (IllegalArgumentException e) {
-            log.error("Invalid async brokerage calculation request: {}", e.getMessage());
+            log.error(methodName, "Invalid async brokerage calculation request: " + e.getMessage());
             CompletableFuture<ResponseEntity<BrokerageCalculationResponse>> future = new CompletableFuture<>();
             future.completeExceptionally(new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage()));
             return future;
         } catch (Exception e) {
-            log.error("Error processing async brokerage calculation request: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing async brokerage calculation request: " + e.getMessage(), e);
             CompletableFuture<ResponseEntity<BrokerageCalculationResponse>> future = new CompletableFuture<>();
             future.completeExceptionally(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to calculate brokerage: " + e.getMessage()));
@@ -144,8 +147,9 @@ public class BrokerageCalculatorController {
             @RequestParam("tradeType") String tradeType,
             @RequestParam("brokerType") String brokerType) {
 
-        log.info("Received breakeven calculation request for {} shares of {} at price {}",
-                quantity, symbol, price);
+        String methodName = "calculateBreakeven";
+        log.info(methodName, String.format("Received breakeven calculation request for %d shares of %s at price %f",
+                quantity, symbol, price));
 
         try {
             // Create request object
@@ -161,16 +165,16 @@ public class BrokerageCalculatorController {
             BrokerageCalculationResponse response = brokerageCalculatorApiService.calculateBrokerage(request);
 
             if ("ERROR".equals(response.getStatus())) {
-                log.error("Error calculating breakeven: {}", response.getError());
+                log.error(methodName, "Error calculating breakeven: " + response.getError());
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, response.getError());
             }
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid breakeven calculation request: {}", e.getMessage());
+            log.error(methodName, "Invalid breakeven calculation request: " + e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
-            log.error("Error processing breakeven calculation request: {}", e.getMessage(), e);
+            log.error(methodName, "Error processing breakeven calculation request: " + e.getMessage(), e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to calculate breakeven: " + e.getMessage());
         }

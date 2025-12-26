@@ -4,8 +4,7 @@
 # POSTGRES_URL: jdbc:postgresql://localhost:5456
 # POSTGRES_DATABASE: portfolio
 
-#mongo
-MONGODB_URL: mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin
+#mongoDB Configuration
 MONGODB_DATABASE: market_data
 MONGODB_USERNAME: ssd2658
 MONGODB_PASSWORD: ssd2658 
@@ -46,10 +45,11 @@ MARKET_DATA_THREAD_QUEUE_CAPACITY: 10
 MARKET_DATA_MAX_AGE_MINUTES: 15
 
 # Upstox Configuration
-UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2N2RiNDUwZjNkZGQ3YTZhM2Q0MDdmMmEiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQyNDIzMzExLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDI1MDgwMDB9.trE87ksuZgTY_Isx9bYAxECeStUVgGtWxVNzjtcp0Mk
+UPSTOX_ACCESS_TOKEN: eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIyWENSTjgiLCJqdGkiOiI2OTRkOWFmNDZhNjY4YjU1YTdmMWE0NTkiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6ZmFsc2UsImlhdCI6MTc2NjY5MzYyMCwiaXNzIjoidWRhcGktZ2F0ZXdheS1zZXJ2aWNlIiwiZXhwIjoxNzY2NzAwMDAwfQ.wk6PZDGjcoDCtut6F7rWFaN9QJy8dJjMwZK8W61ax-E
 UPSTOX_API_KEY: 48d1e335-09ad-4dc0-b955-4505c350d10b
 UPSTOX_SECRET_KEY: jqre481zf0
 UPSTOX_CODE: rNLu2Q 
+
 
 # Spring Configuration
 spring:
@@ -61,7 +61,7 @@ spring:
       password: ${REDIS_PASSWORD}
       port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGODB_URL}
+      uri: ${MONGODB_URL:mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin}
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
@@ -98,6 +98,8 @@ spring:
       - classpath:application-zerodha.yml
 
 market-data:
+  stream:
+    poll-interval-seconds: 60
   cache:
     enabled: true
     price-ttl-minutes: ${MARKET_DATA_CACHE_PRICE_TTL_MINUTES:15}
@@ -107,10 +109,11 @@ logging:
   level:
     root: INFO
     '[com.am.marketdata]': INFO
-    '[com.am.marketdata.scheduler]': DEBUG
+    '[com.am.marketdata.scheduler]': INFO
     '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.external.api]': DEBUG
-    '[com.am.common.investment.service]': DEBUG
+    '[com.am.marketdata.redis]': INFO
+    '[com.am.marketdata.external.api]': INFO
+    '[com.am.common.investment.service]': INFO
   # pattern:
   #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
@@ -122,7 +125,7 @@ upstox:
     api-key: ${UPSTOX_API_KEY}
     secret-key: ${UPSTOX_SECRET_KEY}
     access-token: ${UPSTOX_ACCESS_TOKEN}
-    redirect-uri: http://localhost:8080
+    redirect-uri: http://localhost:8092/api/v1/market-data/auth/session
     authorization-url: https://api-v2.upstox.com/login/authorization/dialog
     token-url: https://api-v2.upstox.com/login/authorization/token
     token-refresh-interval: 3600000
@@ -171,4 +174,9 @@ management:
       enabled: true
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:internal-service-super-secret-key-32chars-minimum-change-in-prod}
+
+
+  # Security Configuration
+security:
+  enabled: ${SECURITY_ENABLED:false}  # Disabled by default for development. Set SECURITY_ENABLED=true in production.

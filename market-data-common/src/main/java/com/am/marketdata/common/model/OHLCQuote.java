@@ -15,11 +15,13 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OHLCQuote {
-    
+
     private double lastPrice;
-    
+
     private OHLC ohlc;
-    
+
+    private double previousClose;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -31,8 +33,7 @@ public class OHLCQuote {
         private double low;
         private double close;
         private double open;
-        
-        
+
     }
-    
+
 }

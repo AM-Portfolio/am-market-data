@@ -27,15 +27,16 @@ public class StockIndicesMapper {
         }
 
         return new StockInsidicesEventData(
-            data.getName(),
-            convertAdvance(data.getAdvance()),
-            data.getTimestamp(),
-            convertStockDataList(data.getData()),
-            convertIndexMetadata(data.getMetadata()),
-            convertMarketStatus(data.getMarketStatus()),
-            data.getDate30dAgo(),
-            data.getDate365dAgo()
-        );
+                data.getName(),
+                data.getName(),
+                convertAdvance(data.getAdvance()),
+                data.getTimestamp(),
+                convertStockDataList(data.getData()),
+                convertIndexMetadata(data.getMetadata()),
+                convertMarketStatus(data.getMarketStatus()),
+                data.getDate30dAgo(),
+                data.getDate365dAgo(),
+                "1.0");
     }
 
     protected static StockInsidicesEventData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
@@ -43,19 +44,19 @@ public class StockIndicesMapper {
             return null;
         }
         return new StockInsidicesEventData.Advance(
-            Integer.parseInt(advance.getDeclines()),
-            Integer.parseInt(advance.getAdvances()),
-            Integer.parseInt(advance.getUnchanged())
-        );
+                Integer.parseInt(advance.getDeclines()),
+                Integer.parseInt(advance.getAdvances()),
+                Integer.parseInt(advance.getUnchanged()));
     }
 
-    protected static List<StockInsidicesEventData.StockData> convertStockDataList(List<NSEStockInsidicesData.StockData> stockDataList) {
+    protected static List<StockInsidicesEventData.StockData> convertStockDataList(
+            List<NSEStockInsidicesData.StockData> stockDataList) {
         if (stockDataList == null) {
             return null;
         }
         return stockDataList.stream()
-            .map(StockIndicesMapper::convertStockData)
-            .collect(Collectors.toList());
+                .map(StockIndicesMapper::convertStockData)
+                .collect(Collectors.toList());
     }
 
     private static StockInsidicesEventData.StockData convertStockData(NSEStockInsidicesData.StockData stockData) {
@@ -63,42 +64,43 @@ public class StockIndicesMapper {
             return null;
         }
         return StockInsidicesEventData.StockData.builder()
-            .priority(stockData.getPriority())
-            .symbol(stockData.getSymbol())
-            .identifier(stockData.getIdentifier())
-            .series(stockData.getSeries())
-            .open(stockData.getOpen())
-            .dayHigh(stockData.getDayHigh())
-            .dayLow(stockData.getDayLow())
-            .lastPrice(stockData.getLastPrice())
-            .previousClose(stockData.getPreviousClose())
-            .change(stockData.getChange())
-            .pChange(stockData.getPChange())
-            .totalTradedVolume(stockData.getTotalTradedVolume())
-            .totalTradedValue(stockData.getTotalTradedValue())
-            .yearHigh(stockData.getYearHigh())
-            .yearLow(stockData.getYearLow())
-            .perChange365d(stockData.getPerChange365d())
-            .date365dAgo(stockData.getDate365dAgo())
-            .perChange30d(stockData.getPerChange30d())
-            .date30dAgo(stockData.getDate30dAgo())
-            .metadata(convertMetadata(stockData.getMeta()))
-            .build();
+                .priority(stockData.getPriority())
+                .symbol(stockData.getSymbol())
+                .identifier(stockData.getIdentifier())
+                .series(stockData.getSeries())
+                .open(stockData.getOpen())
+                .dayHigh(stockData.getDayHigh())
+                .dayLow(stockData.getDayLow())
+                .lastPrice(stockData.getLastPrice())
+                .previousClose(stockData.getPreviousClose())
+                .change(stockData.getChange())
+                .pChange(stockData.getPChange())
+                .totalTradedVolume(stockData.getTotalTradedVolume())
+                .totalTradedValue(stockData.getTotalTradedValue())
+                .yearHigh(stockData.getYearHigh())
+                .yearLow(stockData.getYearLow())
+                .perChange365d(stockData.getPerChange365d())
+                .date365dAgo(stockData.getDate365dAgo())
+                .perChange30d(stockData.getPerChange30d())
+                .date30dAgo(stockData.getDate30dAgo())
+                .metadata(convertMetadata(stockData.getMeta()))
+                .build();
     }
 
-    protected static StockInsidicesEventData.IndexMetadata convertIndexMetadata(NSEStockInsidicesData.IndexMetadata metadata) {
+    protected static StockInsidicesEventData.IndexMetadata convertIndexMetadata(
+            NSEStockInsidicesData.IndexMetadata metadata) {
         if (metadata == null) {
             return null;
         }
         return StockInsidicesEventData.IndexMetadata.builder()
-            .indexName(metadata.getIndexName())
-            .open(metadata.getOpen())
-            .high(metadata.getHigh())
-            .low(metadata.getLow())
-            .previousClose(metadata.getPreviousClose())
-            .change(metadata.getChange())
-            .percChange(metadata.getPercChange())
-            .build();   
+                .indexName(metadata.getIndexName())
+                .open(metadata.getOpen())
+                .high(metadata.getHigh())
+                .low(metadata.getLow())
+                .previousClose(metadata.getPreviousClose())
+                .change(metadata.getChange())
+                .percChange(metadata.getPercChange())
+                .build();
     }
 
     protected static StockInsidicesEventData.Metadata convertMetadata(NSEStockInsidicesData.Metadata metadata) {
@@ -106,26 +108,27 @@ public class StockIndicesMapper {
             return null;
         }
         return StockInsidicesEventData.Metadata.builder()
-            .symbol(metadata.getSymbol())
-            .companyName(metadata.getCompanyName())
-            .industry(metadata.getIndustry())
-            .activeSeries(metadata.getActiveSeries())
-            .isin(metadata.getIsin())
-            .build();   
+                .symbol(metadata.getSymbol())
+                .companyName(metadata.getCompanyName())
+                .industry(metadata.getIndustry())
+                .activeSeries(metadata.getActiveSeries())
+                .isin(metadata.getIsin())
+                .build();
     }
 
-    protected static StockInsidicesEventData.MarketStatus convertMarketStatus(NSEStockInsidicesData.MarketStatus marketStatus) {
+    protected static StockInsidicesEventData.MarketStatus convertMarketStatus(
+            NSEStockInsidicesData.MarketStatus marketStatus) {
         if (marketStatus == null) {
             return null;
         }
         return StockInsidicesEventData.MarketStatus.builder()
-            .market(marketStatus.getMarket())
-            .marketStatus(marketStatus.getMarketStatus())
-            .tradeDate(marketStatus.getTradeDate())
-            .index(marketStatus.getIndex())
-            .variation(marketStatus.getVariation())
-            .percentChange(marketStatus.getPercentChange())
-            .build();
+                .market(marketStatus.getMarket())
+                .marketStatus(marketStatus.getMarketStatus())
+                .tradeDate(marketStatus.getTradeDate())
+                .index(marketStatus.getIndex())
+                .variation(marketStatus.getVariation())
+                .percentChange(marketStatus.getPercentChange())
+                .build();
     }
 
     private static Double parseDouble(String value) {

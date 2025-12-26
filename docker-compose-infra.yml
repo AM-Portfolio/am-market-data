@@ -32,7 +32,7 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
     networks:
-      - market-data-network
+      - am-network
 
   influxdb:
     image: influxdb:2.7
@@ -58,7 +58,7 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
     networks:
-      - market-data-network
+      - am-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -80,7 +80,7 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
     networks:
-      - market-data-network
+      - am-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -124,7 +124,7 @@ services:
     extra_hosts:
     - "host.docker.internal:host-gateway"
     networks:
-      - market-data-network
+      - am-network
 
   mongodb:
     image: mongo:6.0
@@ -142,7 +142,7 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
     networks:
-      - market-data-network
+      - am-network
 
   redis:
     image: redis:7.0-alpine
@@ -158,7 +158,7 @@ services:
       retries: ${MARKET_DATA_MAX_RETRIES}
     restart: unless-stopped
     networks:
-      - market-data-network
+      - am-network
 
 volumes:
   postgres_data:
@@ -170,5 +170,7 @@ volumes:
   redis_data:
 
 networks:
-  market-data-network:
+  am-network:
     driver: bridge
+    name: am-network
+

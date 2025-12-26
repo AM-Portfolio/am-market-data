@@ -57,6 +57,11 @@ services:
       
       # Validation Configuration
       - APP_VALIDATION_MAX_AGE_MINUTES=${MARKET_DATA_MAX_AGE_MINUTES}
+
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=HS256
+      - INTERNAL_JWT_SECRET=${INTERNAL_JWT_SECRET}
       
       # Upstox Configuration
       - UPSTOX_AUTH_CODE=${UPSTOX_CODE}
@@ -82,11 +87,11 @@ services:
         echo "=== Starting Market Data Service ==="
         java -jar app.jar
     ports:
-      - "8092:8081"
+      - "8092:8080"
     networks:
-      - market-data-network
+      - am-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
       interval: 30s
       timeout: 3s
       retries: ${MARKET_DATA_MAX_RETRIES}
@@ -98,5 +103,5 @@ volumes:
   grafana_data:
 
 networks:
-  market-data-network:
-    driver: bridge
+  am-network:
+    external: true

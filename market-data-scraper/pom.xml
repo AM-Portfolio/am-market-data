@@ -109,5 +109,10 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+       <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-redis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

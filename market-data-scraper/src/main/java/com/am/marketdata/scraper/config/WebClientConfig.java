@@ -9,13 +9,13 @@ import java.time.Duration;
 
 @Configuration
 public class WebClientConfig {
-    
+
     @Bean(name = "nseApiRestTemplate")
     @Primary
     public RestTemplate nseApiRestTemplate(RestTemplateBuilder builder) {
         return builder
-            .setConnectTimeout(Duration.ofSeconds(10))
-            .setReadTimeout(Duration.ofSeconds(10))
-            .build();
+                .setConnectTimeout(Duration.ofSeconds(60))
+                .setReadTimeout(Duration.ofSeconds(60))
+                .build();
     }
 }

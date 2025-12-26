@@ -5,9 +5,7 @@ import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.scraper.service.MarketDataProcessingService;
 import lombok.RequiredArgsConstructor;
 
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.am.marketdata.common.log.AppLogger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,94 +20,181 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class StockIndicesService {
-    
-    private static final Logger log = LoggerFactory.getLogger(StockIndicesService.class);
+
+    // Auto-detects class name "StockIndicesService"
+    private final AppLogger log = AppLogger.getLogger();
 
     private final MarketDataProcessingService marketDataProcessingService;
     private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final MarketDataFetchService marketDataCacheService;
-    
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
     @Value("${market.data.cache.enabled:true}")
     private boolean cacheEnabled;
 
     public List<StockIndicesMarketData> getLatestIndicesData(List<String> indexSymbols) {
         return getLatestIndicesData(indexSymbols, false);
     }
-    
-    private List<StockIndicesMarketData> getLatestIndicesData(List<String> indexSymbols, boolean forceRefresh) {
+
+    public List<StockIndicesMarketData> getLatestIndicesData(List<String> indexSymbols, boolean forceRefresh) {
+        String methodName = "getLatestIndicesData";
         try {
-            // Check if we should use cache
-            if (cacheEnabled && !forceRefresh) {
-                Set<StockIndicesMarketData> cachedData = marketDataCacheService.getStockIndicesData(new HashSet<>(indexSymbols), false);
-                if (cachedData != null) {
-                    log.info("Retrieved {} indices from cache (cached={})", cachedData.size(), true);   
-                    return new ArrayList<>(cachedData);
+            // 1. Try to get from cache first
+            List<StockIndicesMarketData> cachedResult = checkCache(indexSymbols, forceRefresh, methodName);
+            if (!cachedResult.isEmpty()) {
+                return cachedResult;
+            }
+
+            // 2. If cache miss, check database for existing data and identify what's
+            // missing
+            List<StockIndicesMarketData> finalResults = new ArrayList<>();
+            List<String> symbolsToProcess = new ArrayList<>();
+            checkDatabase(indexSymbols, forceRefresh, finalResults, symbolsToProcess, methodName);
+
+            // 4. Log summary
+            if (finalResults.isEmpty()) {
+                // 3. Fetch fresh data for missing symbols from API/Scraper
+                if (!symbolsToProcess.isEmpty()) {
+                    fetchFreshData(symbolsToProcess, finalResults, methodName);
                 }
-            }
-            
-            // If cache miss or disabled, process fresh data
-            // Process each symbol individually in parallel
-            List<CompletableFuture<Boolean>> futures = indexSymbols.stream()
-                .map(symbol -> marketDataProcessingService.fetchAndProcessStockIndices(symbol)
-                    .exceptionally(e -> {
-                        log.error("Error fetching data for symbol: {}", symbol, e);
-                        return false;
-                    }))
-                .collect(Collectors.toList());
-
-            // Wait for all futures to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            
-            // Add a small delay to ensure data is persisted
-            TimeUnit.SECONDS.sleep(1);
-
-            // Return the data from database (either fresh or last known)
-            List<StockIndicesMarketData> result = indexSymbols.stream()
-                .map(symbol -> {
-                    try {
-                        return stockIndicesMarketDataService.findByIndexSymbol(symbol);
-                    } catch (Exception e) {
-                        log.error("Error retrieving data for symbol: {}", symbol, e);
-                        return null;
-                    }
-                })
-                .filter(data -> data != null)
-                .collect(Collectors.toList());
-
-            if (result.isEmpty()) {
-                log.warn("No data found for any of the requested symbols: {}", indexSymbols);
             } else {
-                log.info("Retrieved data for {}/{} symbols (fresh)", result.size(), indexSymbols.size());
+                log.info(methodName, String.format("Retrieved data for %d/%d symbols (fresh/db)", finalResults.size(),
+                        indexSymbols.size()));
             }
 
-            return result;
+            return finalResults;
 
         } catch (Exception e) {
-            log.error("Error processing stock indices request", e);
+            log.error(methodName, "Error processing stock indices request", e);
             return new ArrayList<>();
+        }
+    }
+
+    private List<StockIndicesMarketData> checkCache(List<String> indexSymbols, boolean forceRefresh,
+            String methodName) {
+        if (cacheEnabled && !forceRefresh) {
+            Set<StockIndicesMarketData> cachedData = marketDataCacheService
+                    .getStockIndicesData(new HashSet<>(indexSymbols), false);
+            if (cachedData != null && !cachedData.isEmpty()) {
+                log.info(methodName,
+                        String.format("Retrieved %d indices from cache (cached=%s)", cachedData.size(), true));
+                return new ArrayList<>(cachedData);
+            } else {
+                log.info(methodName, "Retrieved 0 indices from cache, falling back to db/fresh fetch");
+            }
+        }
+        return new ArrayList<>();
+    }
+
+    private void checkDatabase(List<String> indexSymbols, boolean forceRefresh,
+            List<StockIndicesMarketData> finalResults, List<String> symbolsToProcess, String methodName) {
+        if (forceRefresh) {
+            symbolsToProcess.addAll(indexSymbols);
+        } else {
+            try {
+                // Batch retrieval
+                List<StockIndicesMarketData> docs = stockIndicesMarketDataService
+                        .findByIndexSymbols(indexSymbols.stream().collect(Collectors.toSet()));
+                Set<String> foundSymbols = new HashSet<>();
+
+                docs.forEach(doc -> {
+                    if (doc.getData() != null) {
+                        try {
+                            List<String> symbols = doc.getData().stream()
+                                    .map(obj -> {
+                                        try {
+                                            if (obj instanceof com.am.common.investment.model.stockindice.StockData) {
+                                                return ((com.am.common.investment.model.stockindice.StockData) obj)
+                                                        .getSymbol();
+                                            } else {
+                                                // Handle LinkedHashMap case
+                                                com.am.common.investment.model.stockindice.StockData sd = objectMapper
+                                                        .convertValue(obj,
+                                                                com.am.common.investment.model.stockindice.StockData.class);
+                                                return sd.getSymbol();
+                                            }
+                                        } catch (Exception e) {
+                                            log.warn(methodName, "Failed to map stock data object: " + e.getMessage());
+                                            return null;
+                                        }
+                                    })
+                                    .filter(s -> s != null)
+                                    .collect(Collectors.toList());
+                            symbolsToProcess.addAll(symbols);
+                            log.info(methodName,
+                                    "Found data for " + doc.getIndexSymbol() + " in database (via LocalRepo).");
+                        } catch (Exception e) {
+                            log.warn(methodName, "Mapping failed for " + doc.getIndexSymbol() + ": " + e.getMessage());
+                        }
+                    }
+                });
+
+                // Identify missing symbols
+                for (String symbol : indexSymbols) {
+                    if (!foundSymbols.contains(symbol)) {
+                        log.info(methodName, "Symbol " + symbol + " not found in database. Queuing for fresh fetch.");
+                        symbolsToProcess.add(symbol);
+                    }
+                }
+
+            } catch (Exception e) {
+                log.error(methodName, "Error reading from database", e);
+                // On DB error, treat all as missing
+                for (String symbol : indexSymbols) {
+                    if (!symbolsToProcess.contains(symbol)) {
+                        symbolsToProcess.add(symbol);
+                    }
+                }
+            }
+        }
+    }
+
+    private void fetchFreshData(List<String> symbolsToProcess, List<StockIndicesMarketData> finalResults,
+            String methodName) {
+        log.info(methodName, "Fetching fresh data for " + symbolsToProcess.size() + " symbols: " + symbolsToProcess);
+
+        // Fetch in parallel
+        List<CompletableFuture<Boolean>> futures = symbolsToProcess.stream()
+                .map(symbol -> marketDataProcessingService.fetchAndProcessStockIndices(symbol)
+                        .exceptionally(e -> {
+                            log.error(methodName, "Error fetching data for symbol: " + symbol, e);
+                            return false;
+                        }))
+                .collect(Collectors.toList());
+
+        // Wait for completion
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        try {
+            // Add a small delay to ensure data is persisted
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     public StockIndicesMarketData getLatestIndexData(String indexSymbol) {
         return getLatestIndexData(indexSymbol, false);
     }
-    
+
     public StockIndicesMarketData getLatestIndexData(String indexSymbol, boolean forceRefresh) {
+        String methodName = "getLatestIndexData";
         try {
             // Check if we should use cache
             if (cacheEnabled && !forceRefresh) {
                 StockIndicesMarketData cachedData = marketDataCacheService.getStockIndexData(indexSymbol, false);
                 if (cachedData != null) {
-                    log.info("Retrieved index data for {} from cache (cached={})", indexSymbol, "true");
+                    log.info(methodName,
+                            String.format("Retrieved index data for %s from cache (cached=%s)", indexSymbol, "true"));
                     return cachedData;
                 }
             }
-            
+
             // If cache miss or disabled, get fresh data
             List<StockIndicesMarketData> data = getLatestIndicesData(List.of(indexSymbol), forceRefresh);
             return data.isEmpty() ? null : data.get(0);
         } catch (Exception e) {
-            log.error("Error while fetching stock index data for symbol: {}", indexSymbol, e);
+            log.error(methodName, "Error while fetching stock index data for symbol: " + indexSymbol, e);
             throw new RuntimeException("Failed to fetch stock index data", e);
         }
     }
