@@ -145,7 +145,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 symbols.size(), fromDate, toDate, interval, interval.getApiValue()));
 
         Map<String, Object> aggregatedResult = new HashMap<>();
-        Map<String, Object> symbolsData = new HashMap<>();
+        Map<String, HistoricalData> symbolsData = new HashMap<>();
 
         if (symbols == null || symbols.isEmpty()) {
             log.warn(methodName, "No symbols provided for historical data request");
@@ -157,14 +157,11 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         long startTime = System.currentTimeMillis();
 
         try {
-            // Use batch retrieval instead of looping through symbols
+            // Use batch retrieval
             log.info(methodName, String.format(
                     "[BATCH_HISTORICAL] Calling marketDataService.getHistoricalDataBatch for %d symbols",
                     symbols.size()));
 
-            // Detect if this might be an index symbol (single symbol requests are often
-            // indices)
-            // Detect if this is an index symbol from parameters
             boolean isIndexSymbol = false;
             if (additionalParams != null && additionalParams.containsKey("isIndexSymbol")) {
                 Object paramValue = additionalParams.get("isIndexSymbol");
@@ -174,6 +171,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                     isIndexSymbol = Boolean.parseBoolean((String) paramValue);
                 }
             }
+
             Map<String, HistoricalData> batchResult = marketDataService.getHistoricalDataBatch(
                     new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null, isIndexSymbol);
 
@@ -195,22 +193,20 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                         dataPoints = applyFilterStrategy(dataPoints, filterParams);
                     }
 
-                    int filteredCount = dataPoints.size();
+                    // Create new HistoricalData object with potentially filtered points
+                    HistoricalData filteredHistoricalData = new HistoricalData();
+                    filteredHistoricalData.setTradingSymbol(symbol);
+                    filteredHistoricalData.setInterval(interval.getApiValue());
+                    filteredHistoricalData.setDataPoints(dataPoints);
 
-                    Map<String, Object> successData = new HashMap<>();
-                    successData.put("status", "success");
-                    successData.put("dataPoints", dataPoints);
-                    successData.put("count", filteredCount);
-                    symbolsData.put(symbol, successData);
+                    symbolsData.put(symbol, filteredHistoricalData);
 
                     successCount++;
                     totalDataPoints += originalCount;
-                    totalFilteredDataPoints += filteredCount;
+                    totalFilteredDataPoints += dataPoints.size();
                 } else {
-                    Map<String, Object> errorData = new HashMap<>();
-                    errorData.put("status", "error");
-                    errorData.put("message", "No data found for symbol");
-                    symbolsData.put(symbol, errorData);
+                    // Even if no data, we might want to put an empty entry or skip
+                    // For now, skipping empty results in the map to reduce noise
                 }
             }
 
@@ -220,22 +216,25 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
 
             long endTime = System.currentTimeMillis();
 
+            // Populate metadata
             aggregatedResult.put("data", symbolsData);
-            aggregatedResult.put("symbols", symbols);
-            aggregatedResult.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
-            aggregatedResult.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
-            aggregatedResult.put("interval", interval.getApiValue());
-            aggregatedResult.put("intervalEnum", interval.name());
-            aggregatedResult.put("totalSymbols", symbols.size());
-            aggregatedResult.put("successfulSymbols", successCount);
-            aggregatedResult.put("totalDataPoints", totalDataPoints);
-            aggregatedResult.put("filteredDataPoints", totalFilteredDataPoints);
-            aggregatedResult.put("filtered", filterParams.isFiltered);
-            aggregatedResult.put("filterType", filterParams.filterType);
-            if (filterParams.isFiltered) {
-                aggregatedResult.put("filterFrequency", filterParams.filterFrequency);
-            }
-            aggregatedResult.put("processingTimeMs", (endTime - startTime));
+
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
+            metadata.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
+            metadata.put("interval", interval.getApiValue());
+            metadata.put("intervalEnum", interval.name());
+            metadata.put("totalSymbols", symbols.size());
+            metadata.put("successfulSymbols", successCount);
+            metadata.put("totalDataPoints", totalDataPoints);
+            metadata.put("filteredDataPoints", totalFilteredDataPoints);
+            metadata.put("filtered", filterParams.isFiltered);
+            metadata.put("filterType", filterParams.filterType);
+            metadata.put("filterFrequency", filterParams.isFiltered ? filterParams.filterFrequency : null);
+            metadata.put("processingTimeMs", (endTime - startTime));
+            metadata.put("source", forceRefresh ? "provider" : "cache");
+
+            aggregatedResult.put("metadata", metadata);
 
             log.info(methodName, String.format(
                     "[BATCH_HISTORICAL] Completed batch processing. Total symbols: %d, Successful: %d, Total data points: %d, Processing time: %dms",

@@ -8,6 +8,7 @@ import com.am.marketdata.api.model.StreamConnectRequest;
 import com.am.marketdata.api.model.StreamConnectResponse;
 import com.am.marketdata.api.util.InstrumentUtils;
 import com.am.common.investment.model.historical.HistoricalData;
+import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -274,21 +275,40 @@ public class MarketDataPollingService {
             double previousClose = liveQuote.getPreviousClose();
 
             // Extract historical data from response
-            if (historicalResponse != null && historicalResponse.containsKey(symbol)) {
-                Object symbolData = historicalResponse.get(symbol);
+            // Extract historical data from response
+            if (historicalResponse != null && historicalResponse.containsKey("data")) {
+                Map<String, Object> symbolsData = (Map<String, Object>) historicalResponse.get("data");
 
-                if (symbolData instanceof HistoricalData) {
-                    HistoricalData historicalData = (HistoricalData) symbolData;
+                if (symbolsData != null && symbolsData.containsKey(symbol)) {
+                    Object symbolDataObj = symbolsData.get(symbol);
 
-                    if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
-                        // Get the last data point (historical close)
-                        var dataPoints = historicalData.getDataPoints();
-                        var lastPoint = dataPoints.get(dataPoints.size() - 1);
+                    if (symbolDataObj instanceof HistoricalData) {
+                        HistoricalData historicalData = (HistoricalData) symbolDataObj;
+                        if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
+                            var dataPoints = historicalData.getDataPoints();
+                            var lastPoint = dataPoints.get(dataPoints.size() - 1);
+                            if (lastPoint.getClose() > 0) {
+                                previousClose = lastPoint.getClose();
+                                log.debug("Updated previous close for {}: {} (from HistoricalData object)", symbol,
+                                        previousClose);
+                            }
+                        }
+                    } else if (symbolDataObj instanceof Map) {
+                        Map<String, Object> symbolDataMap = (Map<String, Object>) symbolDataObj;
 
-                        if (lastPoint.getClose() > 0) {
-                            previousClose = lastPoint.getClose();
-                            log.debug("Updated previous close for {}: {} (from historical data)",
-                                    symbol, previousClose);
+                        if (symbolDataMap.containsKey("dataPoints")) {
+                            List<OHLCVTPoint> dataPoints = (List<OHLCVTPoint>) symbolDataMap.get("dataPoints");
+
+                            if (dataPoints != null && !dataPoints.isEmpty()) {
+                                // Get the last data point (historical close)
+                                // Only update if valid close price
+                                OHLCVTPoint lastPoint = dataPoints.get(dataPoints.size() - 1);
+                                if (lastPoint.getClose() > 0) {
+                                    previousClose = lastPoint.getClose();
+                                    log.info("Updated previous close for {}: {} (from historical data map)",
+                                            symbol, previousClose);
+                                }
+                            }
                         }
                     }
                 }
