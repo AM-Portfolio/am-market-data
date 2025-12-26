@@ -22,8 +22,8 @@ public class MarketDataStreamController {
     @Operation(summary = "Connect to market data stream", description = "Initiates a WebSocket connection for the specified provider and instruments")
     public ResponseEntity<String> connect(@RequestBody StreamConnectRequest request) {
         try {
-            log.info("Received stream connection request for provider: {}, timeFrame: {}",
-                    request.getProvider(), request.getTimeFrame());
+            log.info("Received stream connection request for timeFrame: {}",
+                    request.getTimeFrame());
 
             // Delegate to service for resolution and connection
             pollingService.initiateStream(request);
@@ -41,8 +41,8 @@ public class MarketDataStreamController {
     public ResponseEntity<com.am.marketdata.api.model.StreamConnectResponse> initiate(
             @RequestBody StreamConnectRequest request) {
         try {
-            log.info("Received stream connection request (initiate) for provider: {}, timeFrame: {}",
-                    request.getProvider(), request.getTimeFrame());
+            log.info("Received stream connection request (initiate) for timeFrame: {}",
+                    request.getTimeFrame());
 
             // Delegate to service, which returns the structured response with initial data
             return ResponseEntity.ok(pollingService.initiateStream(request));

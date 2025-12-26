@@ -1,6 +1,7 @@
 package com.am.marketdata.api.service;
 
 import com.am.marketdata.api.websocket.MarketDataWebSocketHandler;
+import com.marketdata.common.MarketDataProviderFactory;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.api.model.MarketDataUpdate;
@@ -15,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -27,6 +30,7 @@ public class MarketDataPollingService {
     private final MarketDataFetchService marketDataFetchService;
     private final MarketDataWebSocketHandler webSocketHandler;
     private final InstrumentUtils instrumentUtils;
+    private final MarketDataProviderFactory marketDataProviderFactory;
 
     // Scheduler for polling
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
@@ -92,7 +96,8 @@ public class MarketDataPollingService {
         log.info("Resolved {} symbols to {} for stream initiation",
                 request.getInstrumentKeys().size(), resolvedSymbols.size());
 
-        String provider = request.getProvider() != null ? request.getProvider().toUpperCase() : "UPSTOCK";
+        // Get active provider from factory
+        String provider = marketDataProviderFactory.getProvider().getProviderName().toUpperCase();
         String timeFrame = request.getTimeFrame() != null ? request.getTimeFrame() : "1D";
 
         boolean shouldStream = request.getStream() == null || request.getStream();
@@ -175,7 +180,6 @@ public class MarketDataPollingService {
                         enrichedData);
 
                 return MarketDataUpdate.builder()
-                        .provider(providerKey)
                         .timestamp(System.currentTimeMillis())
                         .quotes(quoteUpdates)
                         .build();
@@ -360,6 +364,10 @@ public class MarketDataPollingService {
             if (prevClose > 0) {
                 change = lastPrice - prevClose;
                 changePercent = (change / prevClose) * 100;
+
+                // Round to 2 decimal places
+                change = BigDecimal.valueOf(change).setScale(2, RoundingMode.HALF_UP).doubleValue();
+                changePercent = BigDecimal.valueOf(changePercent).setScale(2, RoundingMode.HALF_UP).doubleValue();
             }
 
             MarketDataUpdate.QuoteChange update = MarketDataUpdate.QuoteChange
