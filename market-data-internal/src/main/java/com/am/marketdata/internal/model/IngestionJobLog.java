@@ -33,6 +33,7 @@ public class IngestionJobLog {
     private List<String> failedSymbols;
 
     private long durationMs;
+    private long payloadSize; // Size in bytes
     private String message;
 
     @org.springframework.data.annotation.Transient

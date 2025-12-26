@@ -9,6 +9,7 @@ class IngestionLog {
   final int failureCount;
   final List<String> failedSymbols;
   final double durationMs;
+  final int payloadSize;
   final String? message;
   final List<String>? logs;
 
@@ -23,6 +24,7 @@ class IngestionLog {
     required this.failureCount,
     required this.failedSymbols,
     required this.durationMs,
+    this.payloadSize = 0,
     this.message,
     this.logs,
   });
@@ -39,6 +41,7 @@ class IngestionLog {
       failureCount: json['failureCount'] as int,
       failedSymbols: (json['failedSymbols'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
       durationMs: (json['durationMs'] as num).toDouble(),
+      payloadSize: (json['payloadSize'] as num?)?.toInt() ?? 0,
       message: json['message'] as String?,
       logs: (json['logs'] as List<dynamic>?)?.map((e) => e as String).toList(),
     );

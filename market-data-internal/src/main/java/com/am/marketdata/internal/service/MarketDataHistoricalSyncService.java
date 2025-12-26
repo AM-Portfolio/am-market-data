@@ -76,6 +76,7 @@ public class MarketDataHistoricalSyncService {
 
             int successCount = 0;
             int failureCount = 0;
+            long totalPayloadSize = 0;
             List<String> failedSymbols = new ArrayList<>();
 
             // 3. Process Buckets
@@ -89,6 +90,7 @@ public class MarketDataHistoricalSyncService {
                 ProcessingResult result = processBucket(symbolsInBucket, fromDate, jobLog);
                 successCount += result.successCount;
                 failureCount += result.failureCount;
+                totalPayloadSize += result.totalPayloadSize;
                 failedSymbols.addAll(result.failedSymbols);
             }
 
@@ -98,6 +100,7 @@ public class MarketDataHistoricalSyncService {
             jobLog.setSuccessCount(successCount);
             jobLog.setFailureCount(failureCount);
             jobLog.setFailedSymbols(failedSymbols);
+            jobLog.setPayloadSize(totalPayloadSize); // Set total payload size
             jobLog.setStatus(failureCount == 0 ? "SUCCESS" : (successCount > 0 ? "PARTIAL_SUCCESS" : "FAILED"));
 
         } catch (Exception e) {
@@ -248,6 +251,27 @@ public class MarketDataHistoricalSyncService {
                 }
             }
 
+            // Estimate Payload Size (very rough: JSON string length or object grap)
+            // Since we don't have serialized size here easily without overhead,
+            // we'll estimate based on data points count * avg size (e.g., 50 bytes per
+            // candle)
+            // or just rely on a simple heuristic if available.
+            // Better: if 'response' came from HTTP, we might not have content length here.
+            // Let's iterate data points to count.
+            long batchSize = 0;
+            if (dataMap != null) {
+                for (var entry : dataMap.entrySet()) {
+                    if (entry.getValue().getDataPoints() != null) {
+                        // timestamp(8) + open(8) + high(8) + low(8) + close(8) + volume(8) ~ 48 bytes +
+                        // overhead
+                        // Let's assume ~100 bytes per record for JSON representation
+                        batchSize += entry.getValue().getDataPoints().size() * 100L;
+                    }
+                }
+            }
+            result.totalPayloadSize += batchSize;
+            addLogAsync(jobLog, "Batch processed. Estimated size: " + (batchSize / 1024) + " KB");
+
         } catch (Exception e) {
             log.error("Error fetching batch starting {}", fromDate, e);
             result.failureCount += batch.size();
@@ -277,11 +301,13 @@ public class MarketDataHistoricalSyncService {
     private static class ProcessingResult {
         int successCount = 0;
         int failureCount = 0;
+        long totalPayloadSize = 0; // Track payload size
         List<String> failedSymbols = new ArrayList<>();
 
         void add(ProcessingResult other) {
             this.successCount += other.successCount;
             this.failureCount += other.failureCount;
+            this.totalPayloadSize += other.totalPayloadSize;
             this.failedSymbols.addAll(other.failedSymbols);
         }
     }

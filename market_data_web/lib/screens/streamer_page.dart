@@ -1,5 +1,4 @@
 
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -34,6 +33,10 @@ class _StreamerPageState extends State<StreamerPage> {
   Map<String, dynamic> _quotes = {}; // Keep latest quote for lookups if needed, but feed shows history
   List<String> _logs = [];
   bool _isStreaming = false;
+
+  // Pagination State
+  int _currentPage = 0;
+  final int _itemsPerPage = 100;
 
   // Search State
   List<Map<String, dynamic>> _searchResults = [];
@@ -88,9 +91,9 @@ class _StreamerPageState extends State<StreamerPage> {
                   }
                }
              });
-  
-             if (_feedHistory.length > 200) {
-               _feedHistory = _feedHistory.sublist(0, 200);
+              
+             if (_feedHistory.length > 500) {
+               _feedHistory = _feedHistory.sublist(0, 500);
              }
            });
          } catch (e) {
@@ -121,30 +124,9 @@ class _StreamerPageState extends State<StreamerPage> {
     AppLogger.log(level: level, tag: method, message: msg);
   }
 
-// ... existing helper methods ...
-// I will do a MultiReplace to target specific methods to add "method" parameter to _log calls.
-
-// Wait, I can't redefine `_log` without replacing the whole file or using partials.
-// I will use replace_file_content to update imports and `_log` definition and `initState`.
-
-
   // --- Actions ---
 
   Future<void> _getLoginUrl() async {
-    // ... items omitted for brevity if unchanged, but full replacement required for ReplaceFileContent ...
-    // To be safe, I will include the full methods to avoid disjoint replace error if possible or use careful range.
-    // However, I am replacing the TOP part of the file mostly.
-    // But the DataTable is at the bottom. I should probably do 2 replacements or replace the whole file?
-    // ReplaceFileContent must be contiguous.
-    // I will replace from start of class state variables down to end of init state to cover the state changes.
-    // Then I will do a separate replace for the DataTable part.
-    // Actually, I can combine if I include everything between.
-    // But better to do 2 chunks with MultiReplaceFileContent.
-    
-    // BUT wait, this tool is ReplaceFileContent (Single). I should use MultiReplaceFileContent!
-    // No, I am strictly instructed to use MultiReplaceFileContent for non-contiguous edits.
-    // I will use `multi_replace_file_content` tool.
-    
     final url = await _apiService.getLoginUrl(_provider);
     if (url != null) {
       _log("Login URL generated: $url");
@@ -202,6 +184,7 @@ class _StreamerPageState extends State<StreamerPage> {
   }
 
   Future<void> _search() async {
+    /*
     final query = _searchInputController.text;
     if (query.isEmpty) return;
 
@@ -212,6 +195,7 @@ class _StreamerPageState extends State<StreamerPage> {
       _isSearching = false;
     });
     _log("Found ${results.length} instruments for '$query'", method: "StreamerPage._search");
+    */
   }
 
   void _addSymbol(String symbol) {
@@ -492,29 +476,67 @@ class _StreamerPageState extends State<StreamerPage> {
   }
 
   Widget _buildLiveFeedSection() {
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage < _feedHistory.length) 
+        ? startIndex + _itemsPerPage 
+        : _feedHistory.length;
+    
+    final currentItems = _feedHistory.sublist(startIndex, endIndex);
+    final totalPages = (_feedHistory.length / _itemsPerPage).ceil();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_searchResults.isNotEmpty) const SizedBox(height: 20),
-        const Row(
+        Row(
+           mainAxisAlignment: MainAxisAlignment.spaceBetween,
            children: [
-              Icon(Icons.monitor_heart, color: Colors.blueAccent),
-               SizedBox(width: 8),
-              Text("Live Feed (Last 10 Updates)", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              const Row(
+                children: [
+                    Icon(Icons.monitor_heart, color: Colors.blueAccent),
+                    SizedBox(width: 8),
+                    Text("Live Feed", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+              if (_feedHistory.isNotEmpty)
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.first_page, color: Colors.white70),
+                      onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, color: Colors.white70),
+                      onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                    ),
+                    Text(
+                      "Page ${_currentPage + 1} / ${totalPages == 0 ? 1 : totalPages} (${_feedHistory.length} items)", 
+                      style: const TextStyle(color: Colors.white, fontSize: 12)
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                      onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.last_page, color: Colors.white70),
+                      onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage = totalPages - 1) : null,
+                    ),
+                  ],
+                ),
            ],
         ),
         const SizedBox(height: 10),
         Expanded(
           child: Container(
              decoration: BoxDecoration(
-               gradient: LinearGradient(
-                 colors: [const Color(0xFF2E2E3E), const Color(0xFF252535)],
+               gradient: const LinearGradient(
+                 colors: [Color(0xFF2E2E3E), Color(0xFF252535)],
                  begin: Alignment.topLeft,
                  end: Alignment.bottomRight,
                ),
                borderRadius: BorderRadius.circular(12),
-               boxShadow: [
-                 BoxShadow(color: Colors.black45, blurRadius: 12, offset: const Offset(0, 6)),
+               boxShadow: const [
+                 BoxShadow(color: Colors.black45, blurRadius: 12, offset: Offset(0, 6)),
                ],
                border: Border.all(color: Colors.white10),
              ),
@@ -524,40 +546,54 @@ class _StreamerPageState extends State<StreamerPage> {
                   scrollDirection: Axis.vertical,
                   child: Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.white10),
-                    child: DataTable(
-                      headingRowColor: MaterialStateProperty.all(Colors.black26),
-                      dataRowColor: MaterialStateProperty.all(Colors.transparent),
-                      columnSpacing: 20,
-                      headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
-                      dataTextStyle: const TextStyle(color: Colors.white),
-                      columns: const [
-                        DataColumn(label: Text('Time')),
-                        DataColumn(label: Text('Symbol')),
-                        DataColumn(label: Text('LTP')),
-                        DataColumn(label: Text('Change')),
-                        DataColumn(label: Text('% Change')),
-                        DataColumn(label: Text('Prev Close')),
-                      ],
-                      rows: _feedHistory.map((data) {
-                        final key = data['symbol'] ?? 'UNKNOWN';
-                        final ltp = (data['lastPrice'] as num?)?.toDouble() ?? 0.0;
-                        final change = (data['change'] as num?)?.toDouble() ?? 0.0;
-                        final pChange = (data['changePercent'] as num?)?.toDouble() ?? 0.0;
-                        final color = change >= 0 ? const Color(0xFF4CAF50) : const Color(0xFFEF5350);
-                        final time = data['timestamp'] as DateTime? ?? DateTime.now();
-                        final prevClose = ltp - change;
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(Colors.black26),
+                        dataRowColor: MaterialStateProperty.all(Colors.transparent),
+                        columnSpacing: 20,
+                        headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+                        dataTextStyle: const TextStyle(color: Colors.white),
+                        columns: const [
+                          DataColumn(label: Text('Time')),
+                          DataColumn(label: Text('Symbol')),
+                          DataColumn(label: Text('LTP')),
+                          DataColumn(label: Text('Change')),
+                          DataColumn(label: Text('% Change')),
+                          DataColumn(label: Text('Prev Close')),
+                        ],
+                        rows: currentItems.map((data) {
+                          final key = data['symbol'] ?? 'UNKNOWN';
+                          final ltp = (data['lastPrice'] as num?)?.toDouble() ?? 0.0;
+                          final change = (data['change'] as num?)?.toDouble() ?? 0.0;
+                          final pChange = (data['changePercent'] as num?)?.toDouble() ?? 0.0;
+                          final color = change >= 0 ? const Color(0xFF4CAF50) : const Color(0xFFEF5350);
+                          final time = data['timestamp'] as DateTime? ?? DateTime.now();
+                          final prevClose = ltp - change;
+                          
+                          // Improve Time Visibility
+                          final timeStr = DateFormat('HH:mm:ss').format(time);
 
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(DateFormat('HH:mm:ss').format(time), style: const TextStyle(color: Colors.grey))),
-                            DataCell(Text(key, style: const TextStyle(fontWeight: FontWeight.bold))),
-                            DataCell(Text(ltp.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
-                            DataCell(Text(change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                            DataCell(Text('${pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                            DataCell(Text(prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.white70))),
-                          ],
-                        );
-                      }).toList(),
+                          return DataRow(
+                            cells: [
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent.withOpacity(0.1), 
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+                                ),
+                                child: Text(timeStr, style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                              )),
+                              DataCell(Text(key, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataCell(Text(ltp.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
+                              DataCell(Text(change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                              DataCell(Text('${pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                              DataCell(Text(prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.white70))),
+                            ],
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
                ),

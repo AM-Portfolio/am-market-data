@@ -556,48 +556,28 @@ class _PriceTestPageState extends State<PriceTestPage> {
   Widget _buildAdvancedFilters() {
     return Column(
       children: [
+        /*
+        // Collapsed Advanced Filters for simplicity
         InkWell(
           onTap: () => setState(() => _showFilters = !_showFilters),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.tune, color: Colors.grey[700], size: 18),
-                    const SizedBox(width: 10),
-                    Text('Advanced Filters', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                  ],
-                ),
-                Icon(_showFilters ? Icons.expand_less : Icons.expand_more, color: Colors.grey[600]),
-              ],
-            ),
+             // ... existing filter UI code ...
           ),
         ),
-        
-        if (_showFilters)
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              children: [
-                _buildToggle('Index Symbol', _isIndexSymbol, (val) => setState(() => _isIndexSymbol = val)),
-                _buildToggle('Force Refresh', _forceRefresh, (val) => setState(() => _forceRefresh = val)),
-                _buildToggle('Continuous', _continuous, (val) => setState(() => _continuous = val)),
-              ],
-            ),
-          ),
+        */
+        // Simple Toggle for Index
+         Row(
+           mainAxisAlignment: MainAxisAlignment.end,
+           children: [
+             const Text('Is Index? ', style: TextStyle(fontSize: 12)),
+             Switch(
+               value: _isIndexSymbol, 
+               onChanged: (val) => setState(() => _isIndexSymbol = val),
+               activeColor: Colors.blue,
+               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+             ),
+           ],
+         ),
       ],
     );
   }
