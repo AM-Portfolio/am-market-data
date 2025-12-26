@@ -22,20 +22,22 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 import com.am.marketdata.api.config.SecurityConfig;
 import com.am.marketdata.config.MetricsConfig;
+import com.am.marketdata.internal.config.MarketDataInternalConfig;
+import com.am.marketdata.scheduler.config.MarketDataSchedulerConfig;
 
 @SpringBootApplication(exclude = {
                 DataSourceAutoConfiguration.class
 })
 @EnableConfigurationProperties
-@Import({ MetricsConfig.class, InfluxDBConfig.class, SecurityConfig.class })
+@Import({ MetricsConfig.class, InfluxDBConfig.class, SecurityConfig.class,
+                MarketDataInternalConfig.class, MarketDataSchedulerConfig.class })
 @ComponentScans({
                 @ComponentScan("com.am.marketdata"),
                 @ComponentScan("com.marketdata")
 })
 @EnableMongoRepositories(basePackages = {
                 "com.am.common.investment.persistence.repository",
-                "com.am.marketdata.service.repo",
-                "com.am.marketdata.internal.repository"
+                "com.am.marketdata.service.repo"
 })
 // @EnableRetry
 @EnableScheduling
