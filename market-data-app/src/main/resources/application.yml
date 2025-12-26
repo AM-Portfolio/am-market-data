@@ -107,13 +107,15 @@ market-data:
 # Logging Configuration
 logging:
   level:
-    root: INFO
+    root: WARN  # Reduce general noise from libraries
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': INFO
     '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.redis]': INFO
-    '[com.am.marketdata.external.api]': INFO
+    '[com.am.marketdata.redis]': INFO  # Keep at INFO for important cache operations
+    '[com.am.marketdata.external.api]': WARN  # Reduce external API noise
     '[com.am.common.investment.service]': INFO
+    '[org.springframework]': WARN  # Reduce Spring framework noise
+    '[org.apache.kafka]': WARN  # Reduce Kafka noise
   # pattern:
   #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
 
@@ -144,6 +146,33 @@ scheduler:
     enabled: false
   stock-indices:
     enabled: false
+  ingestion:
+    enabled: true
+    symbols: "NIFTY 50,NIFTY BANK"
+    provider: ZERODHA
+    force: true
+    start-cron: "0 15 9 * * MON-FRI"  # 9:15 AM weekdays
+    stop-cron: "0 30 15 * * MON-FRI"   # 3:30 PM weekdays
+  historical:
+    sync-cron: "0 15 7 * * *"          # 7:15 AM daily
+  redis:
+    cleanup:
+      enabled: true
+      cron: "0 0 2 * * *"              # 2:00 AM daily
+
+redis:
+  cleanup:
+    retention:
+      days: 7       # Keep last 7 days in Redis
+    batch:
+      size: 1000    # Process 1000 keys at a time
+  cache:
+    ttl:
+      historical: 86400    # 24 hours
+      intraday:
+        past: 14400        # 4 hours for past dates
+        future: 86400      # 24 hours for future dates
+        buffer: 14400      # 4 hour buffer after EOD
 
 # Management/Actuator Configuration
 management:

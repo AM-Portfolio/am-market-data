@@ -151,16 +151,20 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
     @Override
     protected void saveDataAsync(Map<String, OHLCQuote> data) {
         if (data == null || data.isEmpty()) {
-            log.warn("saveDataAsync called with empty data");
+            log.warn("saveDataAsync", "No OHLC data to save (empty map)");
             return;
         }
 
+        String methodName = "saveDataAsync";
         try {
-            log.info("[SAVE_ASYNC] Initiating async save of {} OHLC quotes to database and cache", data.size());
+            log.info(methodName, "[PROVIDER_CACHE] Starting async save of {} OHLC quotes to DATABASE and REDIS",
+                    data.size());
             persistenceService.saveOHLCData(data);
-            log.info("[SAVE_ASYNC] Successfully initiated async save for {} quotes", data.size());
+            log.info(methodName,
+                    "[PROVIDER_CACHE] Successfully initiated async save: {} quotes → DATABASE (InfluxDB) + REDIS cache",
+                    data.size());
         } catch (Exception e) {
-            log.error("Error initiating async save of OHLC data: {}", e.getMessage(), e);
+            log.error(methodName, "[PROVIDER_CACHE] FAILED to save OHLC data to DATABASE/REDIS: " + e.getMessage(), e);
         }
     }
 

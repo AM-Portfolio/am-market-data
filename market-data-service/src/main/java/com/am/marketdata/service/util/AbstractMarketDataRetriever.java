@@ -95,7 +95,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
             return Collections.emptyMap();
         }
 
-        log.info("Starting data retrieval for {} keys with forceRefresh={}", keys.size(), forceRefresh);
+        log.debug("Starting data retrieval for {} keys with forceRefresh={}", keys.size(), forceRefresh);
 
         // If force refresh is requested, check database first, then provider
         if (forceRefresh) {
@@ -135,7 +135,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
             }
         }
 
-        log.info("Completed data retrieval, found data for {}/{} keys",
+        log.debug("Completed data retrieval, found data for {}/{} keys",
                 result.size(), keys.size());
 
         return result;
