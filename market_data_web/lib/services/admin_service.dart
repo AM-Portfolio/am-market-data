@@ -34,11 +34,16 @@ class AdminService {
     }
   }
 
-  Future<void> triggerHistoricalSync({String? symbol, bool forceRefresh = true}) async {
+  Future<void> triggerHistoricalSync({
+    String? symbol, 
+    bool forceRefresh = true,
+    bool fetchIndexStocks = false,
+  }) async {
     final uri = Uri.parse('$baseUrl/sync/historical').replace(
       queryParameters: {
         if (symbol != null && symbol.isNotEmpty) 'symbol': symbol,
-        'forceRefresh': forceRefresh.toString()
+        'forceRefresh': forceRefresh.toString(),
+        'fetchIndexStocks': fetchIndexStocks.toString(),
       }
     );
     final response = await http.post(uri);

@@ -63,12 +63,15 @@ public interface MarketDataFetchService {
          *                         - filterFrequency: When using CUSTOM filter, return
          *                         every Nth data point
          * @param forceRefresh     Whether to force a refresh from the source
+         * @param fetchIndexStocks If true, fetch individual stocks that make up index
+         *                         symbols.
+         *                         If false, keep index symbols as-is
          * @return Historical data response with metadata for all symbols
          */
         HistoricalDataResponseV1 getHistoricalDataMultipleSymbols(Set<String> symbols,
                         Date fromDate, Date toDate,
                         TimeFrame interval, String instrumentType,
-                        Map<String, Object> additionalParams, boolean forceRefresh);
+                        Map<String, Object> additionalParams, boolean forceRefresh, boolean fetchIndexStocks);
 
         /**
          * Get option chain data from cache or service

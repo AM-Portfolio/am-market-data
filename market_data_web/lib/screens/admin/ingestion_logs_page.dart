@@ -29,6 +29,7 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> with RouteAware {
   // New State
   DateTimeRange? _selectedDateRange;
   bool _forceRefresh = true;
+  bool _fetchIndexStocks = false; // Whether to fetch individual stocks from index symbols
 
   // Data State
   List<IngestionLog> _logs = [];
@@ -126,11 +127,15 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> with RouteAware {
         return;
     }
 
-    AppLogger.info("Admin", "Triggering sync for $symbol (Force: $_forceRefresh)");
+    AppLogger.info("Admin", "Triggering sync for $symbol (Force: $_forceRefresh, Fetch Index Stocks: $_fetchIndexStocks)");
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Triggering sync for $symbol...")));
     
     try {
-        await _adminService.triggerHistoricalSync(symbol: symbol, forceRefresh: _forceRefresh);
+        await _adminService.triggerHistoricalSync(
+          symbol: symbol, 
+          forceRefresh: _forceRefresh,
+          fetchIndexStocks: _fetchIndexStocks,
+        );
         if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync Triggered Successfully!")));
             _fetchLogs();
@@ -657,6 +662,20 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> with RouteAware {
                                        activeColor: Colors.blue,
                                    ),
                                    const Text("Force Refresh"),
+                               ],
+                           ),
+                           
+                           // Fetch Index Stocks Toggle
+                           const SizedBox(width: 10),
+                           Row(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                   Switch(
+                                       value: _fetchIndexStocks, 
+                                       onChanged: (val) => setState(() => _fetchIndexStocks = val),
+                                       activeColor: Colors.green,
+                                   ),
+                                   const Text("Fetch Index Stocks"),
                                ],
                            ),
                        ],

@@ -14,8 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+
 import org.springframework.format.annotation.DateTimeFormat;
 
 @Slf4j
@@ -64,11 +63,14 @@ public class MarketDataAdminController {
     @PostMapping("/sync/historical")
     public ResponseEntity<String> triggerHistoricalSync(
             @RequestParam(required = false) String symbol,
-            @RequestParam(defaultValue = "true") boolean forceRefresh) {
-        log.info("Manual trigger: Historical Sync (Symbol: {}, Force Refresh: {})", symbol, forceRefresh);
+            @RequestParam(defaultValue = "true") boolean forceRefresh,
+            @RequestParam(defaultValue = "false") boolean fetchIndexStocks) {
+        log.info("Manual trigger: Historical Sync (Symbol: {}, Force Refresh: {}, Fetch Index Stocks: {})", symbol,
+                forceRefresh, fetchIndexStocks);
         // Running asynchronously to avoid blocking
-        new Thread(() -> historicalSyncService.syncHistoricalData(symbol, forceRefresh)).start();
-        return ResponseEntity.ok("Historical Sync Triggered (Force: " + forceRefresh + ")");
+        new Thread(() -> historicalSyncService.syncHistoricalData(symbol, forceRefresh, fetchIndexStocks)).start();
+        return ResponseEntity.ok("Historical Sync Triggered (Force: " + forceRefresh + ", Fetch Index Stocks: "
+                + fetchIndexStocks + ")");
     }
 
     @PostMapping("/ingestion/start")

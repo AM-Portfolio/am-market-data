@@ -40,8 +40,6 @@ public class MarketDataIngestionService {
     @org.springframework.beans.factory.annotation.Value("${market-data.stream.poll-interval-seconds:10}")
     private int pollIntervalSeconds;
 
-
-
     /**
      * Start ingestion stream for a set of instruments
      */
@@ -49,7 +47,8 @@ public class MarketDataIngestionService {
         startIngestion(instrumentKeys, provider, timeFrame, isIndexSymbol, false);
     }
 
-    public void startIngestion(List<String> instrumentKeys, String provider, String timeFrame, Boolean isIndexSymbol, boolean forceRefresh) {
+    public void startIngestion(List<String> instrumentKeys, String provider, String timeFrame, Boolean isIndexSymbol,
+            boolean forceRefresh) {
 
         // Resolve Symbols
         Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(instrumentKeys, false);
@@ -65,15 +64,15 @@ public class MarketDataIngestionService {
 
         Runnable pollingTask = () -> {
             try {
-                // Trigger fetch - this inherently updates the cache via MarketDataFetchServiceImpl
+                // Trigger fetch - this inherently updates the cache via
+                // MarketDataFetchServiceImpl
                 fetchMarketDataUpdate(
                         resolvedSymbols,
                         finalTimeFrame,
                         isIndexSymbol,
                         providerKey,
                         forceRefresh);
-                
-                        
+
                 log.debug("Ingestion polling cycle completed for provider {}", providerKey);
 
             } catch (Exception e) {
@@ -189,8 +188,6 @@ public class MarketDataIngestionService {
                 startDate = historicalDate.minusDays(7);
         }
 
-        String historicalDateStr = historicalDate.toString();
-
         java.util.Date fromDate = java.util.Date.from(
                 startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
         java.util.Date toDate = java.util.Date.from(
@@ -208,7 +205,8 @@ public class MarketDataIngestionService {
                 TimeFrame.DAY,
                 "STOCK",
                 additionalParams,
-                forceRefresh);
+                forceRefresh,
+                false); // fetchIndexStocks = false (symbols already resolved)
     }
 
     private Map<String, OHLCQuote> mergeData(Map<String, OHLCQuote> liveData,

@@ -37,13 +37,19 @@ public class MarketDataHistoricalSyncService {
     private static final int BATCH_SIZE = 20;
 
     /**
-     * Triggered by Scheduler at 07:15 AM
+     * Triggered by Scheduler or Admin Controller
+     * 
+     * @param symbol           Symbol or index to sync (comma-separated)
+     * @param forceRefresh     Whether to force refresh from provider
+     * @param fetchIndexStocks If true, fetch individual stocks from index symbols;
+     *                         if false, keep index symbols as-is
      */
-    public void syncHistoricalData(String symbol, boolean forceRefresh) {
+    public void syncHistoricalData(String symbol, boolean forceRefresh, boolean fetchIndexStocks) {
         String jobId = UUID.randomUUID().toString();
         LocalDateTime startTime = LocalDateTime.now();
-        log.info("syncHistoricalData", "Starting Historical Data Sync Job: {} (Force Refresh: {})", jobId,
-                forceRefresh);
+        log.info("syncHistoricalData",
+                "Starting Historical Data Sync Job: {} (Force Refresh: {}, Fetch Index Stocks: {})", jobId,
+                forceRefresh, fetchIndexStocks);
 
         IngestionJobLog jobLog = IngestionJobLog.builder()
                 .jobId(jobId)
@@ -93,7 +99,8 @@ public class MarketDataHistoricalSyncService {
                         symbolsInBucket.size());
                 addLog(jobLog, "Processing bucket for date " + fromDate + ": " + symbolsInBucket.size() + " symbols");
 
-                ProcessingResult result = processBucket(symbolsInBucket, fromDate, jobLog, forceRefresh);
+                ProcessingResult result = processBucket(symbolsInBucket, fromDate, jobLog, forceRefresh,
+                        fetchIndexStocks);
                 successCount += result.successCount;
                 failureCount += result.failureCount;
                 totalPayloadSize += result.totalPayloadSize;
@@ -205,7 +212,7 @@ public class MarketDataHistoricalSyncService {
     }
 
     private ProcessingResult processBucket(List<String> symbols, LocalDate fromDate, IngestionJobLog jobLog,
-            boolean forceRefresh) {
+            boolean forceRefresh, boolean fetchIndexStocks) {
         ProcessingResult totalResult = new ProcessingResult();
         LocalDate toDate = LocalDate.now(); // Up to current
 
@@ -215,7 +222,7 @@ public class MarketDataHistoricalSyncService {
 
         for (List<String> batch : batches) {
             CompletableFuture<ProcessingResult> future = CompletableFuture.supplyAsync(() -> {
-                return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog, forceRefresh);
+                return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog, forceRefresh, fetchIndexStocks);
             }, batchExecutor);
             futures.add(future);
         }
@@ -234,7 +241,7 @@ public class MarketDataHistoricalSyncService {
     }
 
     private ProcessingResult fetchBatch(Set<String> batch, LocalDate fromDate, LocalDate toDate,
-            IngestionJobLog jobLog, boolean forceRefresh) {
+            IngestionJobLog jobLog, boolean forceRefresh, boolean fetchIndexStocks) {
         ProcessingResult result = new ProcessingResult();
         try {
             log.info("fetchBatch", "[BATCH_START] Processing batch of {} symbols from {} to {} (forceRefresh: {})",
@@ -258,7 +265,8 @@ public class MarketDataHistoricalSyncService {
                     TimeFrame.DAY,
                     "STOCK", // Instrument Type
                     new HashMap<>(), // Additional Params
-                    forceRefresh // Force Refresh (we need to fetch from provider)
+                    forceRefresh, // Force Refresh (we need to fetch from provider)
+                    fetchIndexStocks // Fetch individual stocks from index symbols if true
             );
 
             long apiDuration = System.currentTimeMillis() - apiStartTime;
