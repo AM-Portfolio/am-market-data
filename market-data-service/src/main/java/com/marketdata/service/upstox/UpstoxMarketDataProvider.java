@@ -341,7 +341,8 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             // }
 
             // 2. Try API Service if SDK failed or returned empty
-            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+            if (response == null || response.getData() == null || response.getData().getCandles() == null
+                    || response.getData().getCandles().isEmpty()) {
                 log.info("getHistoricalData",
                         "Fetching historical data via API for instrument key: " + instrumentKey + ", unit: " + unit
                                 + ", interval: " + intervalValue + ",from: " + fromDateStr + ", to: " + toDateStr);
@@ -350,36 +351,47 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
             // Map to Common HistoricalData model
             HistoricalData historicalData = new HistoricalData();
-            if (response != null && response.getData() != null) {
+            if (response != null && response.getData() != null && response.getData().getCandles() != null) {
                 List<OHLCVTPoint> dataPoints = new ArrayList<>();
-                for (HistoricalDataResponse.Candle candle : response.getData()) {
+                for (List<Object> rawCandle : response.getData().getCandles()) {
+                    // candle structure: [timestamp, open, high, low, close, vol, oi]
+                    if (rawCandle == null || rawCandle.size() < 5)
+                        continue;
+
                     OHLCVTPoint point = new OHLCVTPoint();
                     try {
-                        // Parse timestamp
-                        // Upstox sample: "2024-04-12T00:00:00+05:30"
-                        if (candle.getTimestamp() != null) {
+                        // Index 0: Timestamp (String)
+                        String timestamp = (String) rawCandle.get(0);
+                        if (timestamp != null) {
+                            // Upstox sample: "2024-04-12T00:00:00+05:30"
                             // Using Instant parser for ISO 8601 strings
                             java.time.Instant instant = java.time.Instant
-                                    .parse(candle.getTimestamp().replace("+0530", "+05:30"));
+                                    .parse(timestamp.replace("+0530", "+05:30"));
                             point.setTime(java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()));
                         } else {
                             point.setTime(java.time.LocalDateTime.now());
                         }
                     } catch (Exception e) {
-                        try {
-                            // Fallback date only
-                            java.time.LocalDate ld = java.time.LocalDate.parse(candle.getTimestamp());
-                            point.setTime(ld.atStartOfDay());
-                        } catch (Exception ex) {
-                            point.setTime(java.time.LocalDateTime.now());
-                        }
+                        log.warn("getHistoricalData", "Error parsing candle timestamp: " + e.getMessage());
+                        point.setTime(java.time.LocalDateTime.now());
                     }
 
-                    point.setOpen(candle.getOpen());
-                    point.setHigh(candle.getHigh());
-                    point.setLow(candle.getLow());
-                    point.setClose(candle.getClose());
-                    point.setVolume(candle.getVolume() != null ? candle.getVolume() : 0L);
+                    try {
+                        // Parse values safely handling potential Integer/Double types from JSON
+                        point.setOpen(parseDouble(rawCandle.get(1)));
+                        point.setHigh(parseDouble(rawCandle.get(2)));
+                        point.setLow(parseDouble(rawCandle.get(3)));
+                        point.setClose(parseDouble(rawCandle.get(4)));
+
+                        if (rawCandle.size() > 5) {
+                            point.setVolume(parseLong(rawCandle.get(5)));
+                        } else {
+                            point.setVolume(0L);
+                        }
+                    } catch (Exception e) {
+                        log.warn("getHistoricalData", "Error parsing candle data points: " + e.getMessage());
+                        continue;
+                    }
 
                     dataPoints.add(point);
                 }
@@ -480,6 +492,24 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     @Override
     public boolean logout() {
         return true;
+    }
+
+    private Double parseDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        } else if (value instanceof String) {
+            return Double.parseDouble((String) value);
+        }
+        return 0.0;
+    }
+
+    private Long parseLong(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        } else if (value instanceof String) {
+            return Long.parseLong((String) value);
+        }
+        return 0L;
     }
 
     @Override

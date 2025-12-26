@@ -274,71 +274,12 @@ public class UpstoxSdkService {
         }
 
         if (sdkResponse != null && sdkResponse.getData() != null && sdkResponse.getData().getCandles() != null) {
-            java.util.List<com.am.marketdata.upstock.model.HistoricalDataResponse.Candle> candles = new java.util.ArrayList<>();
-
-            for (java.util.List<Object> candleData : sdkResponse.getData().getCandles()) {
-                if (candleData != null && candleData.size() >= 6) {
-                    com.am.marketdata.upstock.model.HistoricalDataResponse.Candle candle = new com.am.marketdata.upstock.model.HistoricalDataResponse.Candle();
-                    try {
-                        // Index 0: Timestamp
-                        candle.setTimestamp(String.valueOf(candleData.get(0)));
-
-                        // Index 1: Open
-                        candle.setOpen(parseDouble(candleData.get(1)));
-
-                        // Index 2: High
-                        candle.setHigh(parseDouble(candleData.get(2)));
-
-                        // Index 3: Low
-                        candle.setLow(parseDouble(candleData.get(3)));
-
-                        // Index 4: Close
-                        candle.setClose(parseDouble(candleData.get(4)));
-
-                        // Index 5: Volume
-                        candle.setVolume(parseLong(candleData.get(5)));
-
-                        // Index 6: OI (Optional)
-                        if (candleData.size() > 6) {
-                            candle.setOi(parseLong(candleData.get(6)));
-                        }
-
-                        candles.add(candle);
-                    } catch (Exception e) {
-                        log.warn("Error parsing candle data: {}", candleData, e);
-                    }
-                }
-            }
-            response.setData(candles);
+            com.am.marketdata.upstock.model.HistoricalDataResponse.DataPayload dataPayload = new com.am.marketdata.upstock.model.HistoricalDataResponse.DataPayload();
+            dataPayload.setCandles(sdkResponse.getData().getCandles());
+            response.setData(dataPayload);
         }
 
         return response;
     }
 
-    private Double parseDouble(Object val) {
-        if (val == null)
-            return 0.0;
-        if (val instanceof Number) {
-            return ((Number) val).doubleValue();
-        }
-        try {
-            return Double.parseDouble(val.toString());
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
-
-    private Long parseLong(Object val) {
-        if (val == null)
-            return 0L;
-        if (val instanceof Number) {
-            return ((Number) val).longValue();
-        }
-        try {
-            Double d = Double.parseDouble(val.toString());
-            return d.longValue();
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
-    }
 }

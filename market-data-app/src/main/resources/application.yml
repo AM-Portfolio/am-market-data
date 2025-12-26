@@ -110,8 +110,8 @@ logging:
     root: INFO
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': INFO
-    '[com.am.marketdata.service]': DEBUG
-    '[com.am.marketdata.redis]': DEBUG
+    '[com.am.marketdata.service]': INFO
+    '[com.am.marketdata.redis]': INFO
     '[com.am.marketdata.external.api]': INFO
     '[com.am.common.investment.service]': INFO
   # pattern:
