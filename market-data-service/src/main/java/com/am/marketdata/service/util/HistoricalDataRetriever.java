@@ -161,6 +161,23 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
                     }
                     result.put(symbol, historicalData);
                     log.debug("[PROVIDER] Successfully fetched historical data for symbol: {}", symbol);
+
+                    // IMMEDIATE PERSISTENCE: Save to DB and Cache immediately
+                    try {
+                        persistenceService.saveHistoricalData(symbol, interval, historicalData);
+                        log.debug("[PROVIDER] Immediately persisted data for symbol: {}", symbol);
+                    } catch (Exception e) {
+                        log.error("[PROVIDER] Error persisting data for symbol {}: {}", symbol, e.getMessage());
+                    }
+
+                    // Throttling: Wait 2 seconds before next provider call to allow
+                    // persistence/cache catches up
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("[PROVIDER] Throttling interrupted for symbol: {}", symbol);
+                    }
                 } else {
                     log.warn("[PROVIDER] No historical data returned for symbol: {}", symbol);
                 }
@@ -169,10 +186,10 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             }
         }
 
-        log.info("[PROVIDER] Successfully fetched historical data for {}/{} symbols",
-                result.size(), symbols.size());
+        log.info("[PROVIDER] Successfully fetched historical data for {}/{} symbols", result.size(), symbols.size());
 
         return result;
+
     }
 
     /**

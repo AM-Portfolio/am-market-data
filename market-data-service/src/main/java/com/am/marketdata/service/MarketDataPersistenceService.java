@@ -96,21 +96,34 @@ public class MarketDataPersistenceService {
             return CompletableFuture.completedFuture(null);
         }
 
-        return CompletableFuture.runAsync(() -> {
-            try {
-                // First save to database
-                log.debug("Saving historical data to database for symbol: {}", symbol);
-                historicalDataService.saveHistoricalData(historicalData);
-                log.debug("Successfully saved historical data for symbol: {}", symbol);
+        try {
+            return CompletableFuture.runAsync(() -> {
+                try {
+                    // First save to database
+                    log.debug("Saving historical data to database for symbol: {}", symbol);
+                    historicalDataService.saveHistoricalData(historicalData);
+                    log.debug("Successfully saved historical data for symbol: {}", symbol);
 
-                // Then update the cache
+                    // Then update the cache
+                    marketDataCacheService.cacheHistoricalData(symbol, interval, historicalData);
+                    log.debug("Successfully cached historical data for symbol: {}", symbol);
+                } catch (Exception e) {
+                    log.error("Error saving historical data for symbol {}: {}", symbol, e.getMessage(), e);
+                    throw new RuntimeException("Failed to save historical data", e);
+                }
+            }, taskExecutor);
+        } catch (org.springframework.core.task.TaskRejectedException e) {
+            log.warn("Task executor saturated, running synchronously for symbol: {}", symbol);
+            // Fallback: Run synchronously
+            try {
+                historicalDataService.saveHistoricalData(historicalData);
                 marketDataCacheService.cacheHistoricalData(symbol, interval, historicalData);
-                log.debug("Successfully cached historical data for symbol: {}", symbol);
-            } catch (Exception e) {
-                log.error("Error saving historical data for symbol {}: {}", symbol, e.getMessage(), e);
-                throw new RuntimeException("Failed to save historical data", e);
+                return CompletableFuture.completedFuture(null);
+            } catch (Exception ex) {
+                log.error("Error saving historical data synchronously for symbol {}: {}", symbol, ex.getMessage(), ex);
+                return CompletableFuture.failedFuture(ex);
             }
-        }, taskExecutor);
+        }
     }
 
     public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh) {

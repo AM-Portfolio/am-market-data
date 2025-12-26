@@ -61,7 +61,15 @@ public class StockRedisCache {
      * @return true if saved successfully, false otherwise
      */
     /**
-     * Saves a list of StockBars containing intraday data with appropriate TTL using Pipelining.
+     * Saves a list of StockBars containing intraday data with appropriate TTL using
+     * Pipelining.
+     * 
+     * @param stockBarsList List of StockBars objects containing intraday data
+     * @return true if saved successfully, false otherwise
+     */
+    /**
+     * Saves a list of StockBars containing intraday data with appropriate TTL using
+     * Pipelining.
      * 
      * @param stockBarsList List of StockBars objects containing intraday data
      * @return true if saved successfully, false otherwise
@@ -73,34 +81,53 @@ public class StockRedisCache {
         }
 
         try {
-            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-                for (StockBars stockBars : stockBarsList) {
+            // Pre-process and serialize data to avoid heavy logic inside pipeline
+            Map<byte[], byte[]> batchData = new HashMap<>();
+            Map<byte[], Long> batchTtl = new HashMap<>();
+
+            for (StockBars stockBars : stockBarsList) {
+                try {
                     String symbol = stockBars.getSymbol();
                     String interval = stockBars.getInterval();
                     String date = stockBars.getStartDate();
                     List<OHLCV> bars = stockBars.getBars();
 
-                    try {
-                        validateInterval(interval);
-                        // validateDate(date); // Skip validation inside loop for performance, or keep it? Better to catch inside.
+                    validateInterval(interval);
 
-                        String key = generateKey(INTRADAY_PREFIX, symbol, interval, date);
-                        String json = redisObjectMapper.writeValueAsString(bars);
-                        long ttlSeconds = calculateIntradayTtl(date);
+                    String key = generateKey(INTRADAY_PREFIX, symbol, interval, date);
+                    String json = redisObjectMapper.writeValueAsString(bars);
+                    long ttlSeconds = calculateIntradayTtl(date);
 
-                        // Low-level connection access requires bytes
-                        byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
-                        byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
+                    byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
+                    byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
 
-                        connection.setEx(keyBytes, ttlSeconds, valueBytes);
-
-                    } catch (Exception e) {
-                        log.error("saveIntradayBars", "Error preparing batch for " + symbol + ": " + e.getMessage());
+                    if (keyBytes != null && valueBytes != null) {
+                        batchData.put(keyBytes, valueBytes);
+                        batchTtl.put(keyBytes, ttlSeconds);
                     }
+                } catch (Exception e) {
+                    log.error("saveIntradayBars",
+                            "Error preparing batch item for " + stockBars.getSymbol() + ": " + e.getMessage());
+                }
+            }
+
+            if (batchData.isEmpty()) {
+                return true; // Nothing to save
+            }
+
+            // Execute pipeline with minimal logic
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                for (Map.Entry<byte[], byte[]> entry : batchData.entrySet()) {
+                    byte[] key = entry.getKey();
+                    byte[] value = entry.getValue();
+                    Long ttl = batchTtl.get(key);
+
+                    connection.setEx(key, ttl, value);
                 }
                 return null;
             });
-            
+
+            log.debug("saveIntradayBars", "Executed pipeline for " + batchData.size() + " intraday keys");
             return true;
         } catch (Exception e) {
             log.error("saveIntradayBars", "Batch save failed: " + e.getMessage());
@@ -146,13 +173,8 @@ public class StockRedisCache {
     }
 
     /**
-     * Saves a list of StockBars containing historical data with appropriate TTL.
-     * 
-     * @param stockBarsList List of StockBars objects containing historical data
-     * @return true if saved successfully, false otherwise
-     */
-    /**
-     * Saves a list of StockBars containing historical data with appropriate TTL using Pipelining.
+     * Saves a list of StockBars containing historical data with appropriate TTL
+     * using Pipelining.
      * 
      * @param stockBarsList List of StockBars objects containing historical data
      * @return true if saved successfully, false otherwise
@@ -164,39 +186,70 @@ public class StockRedisCache {
         }
 
         try {
-            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-                for (StockBars stockBars : stockBarsList) {
-                    String symbol = stockBars.getSymbol();
-                    String interval = stockBars.getInterval(); // Should be 1d usually
-                    List<OHLCV> bars = stockBars.getBars();
+            // Pre-process and serialize data to avoid heavy logic inside pipeline
+            // List of Map.Entry isn't ideal for multiple ops per stockBar, so let's use a
+            // list of wrapper objects or just arrays
+            List<Triple<byte[], byte[], Long>> batchOps = new ArrayList<>();
+            final long HISTORICAL_TTL = 86400; // 24 Hours
 
-                    if (bars == null || bars.isEmpty()) continue;
+            for (StockBars stockBars : stockBarsList) {
+                String symbol = stockBars.getSymbol();
+                String interval = stockBars.getInterval();
+                List<OHLCV> bars = stockBars.getBars();
 
-                    for (OHLCV bar : bars) {
-                        try {
-                            String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
-                            String key = generateKey(HISTORICAL_PREFIX, symbol, interval, barDate);
-                            
-                            String json = redisObjectMapper.writeValueAsString(bar);
-                            long ttlSeconds = 86400; // 24 Hours
+                if (bars == null || bars.isEmpty())
+                    continue;
 
-                            byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
-                            byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
+                for (OHLCV bar : bars) {
+                    try {
+                        String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
+                        String key = generateKey(HISTORICAL_PREFIX, symbol, interval, barDate);
 
-                            connection.setEx(keyBytes, ttlSeconds, valueBytes);
-                        } catch (Exception e) {
-                            log.error("saveHistoricalBar", "Error processing bar for " + symbol + ": " + e.getMessage());
+                        String json = redisObjectMapper.writeValueAsString(bar);
+
+                        byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
+                        byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
+
+                        if (keyBytes != null && valueBytes != null) {
+                            batchOps.add(new Triple<>(keyBytes, valueBytes, HISTORICAL_TTL));
                         }
+                    } catch (Exception e) {
+                        log.error("saveHistoricalBar",
+                                "Error preparing batch item for " + symbol + ": " + e.getMessage());
                     }
+                }
+            }
+
+            if (batchOps.isEmpty()) {
+                return true;
+            }
+
+            // Execute pipeline with minimal logic
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                for (Triple<byte[], byte[], Long> op : batchOps) {
+                    connection.setEx(op.first, op.third, op.second);
                 }
                 return null;
             });
 
-            log.debug("saveHistoricalBar", "Executed pipeline for " + stockBarsList.size() + " stock bar sets");
+            log.debug("saveHistoricalBar", "Executed pipeline for " + batchOps.size() + " historical bars");
             return true;
         } catch (Exception e) {
             log.error("saveHistoricalBar", "Batch save failed", e);
             return false;
+        }
+    }
+
+    // Helper class for batch operations
+    private static class Triple<F, S, T> {
+        final F first;
+        final S second;
+        final T third;
+
+        Triple(F first, S second, T third) {
+            this.first = first;
+            this.second = second;
+            this.third = third;
         }
     }
 

@@ -34,7 +34,10 @@ public class MarketDataHistoricalSyncService {
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
     private final ExecutorService batchExecutor = Executors.newFixedThreadPool(10);
-    private static final int BATCH_SIZE = 20;
+    private static final int BATCH_SIZE = 10;
+    private static final int PARALLEL_BATCH_COUNT = 1; // Process 1 batch concurrently (10 symbols) to avoid hitting
+                                                       // rate limits
+    private static final int BATCH_DELAY_MS = 2000; // Wait 2 seconds between sets of batches
 
     /**
      * Triggered by Scheduler or Admin Controller
@@ -216,24 +219,53 @@ public class MarketDataHistoricalSyncService {
         ProcessingResult totalResult = new ProcessingResult();
         LocalDate toDate = LocalDate.now(); // Up to current
 
-        // Batching within bucket
+        // 1. Split symbols into batches
         List<List<String>> batches = chunkList(symbols, BATCH_SIZE);
-        List<CompletableFuture<ProcessingResult>> futures = new ArrayList<>();
 
-        for (List<String> batch : batches) {
-            CompletableFuture<ProcessingResult> future = CompletableFuture.supplyAsync(() -> {
-                return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog, forceRefresh, fetchIndexStocks);
-            }, batchExecutor);
-            futures.add(future);
-        }
+        // 2. Split batches into "pages" (sets of batches to process in parallel)
+        List<List<List<String>>> pages = chunkList(batches, PARALLEL_BATCH_COUNT);
 
-        // Wait and Combine
-        for (CompletableFuture<ProcessingResult> f : futures) {
-            try {
-                ProcessingResult batchResult = f.join();
-                totalResult.add(batchResult);
-            } catch (Exception e) {
-                log.error("processBucket", "Error processing batch", e);
+        log.info("processBucket", "Split {} symbols into {} batches, grouped into {} pages (Parallel limit: {})",
+                symbols.size(), batches.size(), pages.size(), PARALLEL_BATCH_COUNT);
+
+        int pageIndex = 0;
+        for (List<List<String>> page : pages) {
+            pageIndex++;
+            log.info("processBucket", "[PAGE_START] Processing page {}/{} ({} batches)", pageIndex, pages.size(),
+                    page.size());
+
+            List<CompletableFuture<ProcessingResult>> futures = new ArrayList<>();
+
+            // Submit all batches in this page
+            for (List<String> batch : page) {
+                CompletableFuture<ProcessingResult> future = CompletableFuture.supplyAsync(() -> {
+                    return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog, forceRefresh, fetchIndexStocks);
+                }, batchExecutor);
+                futures.add(future);
+            }
+
+            // Wait for all batches in this page to complete
+            for (CompletableFuture<ProcessingResult> f : futures) {
+                try {
+                    ProcessingResult batchResult = f.join();
+                    totalResult.add(batchResult);
+                } catch (Exception e) {
+                    log.error("processBucket", "Error processing batch in page " + pageIndex, e);
+                }
+            }
+
+            log.info("processBucket", "[PAGE_COMPLETE] Finished page {}/{}. Success: {}, Failed: {}",
+                    pageIndex, pages.size(), totalResult.successCount, totalResult.failureCount);
+
+            // Throttle: Delay before next page (if not the last page)
+            if (pageIndex < pages.size()) {
+                try {
+                    log.info("processBucket", "[THROTTLE] Waiting {} ms before next page...", BATCH_DELAY_MS);
+                    Thread.sleep(BATCH_DELAY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("processBucket", "Throttling interrupted", e);
+                }
             }
         }
 
