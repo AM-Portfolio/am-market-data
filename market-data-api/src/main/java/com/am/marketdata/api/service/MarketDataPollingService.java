@@ -207,32 +207,40 @@ public class MarketDataPollingService {
         java.time.LocalDate today = java.time.LocalDate.now();
         java.time.LocalDate historicalDate;
 
+        java.time.LocalDate startDate;
+
         switch (timeFrame.toUpperCase()) {
             case "1D":
             case "DAY":
                 historicalDate = today.minusDays(1);
+                startDate = historicalDate.minusDays(7); // Lookback 7 days to cover weekends/holidays
                 break;
             case "1W":
             case "WEEK":
                 historicalDate = today.minusWeeks(1);
+                startDate = historicalDate.minusWeeks(4);
                 break;
             case "1M":
             case "MONTH":
                 historicalDate = today.minusMonths(1);
+                startDate = historicalDate.minusMonths(6);
                 break;
             default:
                 historicalDate = today.minusDays(1);
+                startDate = historicalDate.minusDays(7);
         }
 
         String historicalDateStr = historicalDate.toString();
 
         // Convert LocalDate to Date for API call
+        // Convert LocalDate to Date for API call
         java.util.Date fromDate = java.util.Date.from(
+                startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        java.util.Date toDate = java.util.Date.from(
                 historicalDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
-        java.util.Date toDate = fromDate;
 
-        log.info("Fetching historical data for {} symbols from {} (timeFrame: {})",
-                symbols.size(), historicalDateStr, timeFrame);
+        log.info("Fetching historical data for {} symbols from {} (timeFrame: {}) from: {} to: {}",
+                symbols.size(), historicalDateStr, timeFrame, fromDate, toDate);
 
         Map<String, Object> additionalParams = new HashMap<>();
         if (isIndexSymbol != null && isIndexSymbol) {

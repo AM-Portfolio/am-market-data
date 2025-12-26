@@ -344,9 +344,8 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
                 log.info("getHistoricalData",
                         "Fetching historical data via API for instrument key: " + instrumentKey + ", unit: " + unit
-                                + ", interval: " + intervalValue);
-                response = upstoxApiService.getHistoricalCandleData(instrumentKey, unit, toDateStr,
-                        fromDateStr);
+                                + ", interval: " + intervalValue + ",from: " + fromDateStr + ", to: " + toDateStr);
+                response = upstoxApiService.getHistoricalCandleData(instrumentKey, unit, fromDateStr, toDateStr);
             }
 
             // Map to Common HistoricalData model
