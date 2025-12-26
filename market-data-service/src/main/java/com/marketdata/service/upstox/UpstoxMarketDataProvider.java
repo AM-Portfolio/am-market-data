@@ -310,6 +310,15 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                 }
             }
 
+            // 2. Try API Service if SDK failed or returned empty
+            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                log.info("getHistoricalData",
+                        "Fetching historical data via API for instrument key: " + instrumentKey + ", unit: " + unit
+                                + ", interval: " + intervalValue);
+                response = upstoxApiService.getHistoricalCandleData(instrumentKey, "day", toDateStr,
+                        fromDateStr);
+            }
+
             // Map to Common HistoricalData model
             HistoricalData historicalData = new HistoricalData();
             if (response != null && response.getData() != null) {

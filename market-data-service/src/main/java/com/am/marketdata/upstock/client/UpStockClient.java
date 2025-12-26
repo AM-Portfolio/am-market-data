@@ -41,8 +41,10 @@ public class UpStockClient {
 
     // Historical Data APIs
     public HistoricalDataResponse getHistoricalData(String symbol, String interval, String from, String to) {
-        String url = BASE_URL + "/historical-data/" + symbol + "/" + interval;
-        return executeGet(url, HistoricalDataResponse.class, "from", from, "to", to);
+        // Upstox V2 API format:
+        // /historical-candle/{instrumentKey}/{interval}/{to_date}/{from_date}
+        String url = BASE_URL + "/historical-candle/" + symbol + "/" + interval + "/" + to + "/" + from;
+        return executeGet(url, HistoricalDataResponse.class);
     }
 
     private String getAccessToken() {

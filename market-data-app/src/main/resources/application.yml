@@ -98,6 +98,8 @@ spring:
       - classpath:application-zerodha.yml
 
 market-data:
+  stream:
+    poll-interval-seconds: 60
   cache:
     enabled: true
     price-ttl-minutes: ${MARKET_DATA_CACHE_PRICE_TTL_MINUTES:15}

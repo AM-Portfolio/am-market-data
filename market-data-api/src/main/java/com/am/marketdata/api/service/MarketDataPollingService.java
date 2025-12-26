@@ -3,6 +3,12 @@ package com.am.marketdata.api.service;
 import com.am.marketdata.api.websocket.MarketDataWebSocketHandler;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.api.model.MarketDataUpdate;
+import com.am.marketdata.api.model.StreamConnectRequest;
+import com.am.marketdata.api.model.StreamConnectResponse;
+import com.am.marketdata.api.util.InstrumentUtils;
+import com.am.common.investment.model.historical.HistoricalData;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -19,22 +25,30 @@ public class MarketDataPollingService {
 
     private final MarketDataFetchService marketDataFetchService;
     private final MarketDataWebSocketHandler webSocketHandler;
+    private final InstrumentUtils instrumentUtils;
 
     // Scheduler for polling
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
     private final Map<String, ScheduledFuture<?>> activeStreams = new ConcurrentHashMap<>();
 
+    /**
+     * Helper to resolve symbols using InstrumentUtils
+     */
+    private Set<String> resolveSymbols(List<String> keys, boolean expandIndices) {
+        return instrumentUtils.resolveSymbols(keys, expandIndices);
+    }
+
     @org.springframework.beans.factory.annotation.Value("${market-data.stream.poll-interval-seconds:10}")
     private int pollIntervalSeconds;
 
-    public void connectStream(List<String> instrumentKeys, String modeStr, String provider, String timeFrame,
+    public void connectStream(java.util.List<String> instrumentKeys, String modeStr, String provider, String timeFrame,
             Boolean isIndexSymbol) {
-        // Symbols are already resolved by the controller based on expandIndices
-        // parameter
-        // No need to resolve again here
+
+        // Orchestration Step 1: Resolve Symbols (Common Logic)
+        Set<String> resolvedSymbols = resolveSymbols(instrumentKeys, false);
         log.info(
-                "Initiating stream simulation via polling for {} instruments. Provider: {}, TimeFrame: {}, IsIndexSymbol: {}",
-                instrumentKeys.size(), provider, timeFrame, isIndexSymbol);
+                "Initiating stream simulation via polling for {} instruments (resolved from {}). Provider: {}, TimeFrame: {}, IsIndexSymbol: {}",
+                resolvedSymbols.size(), instrumentKeys.size(), provider, timeFrame, isIndexSymbol);
 
         String providerKey = provider != null ? provider.toUpperCase() : "UNKNOWN";
         final String finalTimeFrame = timeFrame != null ? timeFrame : "1D";
@@ -44,58 +58,14 @@ public class MarketDataPollingService {
 
         Runnable pollingTask = () -> {
             try {
-                Set<String> keys = new HashSet<>(instrumentKeys);
+                // Orchestration delegated to fetchMarketDataUpdate
+                MarketDataUpdate update = fetchMarketDataUpdate(
+                        resolvedSymbols,
+                        finalTimeFrame,
+                        isIndexSymbol,
+                        providerKey);
 
-                // Parallel Execution using CompletableFuture for independent tasks
-
-                // Task 1: Fetch Live OHLC Data
-                CompletableFuture<Map<String, OHLCQuote>> liveDataFuture = CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, false);
-                    } catch (Exception e) {
-                        log.error("Error fetching live OHLC data", e);
-                        return new HashMap<>();
-                    }
-                });
-
-                // Task 2: Fetch Historical Data (if applicable)
-                CompletableFuture<Map<String, Object>> historicalDataFuture;
-                if ("1D".equalsIgnoreCase(finalTimeFrame) || "1W".equalsIgnoreCase(finalTimeFrame)
-                        || "1M".equalsIgnoreCase(finalTimeFrame)) {
-                    historicalDataFuture = CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return fetchHistoricalData(keys, finalTimeFrame, isIndexSymbol);
-                        } catch (Exception e) {
-                            log.error("Error fetching historical data", e);
-                            return new HashMap<>();
-                        }
-                    });
-                } else {
-                    historicalDataFuture = CompletableFuture.completedFuture(new HashMap<>());
-                }
-
-                // Wait for both tasks to complete
-                CompletableFuture.allOf(liveDataFuture, historicalDataFuture).join();
-
-                // Get results
-                Map<String, OHLCQuote> liveOhlcData = liveDataFuture.get();
-                Map<String, Object> historicalResponse = historicalDataFuture.get();
-
-                // Merge Data
-                Map<String, OHLCQuote> enrichedData = mergeData(liveOhlcData, historicalResponse);
-
-                // Step 3: Build and broadcast quote updates
-                if (enrichedData != null && !enrichedData.isEmpty()) {
-                    Map<String, com.am.marketdata.api.model.MarketDataUpdate.QuoteChange> quoteUpdates = buildQuoteUpdates(
-                            enrichedData);
-
-                    com.am.marketdata.api.model.MarketDataUpdate update = com.am.marketdata.api.model.MarketDataUpdate
-                            .builder()
-                            .provider(providerKey)
-                            .timestamp(System.currentTimeMillis())
-                            .quotes(quoteUpdates)
-                            .build();
-
+                if (update != null) {
                     webSocketHandler.broadcast(update);
                 }
             } catch (Exception e) {
@@ -108,6 +78,101 @@ public class MarketDataPollingService {
                 TimeUnit.SECONDS);
         activeStreams.put(providerKey, future);
         log.info("Polling stream started for provider: {} with interval: {} seconds", providerKey, pollIntervalSeconds);
+    }
+
+    public StreamConnectResponse initiateStream(
+            StreamConnectRequest request) {
+        // Use expandIndices from request (defaults to false if not provided)
+        boolean expandIndices = request.getExpandIndices() != null ? request.getExpandIndices() : false;
+
+        // Orchestration Step 1: Resolve Symbols
+        java.util.Set<String> resolvedSymbols = resolveSymbols(request.getInstrumentKeys(), expandIndices);
+
+        log.info("Resolved {} symbols to {} for stream initiation",
+                request.getInstrumentKeys().size(), resolvedSymbols.size());
+
+        String provider = request.getProvider() != null ? request.getProvider().toUpperCase() : "UPSTOCK";
+        String timeFrame = request.getTimeFrame() != null ? request.getTimeFrame() : "1D";
+
+        // Start the background stream
+        connectStream(
+                new ArrayList<>(resolvedSymbols),
+                request.getMode(),
+                provider,
+                timeFrame,
+                request.getIsIndexSymbol() != null ? request.getIsIndexSymbol() : false);
+
+        // Fetch initial data synchronously to return in response
+        MarketDataUpdate initialData = fetchMarketDataUpdate(
+                resolvedSymbols,
+                timeFrame,
+                request.getIsIndexSymbol(),
+                provider);
+
+        return StreamConnectResponse.builder()
+                .status("SUCCESS")
+                .message("Stream connection initiated successfully with timeFrame: " + timeFrame)
+                .data(initialData)
+                .build();
+    }
+
+    public MarketDataUpdate fetchMarketDataUpdate(
+            Set<String> keys, String timeFrame, Boolean isIndexSymbol, String providerKey) {
+        try {
+            // Orchestration Step 2 & 3: Parallel Execution of Data Fetching
+
+            // Task 1: Fetch Live OHLC Data
+            CompletableFuture<Map<String, OHLCQuote>> liveDataFuture = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, false);
+                } catch (Exception e) {
+                    log.error("Error fetching live OHLC data", e);
+                    return new HashMap<>();
+                }
+            });
+
+            // Task 2: Fetch Historical Data (if applicable)
+            CompletableFuture<Map<String, Object>> historicalDataFuture;
+            if ("1D".equalsIgnoreCase(timeFrame) || "1W".equalsIgnoreCase(timeFrame)
+                    || "1M".equalsIgnoreCase(timeFrame)) {
+                historicalDataFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return fetchHistoricalData(keys, timeFrame, isIndexSymbol);
+                    } catch (Exception e) {
+                        log.error("Error fetching historical data", e);
+                        return new HashMap<>();
+                    }
+                });
+            } else {
+                historicalDataFuture = CompletableFuture.completedFuture(new HashMap<>());
+            }
+
+            // Wait for both tasks to complete
+            CompletableFuture.allOf(liveDataFuture, historicalDataFuture).join();
+
+            // Get results
+            Map<String, OHLCQuote> liveOhlcData = liveDataFuture.get();
+            Map<String, Object> historicalResponse = historicalDataFuture.get();
+
+            // Orchestration Step 4: Business Calculation (Merge Data)
+            Map<String, OHLCQuote> enrichedData = mergeData(liveOhlcData, historicalResponse);
+
+            // Step 3: Build update object
+            if (enrichedData != null && !enrichedData.isEmpty()) {
+                // Orchestration Step 5: Response Mapping
+                Map<String, MarketDataUpdate.QuoteChange> quoteUpdates = buildQuoteUpdates(
+                        enrichedData);
+
+                return MarketDataUpdate.builder()
+                        .provider(providerKey)
+                        .timestamp(System.currentTimeMillis())
+                        .quotes(quoteUpdates)
+                        .build();
+            }
+        } catch (Exception e) {
+            log.error("Error fetching market data update", e);
+        }
+        return null;
     }
 
     public void disconnectStream(String provider) {
@@ -194,8 +259,8 @@ public class MarketDataPollingService {
             if (historicalResponse != null && historicalResponse.containsKey(symbol)) {
                 Object symbolData = historicalResponse.get(symbol);
 
-                if (symbolData instanceof com.am.common.investment.model.historical.HistoricalData) {
-                    com.am.common.investment.model.historical.HistoricalData historicalData = (com.am.common.investment.model.historical.HistoricalData) symbolData;
+                if (symbolData instanceof HistoricalData) {
+                    HistoricalData historicalData = (HistoricalData) symbolData;
 
                     if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
                         // Get the last data point (historical close)
@@ -230,7 +295,7 @@ public class MarketDataPollingService {
     private Map<String, com.am.marketdata.api.model.MarketDataUpdate.QuoteChange> buildQuoteUpdates(
             Map<String, OHLCQuote> ohlcQuotes) {
 
-        Map<String, com.am.marketdata.api.model.MarketDataUpdate.QuoteChange> quoteUpdates = new HashMap<>();
+        Map<String, MarketDataUpdate.QuoteChange> quoteUpdates = new HashMap<>();
 
         for (Map.Entry<String, OHLCQuote> entry : ohlcQuotes.entrySet()) {
             String symbol = entry.getKey();
@@ -259,7 +324,7 @@ public class MarketDataPollingService {
                 changePercent = (change / prevClose) * 100;
             }
 
-            com.am.marketdata.api.model.MarketDataUpdate.QuoteChange update = com.am.marketdata.api.model.MarketDataUpdate.QuoteChange
+            MarketDataUpdate.QuoteChange update = MarketDataUpdate.QuoteChange
                     .builder()
                     .lastPrice(lastPrice)
                     .open(open)

@@ -18,19 +18,52 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"instrumentKeys\": [\"NSE_EQ|INFY\", \"NSE_EQ|RELIANCE\"],\n    \"mode\": \"FULL\",\n    \"provider\": \"UPSTOX\"\n}"
+                    "raw": "{\n    \"instrumentKeys\": [\"NSE_EQ|INFY\", \"NSE_EQ|RELIANCE\"],\n    \"mode\": \"FULL\",\n    \"provider\": \"UPSTOX\",\n    \"timeFrame\": \"1D\",\n    \"expandIndices\": false\n}"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/api/market-data/stream/connect",
+                    "raw": "{{baseUrl}}/api/v1/market-data/stream/connect",
                     "protocol": "http",
                     "host": [
                         "{{baseUrl}}"
                     ],
                     "path": [
                         "api",
+                        "v1",
                         "market-data",
                         "stream",
                         "connect"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Initiate Stream (Hybrid)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"instrumentKeys\": [\"NSE_EQ|INFY\"],\n    \"mode\": \"FULL\",\n    \"provider\": \"UPSTOX\",\n    \"timeFrame\": \"1D\",\n    \"expandIndices\": false,\n    \"isIndexSymbol\": false\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/v1/market-data/stream/initiate",
+                    "protocol": "http",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "market-data",
+                        "stream",
+                        "initiate"
                     ]
                 }
             },
@@ -42,13 +75,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                    "raw": "{{baseUrl}}/api/market-data/stream/disconnect?provider=UPSTOX",
+                    "raw": "{{baseUrl}}/api/v1/market-data/stream/disconnect?provider=UPSTOX",
                     "protocol": "http",
                     "host": [
                         "{{baseUrl}}"
                     ],
                     "path": [
                         "api",
+                        "v1",
                         "market-data",
                         "stream",
                         "disconnect"

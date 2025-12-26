@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class MarketDataStreamController {
 
     private final MarketDataPollingService pollingService;
-    private final com.am.marketdata.api.util.InstrumentUtils instrumentUtils;
 
     @PostMapping("/connect")
     @Operation(summary = "Connect to market data stream", description = "Initiates a WebSocket connection for the specified provider and instruments")
@@ -26,29 +25,34 @@ public class MarketDataStreamController {
             log.info("Received stream connection request for provider: {}, timeFrame: {}",
                     request.getProvider(), request.getTimeFrame());
 
-            // Use expandIndices from request (defaults to false if not provided)
-            boolean expandIndices = request.getExpandIndices() != null ? request.getExpandIndices() : false;
-
-            // Resolve symbols/indices based on expandIndices parameter
-            java.util.Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(
-                    request.getInstrumentKeys(),
-                    expandIndices);
-            log.info("Resolved {} symbols to {} for stream (expandIndices={})",
-                    request.getInstrumentKeys().size(), resolvedSymbols.size(), expandIndices);
-
-            // Pass timeFrame to polling service for historical data enrichment
-            pollingService.connectStream(
-                    new java.util.ArrayList<>(resolvedSymbols),
-                    request.getMode(),
-                    request.getProvider(),
-                    request.getTimeFrame(),
-                    request.getIsIndexSymbol() != null ? request.getIsIndexSymbol() : false);
+            // Delegate to service for resolution and connection
+            pollingService.initiateStream(request);
 
             return ResponseEntity
                     .ok("Stream connection initiated successfully with timeFrame: " + request.getTimeFrame());
         } catch (Exception e) {
             log.error("Failed to initiate stream connection: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/initiate")
+    @Operation(summary = "Connect to market data stream", description = "Initiates a WebSocket connection and returns a structured response")
+    public ResponseEntity<com.am.marketdata.api.model.StreamConnectResponse> initiate(
+            @RequestBody StreamConnectRequest request) {
+        try {
+            log.info("Received stream connection request (initiate) for provider: {}, timeFrame: {}",
+                    request.getProvider(), request.getTimeFrame());
+
+            // Delegate to service, which returns the structured response with initial data
+            return ResponseEntity.ok(pollingService.initiateStream(request));
+        } catch (Exception e) {
+            log.error("Failed to initiate stream connection: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(com.am.marketdata.api.model.StreamConnectResponse.builder()
+                    .status("FAILED")
+                    .message("Failed: " + e.getMessage())
+                    .data(null)
+                    .build());
         }
     }
 
