@@ -5,6 +5,8 @@ import com.am.marketdata.api.service.MarketAnalyticsService;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.log.AppLogger;
 import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.api.model.HistoricalDataResponseV1;
+import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -100,7 +102,7 @@ public class MarketAnalyticsController {
             @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Map<String, Object>> getHistoricalCharts(
+    public ResponseEntity<HistoricalDataResponseV1> getHistoricalCharts(
             @PathVariable String symbol,
             @RequestParam(defaultValue = "1D") String range) {
         try {
@@ -163,55 +165,31 @@ public class MarketAnalyticsController {
                     .build();
 
             // Fetch Data
-            Map<String, Object> response = marketDataFetchService.processHistoricalDataRequest(request);
+            HistoricalDataResponseV1 response = marketDataFetchService.processHistoricalDataRequest(request);
 
-            if (response.containsKey("error")) {
+            if (response.getError() != null) {
                 return ResponseEntity.status(500).body(response);
             }
 
             // Filter data points by time range
-            if (response.containsKey("data")) {
-                Object dataObj = response.get("data");
-                if (dataObj instanceof Map) {
-                    Map<String, Object> dataMap = (Map<String, Object>) dataObj;
-                    if (dataMap.containsKey(symbol)) {
-                        Object symbolDataObj = dataMap.get(symbol);
-                        if (symbolDataObj instanceof Map) {
-                            Map<String, Object> innerData = (Map<String, Object>) symbolDataObj;
-                            if (innerData.containsKey("dataPoints")) {
-                                Object pointsObj = innerData.get("dataPoints");
-                                if (pointsObj instanceof List) {
-                                    List<?> points = (List<?>) pointsObj;
-                                    long minTime = from.atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant()
+            if (response.getData() != null) {
+                HistoricalData symbolData = response.getData().get(symbol);
+                if (symbolData != null && symbolData.getDataPoints() != null) {
+                    long minTime = from.atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant().toEpochMilli();
+
+                    List<OHLCVTPoint> filteredPoints = symbolData.getDataPoints().stream()
+                            .filter(p -> {
+                                try {
+                                    long timestamp = p.getTime().atZone(java.time.ZoneId.systemDefault()).toInstant()
                                             .toEpochMilli();
-
-                                    List<Object> filteredPoints = points.stream()
-                                            .filter(p -> {
-                                                try {
-                                                    long timestamp = 0;
-                                                    if (p instanceof OHLCVTPoint) {
-                                                        timestamp = ((OHLCVTPoint) p).getTime()
-                                                                .atZone(java.time.ZoneId.systemDefault()).toInstant()
-                                                                .toEpochMilli();
-                                                    } else if (p instanceof Map) {
-                                                        return true;
-                                                    } else if (p instanceof List) {
-                                                        Object t = ((List<?>) p).get(0);
-                                                        if (t instanceof Number)
-                                                            timestamp = ((Number) t).longValue();
-                                                    }
-                                                    return timestamp >= minTime;
-                                                } catch (Exception e) {
-                                                    return true;
-                                                }
-                                            })
-                                            .collect(Collectors.toList());
-
-                                    innerData.put("dataPoints", filteredPoints);
+                                    return timestamp >= minTime;
+                                } catch (Exception e) {
+                                    return true;
                                 }
-                            }
-                        }
-                    }
+                            })
+                            .collect(Collectors.toList());
+
+                    symbolData.setDataPoints(filteredPoints);
                 }
             }
 
@@ -219,9 +197,10 @@ public class MarketAnalyticsController {
 
         } catch (Exception e) {
             log.error("getHistoricalCharts", "Error fetching historical charts for " + symbol + ": " + e.getMessage());
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to fetch chart data");
-            errorResponse.put("message", e.getMessage());
+            HistoricalDataResponseV1 errorResponse = HistoricalDataResponseV1.builder()
+                    .error("Failed to fetch chart data")
+                    .message(e.getMessage())
+                    .build();
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }

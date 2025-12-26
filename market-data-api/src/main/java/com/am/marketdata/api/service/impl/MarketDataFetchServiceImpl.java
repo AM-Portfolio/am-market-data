@@ -11,6 +11,8 @@ import java.util.Arrays;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.dto.HistoricalDataRequest;
+import com.am.marketdata.api.model.HistoricalDataResponseV1;
+import com.am.marketdata.api.model.HistoricalDataMetadata;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.service.MarketDataService;
 import com.am.marketdata.common.model.OHLCQuote;
@@ -136,7 +138,8 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     @Override
-    public Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate,
+    public HistoricalDataResponseV1 getHistoricalDataMultipleSymbols(Set<String> symbols,
+            Date fromDate, Date toDate,
             TimeFrame interval, String instrumentType,
             Map<String, Object> additionalParams, boolean forceRefresh) {
         String methodName = "getHistoricalDataMultipleSymbols";
@@ -144,13 +147,14 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 "[BATCH_HISTORICAL] getHistoricalDataMultipleSymbols: Processing historical data request for %d symbols from %s to %s, interval: %s (apiValue: %s)",
                 symbols.size(), fromDate, toDate, interval, interval.getApiValue()));
 
-        Map<String, Object> aggregatedResult = new HashMap<>();
         Map<String, HistoricalData> symbolsData = new HashMap<>();
 
         if (symbols == null || symbols.isEmpty()) {
             log.warn(methodName, "No symbols provided for historical data request");
-            aggregatedResult.put("data", symbolsData);
-            return aggregatedResult;
+            return HistoricalDataResponseV1.builder()
+                    .data(new HashMap<>())
+                    .error("No symbols provided")
+                    .build();
         }
 
         FilterParams filterParams = extractFilterParams(additionalParams);
@@ -217,36 +221,35 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             long endTime = System.currentTimeMillis();
 
             // Populate metadata
-            aggregatedResult.put("data", symbolsData);
+            HistoricalDataMetadata metadata = HistoricalDataMetadata
+                    .builder()
+                    .fromDate(new SimpleDateFormat("yyyy-MM-dd").format(fromDate))
+                    .toDate(new SimpleDateFormat("yyyy-MM-dd").format(toDate))
+                    .interval(interval.getApiValue())
+                    .intervalEnum(interval.name())
+                    .totalSymbols(symbols.size())
+                    .successfulSymbols(successCount)
+                    .totalDataPoints(totalDataPoints)
+                    .filteredDataPoints(totalFilteredDataPoints)
+                    .filtered(filterParams.isFiltered)
+                    .filterType(filterParams.filterType)
+                    .filterFrequency(filterParams.isFiltered ? filterParams.filterFrequency : null)
+                    .processingTimeMs(endTime - startTime)
+                    .source(forceRefresh ? "provider" : "cache")
+                    .build();
 
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("fromDate", new SimpleDateFormat("yyyy-MM-dd").format(fromDate));
-            metadata.put("toDate", new SimpleDateFormat("yyyy-MM-dd").format(toDate));
-            metadata.put("interval", interval.getApiValue());
-            metadata.put("intervalEnum", interval.name());
-            metadata.put("totalSymbols", symbols.size());
-            metadata.put("successfulSymbols", successCount);
-            metadata.put("totalDataPoints", totalDataPoints);
-            metadata.put("filteredDataPoints", totalFilteredDataPoints);
-            metadata.put("filtered", filterParams.isFiltered);
-            metadata.put("filterType", filterParams.filterType);
-            metadata.put("filterFrequency", filterParams.isFiltered ? filterParams.filterFrequency : null);
-            metadata.put("processingTimeMs", (endTime - startTime));
-            metadata.put("source", forceRefresh ? "provider" : "cache");
-
-            aggregatedResult.put("metadata", metadata);
-
-            log.info(methodName, String.format(
-                    "[BATCH_HISTORICAL] Completed batch processing. Total symbols: %d, Successful: %d, Total data points: %d, Processing time: %dms",
-                    symbols.size(), successCount, totalDataPoints, (endTime - startTime)));
+            return HistoricalDataResponseV1.builder()
+                    .data(symbolsData)
+                    .metadata(metadata)
+                    .build();
 
         } catch (Exception e) {
             log.error(methodName, "Error in batch historical data retrieval: " + e.getMessage(), e);
-            aggregatedResult.put("error", "Failed to retrieve batch historical data");
-            aggregatedResult.put("message", e.getMessage());
+            return HistoricalDataResponseV1.builder()
+                    .error("Failed to retrieve batch historical data")
+                    .message(e.getMessage())
+                    .build();
         }
-
-        return aggregatedResult;
     }
 
     private FilterParams extractFilterParams(Map<String, Object> params) {
@@ -467,7 +470,8 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     @Override
-    public Map<String, Object> processHistoricalDataRequest(HistoricalDataRequest request) throws Exception {
+    public HistoricalDataResponseV1 processHistoricalDataRequest(
+            HistoricalDataRequest request) throws Exception {
         String methodName = "processHistoricalDataRequest";
         log.info(methodName, String.format(
                 "[INTERVAL_TRACE] Controller → Service: Processing historical data request for symbols: %s from %s to %s, interval: %s (enum: %s, apiValue: %s), filterType: %s, isIndexSymbol: %b",
@@ -500,10 +504,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         }
 
         if (symbolList.isEmpty()) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "No valid symbols provided");
-            errorResponse.put("message", "Please provide at least one valid symbol");
-            return errorResponse;
+            return HistoricalDataResponseV1.builder()
+                    .error("No valid symbols provided")
+                    .message("Please provide at least one valid symbol")
+                    .build();
         }
 
         Date fromDate;
@@ -521,10 +525,10 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 toDate = dateFormat.parse(request.getTo());
             }
         } catch (ParseException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Invalid date format");
-            errorResponse.put("message", "Use yyyy-MM-dd format for dates");
-            return errorResponse;
+            return HistoricalDataResponseV1.builder()
+                    .error("Invalid date format")
+                    .message("Use yyyy-MM-dd format for dates")
+                    .build();
         }
 
         Map<String, Object> additionalParams = request.getAdditionalParams();
@@ -548,18 +552,19 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
                 "[INTERVAL_TRACE] Service → getHistoricalDataMultipleSymbols: Calling with interval: %s (apiValue: %s)",
                 request.getInterval(), request.getInterval().getApiValue()));
 
-        Map<String, Object> response = getHistoricalDataMultipleSymbols(
+        HistoricalDataResponseV1 response = getHistoricalDataMultipleSymbols(
                 symbolList, fromDate, toDate, request.getInterval(),
                 request.getInstrumentType(),
                 additionalParams, request.isForceRefresh());
 
-        if (!response.containsKey("cached")) {
-            response.put("cached", !request.isForceRefresh());
-        }
+        // Cache status is now handled in metadata inside
+        // getHistoricalDataMultipleSymbols
+        // if (!response.containsKey("cached")) { response.put("cached",
+        // !request.isForceRefresh()); }
 
         log.info(methodName, String.format(
-                "[INTERVAL_TRACE] Service → Controller: Returning response with interval: %s",
-                response.get("interval")));
+                "[INTERVAL_TRACE] Service → Controller: Returning response for interval: %s",
+                response.getMetadata() != null ? response.getMetadata().getInterval() : "unknown"));
 
         return response;
     }
@@ -662,7 +667,16 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
         request.setFilterType("price");
 
         try {
-            return processHistoricalDataRequest(request);
+            HistoricalDataResponseV1 response = processHistoricalDataRequest(request);
+            // Convert DTO to Map for this specific endpoint (keeping legacy support or
+            // refactor later)
+            // Ideally getHistoricalChartsData should also return typed object but interface
+            // says Map<String, Object>
+            Map<String, Object> result = new HashMap<>();
+            if (response.getData() != null) {
+                result.putAll(response.getData());
+            }
+            return result;
         } catch (Exception e) {
             log.error(methodName, "Error fetching historical charts for " + symbol + ": " + e.getMessage());
             Map<String, Object> errorResponse = new HashMap<>();

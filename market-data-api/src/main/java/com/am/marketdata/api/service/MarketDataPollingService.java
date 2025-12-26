@@ -8,8 +8,9 @@ import com.am.marketdata.api.model.MarketDataUpdate;
 import com.am.marketdata.api.model.StreamConnectRequest;
 import com.am.marketdata.api.model.StreamConnectResponse;
 import com.am.marketdata.api.util.InstrumentUtils;
+import com.am.marketdata.api.model.HistoricalDataResponseV1;
+import com.am.marketdata.api.model.HistoricalDataMetadata;
 import com.am.common.investment.model.historical.HistoricalData;
-import com.am.common.investment.model.historical.OHLCVTPoint;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -148,7 +149,7 @@ public class MarketDataPollingService {
             });
 
             // Task 2: Fetch Historical Data (if applicable)
-            CompletableFuture<Map<String, Object>> historicalDataFuture;
+            CompletableFuture<HistoricalDataResponseV1> historicalDataFuture;
             if ("1D".equalsIgnoreCase(timeFrame) || "1W".equalsIgnoreCase(timeFrame)
                     || "1M".equalsIgnoreCase(timeFrame)) {
                 historicalDataFuture = CompletableFuture.supplyAsync(() -> {
@@ -156,11 +157,11 @@ public class MarketDataPollingService {
                         return fetchHistoricalData(keys, timeFrame, isIndexSymbol);
                     } catch (Exception e) {
                         log.error("Error fetching historical data", e);
-                        return new HashMap<>();
+                        return HistoricalDataResponseV1.builder().build();
                     }
                 });
             } else {
-                historicalDataFuture = CompletableFuture.completedFuture(new HashMap<>());
+                historicalDataFuture = CompletableFuture.completedFuture(HistoricalDataResponseV1.builder().build());
             }
 
             // Wait for both tasks to complete
@@ -168,7 +169,7 @@ public class MarketDataPollingService {
 
             // Get results
             Map<String, OHLCQuote> liveOhlcData = liveDataFuture.get();
-            Map<String, Object> historicalResponse = historicalDataFuture.get();
+            HistoricalDataResponseV1 historicalResponse = historicalDataFuture.get();
 
             // Orchestration Step 4: Business Calculation (Merge Data)
             Map<String, OHLCQuote> enrichedData = mergeData(liveOhlcData, historicalResponse);
@@ -207,7 +208,11 @@ public class MarketDataPollingService {
     /**
      * Fetches historical data based on timeFrame
      */
-    private Map<String, Object> fetchHistoricalData(Set<String> symbols, String timeFrame, Boolean isIndexSymbol) {
+    /**
+     * Fetches historical data based on timeFrame
+     */
+    private HistoricalDataResponseV1 fetchHistoricalData(Set<String> symbols,
+            String timeFrame, Boolean isIndexSymbol) {
         // Calculate historical date range based on timeFrame
         java.time.LocalDate today = java.time.LocalDate.now();
         java.time.LocalDate historicalDate;
@@ -265,7 +270,8 @@ public class MarketDataPollingService {
     /**
      * Merges historical data into live OHLC data
      */
-    private Map<String, OHLCQuote> mergeData(Map<String, OHLCQuote> liveData, Map<String, Object> historicalResponse) {
+    private Map<String, OHLCQuote> mergeData(Map<String, OHLCQuote> liveData,
+            HistoricalDataResponseV1 historicalResponse) {
         Map<String, OHLCQuote> enrichedData = new HashMap<>();
 
         if (liveData == null || liveData.isEmpty()) {
@@ -279,40 +285,19 @@ public class MarketDataPollingService {
             double previousClose = liveQuote.getPreviousClose();
 
             // Extract historical data from response
-            // Extract historical data from response
-            if (historicalResponse != null && historicalResponse.containsKey("data")) {
-                Map<String, Object> symbolsData = (Map<String, Object>) historicalResponse.get("data");
+            if (historicalResponse != null && historicalResponse.getData() != null) {
+                Map<String, HistoricalData> symbolsData = historicalResponse.getData();
 
                 if (symbolsData != null && symbolsData.containsKey(symbol)) {
-                    Object symbolDataObj = symbolsData.get(symbol);
-
-                    if (symbolDataObj instanceof HistoricalData) {
-                        HistoricalData historicalData = (HistoricalData) symbolDataObj;
-                        if (historicalData.getDataPoints() != null && !historicalData.getDataPoints().isEmpty()) {
-                            var dataPoints = historicalData.getDataPoints();
-                            var lastPoint = dataPoints.get(dataPoints.size() - 1);
-                            if (lastPoint.getClose() > 0) {
-                                previousClose = lastPoint.getClose();
-                                log.debug("Updated previous close for {}: {} (from HistoricalData object)", symbol,
-                                        previousClose);
-                            }
-                        }
-                    } else if (symbolDataObj instanceof Map) {
-                        Map<String, Object> symbolDataMap = (Map<String, Object>) symbolDataObj;
-
-                        if (symbolDataMap.containsKey("dataPoints")) {
-                            List<OHLCVTPoint> dataPoints = (List<OHLCVTPoint>) symbolDataMap.get("dataPoints");
-
-                            if (dataPoints != null && !dataPoints.isEmpty()) {
-                                // Get the last data point (historical close)
-                                // Only update if valid close price
-                                OHLCVTPoint lastPoint = dataPoints.get(dataPoints.size() - 1);
-                                if (lastPoint.getClose() > 0) {
-                                    previousClose = lastPoint.getClose();
-                                    log.info("Updated previous close for {}: {} (from historical data map)",
-                                            symbol, previousClose);
-                                }
-                            }
+                    HistoricalData historicalData = symbolsData.get(symbol);
+                    if (historicalData != null && historicalData.getDataPoints() != null
+                            && !historicalData.getDataPoints().isEmpty()) {
+                        var dataPoints = historicalData.getDataPoints();
+                        var lastPoint = dataPoints.get(dataPoints.size() - 1);
+                        if (lastPoint.getClose() > 0) {
+                            previousClose = lastPoint.getClose();
+                            log.debug("Updated previous close for {}: {} (from HistoricalData object)", symbol,
+                                    previousClose);
                         }
                     }
                 }

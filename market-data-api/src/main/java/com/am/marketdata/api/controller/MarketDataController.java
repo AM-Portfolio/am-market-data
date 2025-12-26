@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import com.am.marketdata.api.dto.HistoricalDataRequest;
 import com.am.marketdata.api.model.OHLCRequest;
 import com.am.marketdata.api.model.QuotesRequest;
+import com.am.marketdata.api.model.HistoricalDataResponseV1;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
@@ -288,22 +289,18 @@ public class MarketDataController {
             @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Map<String, Object>> getHistoricalData(@RequestBody HistoricalDataRequest request) {
-        log.info("getHistoricalData",
-                String.format(
-                        "Controller received POST request for historical data for symbols: %s from %s to %s, interval: %s, filterType: %s, forceRefresh: %s, isIndexSymbol: %b",
-                        request.getSymbols(), request.getFrom(), request.getTo(),
-                        request.getInterval().name(),
-                        request.getFilterType(), request.isForceRefresh(), request.isIndexSymbol()));
+    public ResponseEntity<HistoricalDataResponseV1> getHistoricalData(@RequestBody HistoricalDataRequest request) {
+        String methodName = "getHistoricalData";
+        log.info(methodName, "Received historical data request for: " + request.getSymbols());
 
         try {
             // Delegate all processing to the service
-            Map<String, Object> response = marketDataCacheService.processHistoricalDataRequest(request);
+            HistoricalDataResponseV1 response = marketDataCacheService.processHistoricalDataRequest(request);
 
             // Check if there was an error
-            if (response.containsKey("error")) {
+            if (response.getError() != null) {
                 // Determine if it's a client error or server error
-                String errorType = response.get("error").toString();
+                String errorType = response.getError();
                 if (errorType.contains("No valid symbols") || errorType.contains("Invalid date format")) {
                     return ResponseEntity.badRequest().body(response);
                 } else {
@@ -315,9 +312,10 @@ public class MarketDataController {
         } catch (Exception e) {
             log.error("getHistoricalData",
                     "Unexpected error in controller while getting historical data: " + e.getMessage(), e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to fetch historical data");
-            errorResponse.put("message", e.getMessage());
+            HistoricalDataResponseV1 errorResponse = HistoricalDataResponseV1.builder()
+                    .error("Failed to fetch historical data")
+                    .message(e.getMessage())
+                    .build();
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }

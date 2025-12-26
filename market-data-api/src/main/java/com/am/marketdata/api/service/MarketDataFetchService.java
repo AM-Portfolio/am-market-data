@@ -3,6 +3,8 @@ package com.am.marketdata.api.service;
 import com.am.common.investment.model.stockindice.StockIndicesMarketData;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.api.model.HistoricalDataResponseV1;
+import com.am.marketdata.api.dto.HistoricalDataRequest;
 
 import java.util.Date;
 import java.util.Map;
@@ -63,7 +65,8 @@ public interface MarketDataFetchService {
          * @param forceRefresh     Whether to force a refresh from the source
          * @return Historical data response with metadata for all symbols
          */
-        Map<String, Object> getHistoricalDataMultipleSymbols(Set<String> symbols, Date fromDate, Date toDate,
+        HistoricalDataResponseV1 getHistoricalDataMultipleSymbols(Set<String> symbols,
+                        Date fromDate, Date toDate,
                         TimeFrame interval, String instrumentType,
                         Map<String, Object> additionalParams, boolean forceRefresh);
 
@@ -135,7 +138,8 @@ public interface MarketDataFetchService {
          * @return Response map with historical data and metadata
          * @throws Exception If there's an error processing the request
          */
-        Map<String, Object> processHistoricalDataRequest(com.am.marketdata.api.dto.HistoricalDataRequest request)
+        HistoricalDataResponseV1 processHistoricalDataRequest(
+                        HistoricalDataRequest request)
                         throws Exception;
 
         /**
