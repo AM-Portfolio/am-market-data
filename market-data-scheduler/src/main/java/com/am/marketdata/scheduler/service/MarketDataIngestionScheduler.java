@@ -81,7 +81,7 @@ public class MarketDataIngestionScheduler {
         if (!enabled)
             return;
         log.info("Scheduled trigger: Starting Historical Data Sync (Smart Delta)");
-        historicalSyncService.syncHistoricalData();
+        historicalSyncService.syncHistoricalData(null);
     }
 
     private void startIngestion() {

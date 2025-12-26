@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -46,10 +45,10 @@ public class MarketDataAdminController {
     }
 
     @PostMapping("/sync/historical")
-    public ResponseEntity<String> triggerHistoricalSync() {
-        log.info("Manual trigger: Historical Sync");
+    public ResponseEntity<String> triggerHistoricalSync(@RequestParam(required = false) String symbol) {
+        log.info("Manual trigger: Historical Sync (Symbol: {})", symbol);
         // Running asynchronously to avoid blocking
-        new Thread(historicalSyncService::syncHistoricalData).start();
+        new Thread(() -> historicalSyncService.syncHistoricalData(symbol)).start();
         return ResponseEntity.ok("Historical Sync Triggered");
     }
 

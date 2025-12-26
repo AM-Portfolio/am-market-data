@@ -42,7 +42,7 @@ public class MarketDataHistoricalSyncService {
     /**
      * Triggered by Scheduler at 07:15 AM
      */
-    public void syncHistoricalData() {
+    public void syncHistoricalData(String symbol) {
         String jobId = UUID.randomUUID().toString();
         LocalDateTime startTime = LocalDateTime.now();
         log.info("Starting Historical Data Sync Job: {}", jobId);
@@ -60,7 +60,13 @@ public class MarketDataHistoricalSyncService {
 
         try {
             // 1. Get Symbols
-            Set<String> allSymbols = getAllSymbolsToSync();
+            Set<String> allSymbols;
+            if (symbol != null && !symbol.trim().isEmpty()) {
+                allSymbols = Collections.singleton(symbol);
+                addLog(jobLog, "Targeting single symbol: " + symbol);
+            } else {
+                allSymbols = getAllSymbolsToSync();
+            }
             jobLog.setTotalSymbols(allSymbols.size());
             addLog(jobLog, "Found " + allSymbols.size() + " symbols to sync");
             log.info("Found {} symbols to sync", allSymbols.size());

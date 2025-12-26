@@ -26,8 +26,9 @@ class AdminService {
     }
   }
 
-  Future<void> triggerHistoricalSync() async {
-    final response = await http.post(Uri.parse('$baseUrl/sync/historical'));
+  Future<void> triggerHistoricalSync({String? symbol}) async {
+    final uri = Uri.parse('$baseUrl/sync/historical').replace(queryParameters: symbol != null && symbol.isNotEmpty ? {'symbol': symbol} : null);
+    final response = await http.post(uri);
     if (response.statusCode != 200) {
       throw Exception('Failed to trigger sync: ${response.body}');
     }

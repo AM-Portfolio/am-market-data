@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/ingestion_log.dart';
 import '../../services/admin_service.dart';
+import 'package:provider/provider.dart';
+import '../../providers/market_provider.dart';
+import '../../widgets/app_sidebar.dart';
 
 class IngestionLogsPage extends StatefulWidget {
   const IngestionLogsPage({Key? key}) : super(key: key);
@@ -46,8 +49,12 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
     }
   }
 
+  final TextEditingController _symbolController = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<MarketProvider>(); // Need provider for Sidebar
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Market Data Admin Dashboard'),
@@ -58,10 +65,26 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
           ),
         ],
       ),
-      body: Column(
+      body: Row(
         children: [
-          _buildControls(),
-          Expanded(child: _buildLogsTable()),
+          // Reuse AppSidebar
+          AppSidebar(
+            provider: provider,
+            isAllIndices: false,
+            isStreamer: false,
+            isInstruments: false,
+            isSecurityExplorer: false,
+            isPriceTest: false,
+          ),
+          // Main Content
+          Expanded(
+            child: Column(
+              children: [
+                _buildControls(),
+                Expanded(child: _buildLogsTable()),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -89,6 +112,18 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
                   _selectedProvider = newValue!;
                 });
               },
+            ),
+            // Symbol Input
+            SizedBox(
+              width: 150,
+              child: TextField(
+                controller: _symbolController,
+                decoration: const InputDecoration(
+                  labelText: 'Symbol (Optional)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () => _triggerSync(),
@@ -194,9 +229,9 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
 
   Future<void> _triggerSync() async {
     try {
-      await _adminService.triggerHistoricalSync();
+      await _adminService.triggerHistoricalSync(symbol: _symbolController.text.trim().isEmpty ? null : _symbolController.text.trim());
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Historical Sync Triggered')),
+        SnackBar(content: Text('Historical Sync Triggered ${_symbolController.text.isNotEmpty ? "for " + _symbolController.text : ""}')),
       );
       _fetchLogs();
     } catch (e) {
