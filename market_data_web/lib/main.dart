@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/market_provider.dart';
 import 'services/api_service.dart';
 import 'screens/home_page.dart';
+import 'screens/admin/ingestion_logs_page.dart';
 
 void main() {
   runApp(const MarketDataApp());
@@ -24,16 +25,20 @@ class MarketDataApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
-            brightness: Brightness.dark, // Dark theme as per screenshot
+            brightness: Brightness.light, 
           ),
           useMaterial3: true,
           textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme).apply(
-            bodyColor: Colors.white,
-            displayColor: Colors.white,
+            bodyColor: Colors.black87,
+            displayColor: Colors.black87,
           ),
-          scaffoldBackgroundColor: const Color(0xFF1E1E2F), // Dark background
+          scaffoldBackgroundColor: const Color(0xFFF5F7FA), // Light Grey Background for White Theme
         ),
-        home: const HomePage(),
+        initialRoute: '/',
+      routes: {
+        '/': (context) => const HomePage(),
+        '/admin': (context) => const IngestionLogsPage(),
+      },
       ),
     );
   }

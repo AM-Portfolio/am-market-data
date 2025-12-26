@@ -17,16 +17,12 @@ class SectorPerformanceView extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF2E2E3E), const Color(0xFF252535)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black45, blurRadius: 12, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -34,21 +30,21 @@ class SectorPerformanceView extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.pie_chart, color: Colors.white, size: 24),
+              Icon(Icons.pie_chart, color: Colors.purpleAccent, size: 24),
               SizedBox(width: 8),
               Text(
                 'Sector Performance',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
-            height: 200,
+            height: 250,
             child: ListView.builder(
               itemCount: sectors.length,
               itemBuilder: (context, index) {
@@ -57,26 +53,30 @@ class SectorPerformanceView extends StatelessWidget {
                 final change = (sector['change'] ?? 0.0).toDouble();
                 final stockCount = sector['stockCount'] ?? 0;
                 
-                final color = change >= 0 ? const Color(0xFF4CAF50) : const Color(0xFFEF5350);
+                final color = change >= 0 ? Colors.green : Colors.red;
                 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     children: [
                       Expanded(
                         flex: 2,
                         child: Text(
                           sectorName,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Expanded(
-                        flex: 1,
-                        child: LinearProgressIndicator(
-                          value: (change.abs() / 5.0).clamp(0.0, 1.0),
-                          backgroundColor: Colors.white12,
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
+                        flex: 3,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: (change.abs() / 5.0).clamp(0.0, 1.0),
+                            backgroundColor: Colors.grey.shade100,
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            minHeight: 8,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -95,7 +95,7 @@ class SectorPerformanceView extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         '($stockCount)',
-                        style: const TextStyle(color: Colors.white38, fontSize: 11),
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                       ),
                     ],
                   ),

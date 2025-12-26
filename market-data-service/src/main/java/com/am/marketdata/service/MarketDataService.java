@@ -7,8 +7,9 @@ import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.InstrumentMapper;
-import com.am.marketdata.mapper.KiteModelMapper;
+import com.am.marketdata.mapper.MarketDataGenericMapper;
 import com.am.marketdata.service.util.DataSourceType;
+import com.am.marketdata.service.util.DataRetrievalStrategyUtil;
 import com.am.marketdata.service.util.HistoricalDataRetriever;
 import com.am.marketdata.service.util.MarketDataRetrievalUtil;
 import com.am.marketdata.service.util.OHLCDataRetriever;
@@ -46,7 +47,7 @@ public class MarketDataService {
     private final InstrumentService instrumentService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
-    private final KiteModelMapper kiteModelMapper;
+    private final MarketDataGenericMapper genericMapper;
     private final MarketDataPersistenceService persistenceService;
     private final MarketDataRetrievalUtil marketDataRetrievalUtil;
 
@@ -58,22 +59,22 @@ public class MarketDataService {
 
     public MarketDataService(MarketDataProviderFactory providerFactory, InstrumentService instrumentService,
             MeterRegistry meterRegistry, InstrumentMapper instrumentMapper,
-            KiteModelMapper kiteModelMapper, MarketDataPersistenceService persistenceService,
+            MarketDataGenericMapper genericMapper, MarketDataPersistenceService persistenceService,
             MarketDataRetrievalUtil marketDataRetrievalUtil) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
-        this.kiteModelMapper = kiteModelMapper;
+        this.genericMapper = genericMapper;
         this.persistenceService = persistenceService;
         this.marketDataRetrievalUtil = marketDataRetrievalUtil;
     }
 
-    private OHLCDataRetriever createOHLCDataRetriever(String providerName) {
+    private OHLCDataRetriever createOHLCDataRetriever(String providerName, boolean forceRefresh) {
         return OHLCDataRetriever.builder()
                 .persistenceService(persistenceService)
                 .providerFactory(providerFactory)
-                .retrievalOrder(Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                .retrievalOrder(DataRetrievalStrategyUtil.getRetrievalOrder(forceRefresh))
                 .cacheResults(true)
                 .targetProviderName(providerName)
                 .build();
@@ -172,7 +173,7 @@ public class MarketDataService {
                     "[INTERVAL_TRACE] MarketDataService.getOHLC → OHLCDataRetriever: Creating retriever with timeFrame: {} (apiValue: {})",
                     timeFrame, tfValue);
 
-            OHLCDataRetriever retriever = createOHLCDataRetriever(providerName);
+            OHLCDataRetriever retriever = createOHLCDataRetriever(providerName, forceRefresh);
             Map<String, OHLCQuote> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
 
             log.info("[INTERVAL_TRACE] MarketDataService.getOHLC: Retrieved {} OHLC quotes for timeFrame: {}",
@@ -262,11 +263,13 @@ public class MarketDataService {
      * @param providerName     Provider name
      * @param isIndexSymbol    Whether the symbols are index symbols (for index
      *                         cache checking)
+     * @param forceRefresh     Whether to force refresh from provider, skipping
+     *                         cache/database
      * @return Map of symbol to HistoricalData
      */
     public Map<String, HistoricalData> getHistoricalDataBatch(List<String> symbols, Date fromDate, Date toDate,
             TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName,
-            boolean isIndexSymbol) {
+            boolean isIndexSymbol, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
                 "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch: Fetching historical data for {} symbols, interval: {} (apiValue: {}), from: {}, to: {}",
@@ -275,11 +278,13 @@ public class MarketDataService {
         try {
             providerName = resolveProviderName(providerName);
 
+            // Determine retrieval order using centralized utility
+            List<DataSourceType> retrievalOrder = DataRetrievalStrategyUtil.getRetrievalOrder(forceRefresh);
+
             HistoricalDataRetriever retriever = HistoricalDataRetriever.builder()
                     .persistenceService(persistenceService)
                     .providerFactory(providerFactory)
-                    .retrievalOrder(
-                            Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                    .retrievalOrder(retrievalOrder)
                     .cacheResults(true)
                     .fromDate(fromDate)
                     .toDate(toDate)
@@ -290,8 +295,8 @@ public class MarketDataService {
                     .build();
 
             log.info(
-                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch → HistoricalDataRetriever.retrieveData: Calling with {} symbols",
-                    symbols.size());
+                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch → Strategy: {}, Calling with {} symbols",
+                    DataRetrievalStrategyUtil.getStrategyDescription(forceRefresh), symbols.size());
 
             Map<String, HistoricalData> result = retriever.retrieveData(symbols, interval, false);
 
@@ -501,29 +506,36 @@ public class MarketDataService {
         }
 
         // Map OHLC data to equity prices using the mapper
-        List<EquityPrice> prices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpData);
+        // Map OHLC data to equity prices using the mapper
+        List<EquityPrice> prices = genericMapper.mapLTPquoteToEquityPrices(ltpData);
         log.info("[DATA_SOURCE] Successfully mapped {} OHLC quotes to {} equity prices from PROVIDER",
                 ltpData != null ? ltpData.size() : 0, prices.size());
 
         return prices;
     }
 
-    public List<EquityPrice> getLivePrices(List<String> tradingSymbols, String providerName) {
+    public List<EquityPrice> getLivePrices(List<String> tradingSymbols, String providerName, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
+            log.info("Fetching live prices for {} instruments, forceRefresh: {}",
+                    tradingSymbols != null ? tradingSymbols.size() : "all", forceRefresh);
 
             if (tradingSymbols == null || tradingSymbols.isEmpty()) {
                 log.warn("No trading symbols provided");
                 return Collections.emptyList();
             }
 
-            // Step 1: Try to get data from cache first
-            log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
-            Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
-
             Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
             List<EquityPrice> result = new ArrayList<>();
+            Map<String, OHLCQuote> cachedData = null;
+
+            // Step 1: Try to get data from cache first if not forced refresh
+            if (!forceRefresh) {
+                log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
+                cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
+            } else {
+                log.info("[CACHE] Skipping cache lookup due to forceRefresh=true");
+            }
 
             if (cachedData != null && !cachedData.isEmpty()) {
                 log.info("[CACHE] Found {} live prices in cache", cachedData.size());
@@ -537,7 +549,7 @@ public class MarketDataService {
                     ltpMap.put(entry.getKey(), ltp);
                 }
 
-                List<EquityPrice> cachedPrices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpMap);
+                List<EquityPrice> cachedPrices = genericMapper.mapLTPquoteToEquityPrices(ltpMap);
                 result.addAll(cachedPrices);
 
                 // Remove symbols found in cache from remaining

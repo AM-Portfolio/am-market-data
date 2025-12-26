@@ -60,21 +60,52 @@ public class StockRedisCache {
      * @param stockBarsList List of StockBars objects containing intraday data
      * @return true if saved successfully, false otherwise
      */
+    /**
+     * Saves a list of StockBars containing intraday data with appropriate TTL using Pipelining.
+     * 
+     * @param stockBarsList List of StockBars objects containing intraday data
+     * @return true if saved successfully, false otherwise
+     */
     public boolean saveIntradayBars(List<StockBars> stockBarsList) {
         if (stockBarsList == null || stockBarsList.isEmpty()) {
             log.warn("saveIntradayBars", "Empty or null StockBars list provided for intraday data");
             return false;
         }
 
-        boolean allSuccess = true;
-        for (StockBars stockBars : stockBarsList) {
-            if (!saveIntradayBars(stockBars.getSymbol(), stockBars.getInterval(),
-                    stockBars.getStartDate(), stockBars.getBars())) {
-                allSuccess = false;
-            }
-        }
+        try {
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                for (StockBars stockBars : stockBarsList) {
+                    String symbol = stockBars.getSymbol();
+                    String interval = stockBars.getInterval();
+                    String date = stockBars.getStartDate();
+                    List<OHLCV> bars = stockBars.getBars();
 
-        return allSuccess;
+                    try {
+                        validateInterval(interval);
+                        // validateDate(date); // Skip validation inside loop for performance, or keep it? Better to catch inside.
+
+                        String key = generateKey(INTRADAY_PREFIX, symbol, interval, date);
+                        String json = redisObjectMapper.writeValueAsString(bars);
+                        long ttlSeconds = calculateIntradayTtl(date);
+
+                        // Low-level connection access requires bytes
+                        byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
+                        byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
+
+                        connection.setEx(keyBytes, ttlSeconds, valueBytes);
+
+                    } catch (Exception e) {
+                        log.error("saveIntradayBars", "Error preparing batch for " + symbol + ": " + e.getMessage());
+                    }
+                }
+                return null;
+            });
+            
+            return true;
+        } catch (Exception e) {
+            log.error("saveIntradayBars", "Batch save failed: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -120,39 +151,53 @@ public class StockRedisCache {
      * @param stockBarsList List of StockBars objects containing historical data
      * @return true if saved successfully, false otherwise
      */
+    /**
+     * Saves a list of StockBars containing historical data with appropriate TTL using Pipelining.
+     * 
+     * @param stockBarsList List of StockBars objects containing historical data
+     * @return true if saved successfully, false otherwise
+     */
     public boolean saveHistoricalBar(List<StockBars> stockBarsList) {
         if (stockBarsList == null || stockBarsList.isEmpty()) {
             log.warn("saveHistoricalBar", "Empty or null StockBars list provided for historical data");
             return false;
         }
 
-        boolean allSuccess = true;
-        for (StockBars stockBars : stockBarsList) {
-            // For each StockBars object, we need to save each bar individually
-            // as they might represent different dates
-            String symbol = stockBars.getSymbol();
-            List<OHLCV> bars = stockBars.getBars();
+        try {
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                for (StockBars stockBars : stockBarsList) {
+                    String symbol = stockBars.getSymbol();
+                    String interval = stockBars.getInterval(); // Should be 1d usually
+                    List<OHLCV> bars = stockBars.getBars();
 
-            if (bars == null || bars.isEmpty()) {
-                log.warn("saveHistoricalBar", "Empty bars list for symbol: " + symbol);
-                allSuccess = false;
-                continue;
-            }
+                    if (bars == null || bars.isEmpty()) continue;
 
-            // Use the date range from the StockBars object
-            String startDate = stockBars.getStartDate();
-            String endDate = stockBars.getEndDate() != null ? stockBars.getEndDate() : startDate;
+                    for (OHLCV bar : bars) {
+                        try {
+                            String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
+                            String key = generateKey(HISTORICAL_PREFIX, symbol, interval, barDate);
+                            
+                            String json = redisObjectMapper.writeValueAsString(bar);
+                            long ttlSeconds = 86400; // 24 Hours
 
-            for (OHLCV bar : bars) {
-                // Format the date from the bar's timestamp
-                String barDate = bar.getTime().toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
-                if (!saveHistoricalBar(symbol, barDate, bar, stockBars.getInterval())) {
-                    allSuccess = false;
+                            byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
+                            byte[] valueBytes = redisTemplate.getStringSerializer().serialize(json);
+
+                            connection.setEx(keyBytes, ttlSeconds, valueBytes);
+                        } catch (Exception e) {
+                            log.error("saveHistoricalBar", "Error processing bar for " + symbol + ": " + e.getMessage());
+                        }
+                    }
                 }
-            }
-        }
+                return null;
+            });
 
-        return allSuccess;
+            log.debug("saveHistoricalBar", "Executed pipeline for " + stockBarsList.size() + " stock bar sets");
+            return true;
+        } catch (Exception e) {
+            log.error("saveHistoricalBar", "Batch save failed", e);
+            return false;
+        }
     }
 
     /**

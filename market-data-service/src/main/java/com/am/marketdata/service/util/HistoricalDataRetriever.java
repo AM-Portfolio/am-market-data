@@ -186,13 +186,21 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             return;
         }
 
+        String methodName = "saveDataAsync";
         try {
+            log.info(methodName, "[PROVIDER_CACHE] Starting async save of {} symbols to DATABASE and REDIS",
+                    data.size());
+
             for (Map.Entry<String, HistoricalData> entry : data.entrySet()) {
                 persistenceService.saveHistoricalData(entry.getKey(), interval, entry.getValue());
             }
-            log.debug("Initiated async save of historical data for {} symbols to database and cache", data.size());
+
+            log.info(methodName,
+                    "[PROVIDER_CACHE] Successfully initiated async save: {} symbols → DATABASE (InfluxDB) + REDIS cache",
+                    data.size());
         } catch (Exception e) {
-            log.error("Error initiating async save of historical data: {}", e.getMessage(), e);
+            log.error(methodName,
+                    "[PROVIDER_CACHE] FAILED to save historical data to DATABASE/REDIS: " + e.getMessage(), e);
         }
     }
 

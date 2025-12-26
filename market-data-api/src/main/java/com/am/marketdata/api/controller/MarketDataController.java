@@ -594,9 +594,11 @@ public class MarketDataController {
     public ResponseEntity<Map<String, Object>> getLiveLTP(
             @RequestParam(name = "symbols", required = true) String symbols,
             @RequestParam(name = "timeframe", defaultValue = "1D") String timeframe,
-            @RequestParam(name = "isIndexSymbol", required = false, defaultValue = "true") boolean indexSymbol) {
+            @RequestParam(name = "isIndexSymbol", required = false, defaultValue = "true") boolean indexSymbol,
+            @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("getLiveLTP", "Fetching live LTP for symbols: " + symbols + ", timeframe: " + timeframe);
+            log.info("getLiveLTP", "Fetching live LTP for symbols: " + symbols + ", timeframe: " + timeframe
+                    + ", forceRefresh: " + forceRefresh);
 
             Set<String> symbolList = parseSymbols(symbols);
             if (symbolList.isEmpty()) {
@@ -621,7 +623,8 @@ public class MarketDataController {
 
             // Step 2: Fetch current live prices
             log.info("getLiveLTP", "Fetching current live prices for " + symbolList.size() + " symbols");
-            Map<String, Object> livePrices = marketDataCacheService.getLivePrices(symbolList, indexSymbol, false);
+            Map<String, Object> livePrices = marketDataCacheService.getLivePrices(symbolList, indexSymbol,
+                    forceRefresh);
 
             // Step 3: Calculate change and percentage change
             Map<String, Map<String, Object>> result = new HashMap<>();

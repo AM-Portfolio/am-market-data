@@ -19,16 +19,12 @@ class MarketMoversView extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF2E2E3E), const Color(0xFF252535)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black45, blurRadius: 12, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -36,19 +32,19 @@ class MarketMoversView extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.trending_up, color: Colors.white, size: 24),
+              Icon(Icons.trending_up, color: Colors.blueAccent, size: 24),
               SizedBox(width: 8),
               Text(
                 'Market Movers',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -64,10 +60,11 @@ class MarketMoversView extends StatelessWidget {
 
   Widget _buildMoversList(String title, List<Map<String, dynamic>> data, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
+        color: accentColor.withOpacity(0.05), // Light tint background
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,21 +77,21 @@ class MarketMoversView extends StatelessWidget {
               fontSize: 16,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           ...data.take(5).map((stock) {
             final symbol = stock['symbol'] ?? 'N/A';
             final pChange = (stock['pChange'] ?? 0.0).toDouble();
             final ltp = (stock['lastPrice'] ?? 0.0).toDouble();
 
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Text(
                       symbol,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -103,7 +100,7 @@ class MarketMoversView extends StatelessWidget {
                     children: [
                       Text(
                         ltp.toStringAsFixed(2),
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
                       ),
                       Text(
                         '${pChange >= 0 ? '+' : ''}${pChange.toStringAsFixed(2)}%',

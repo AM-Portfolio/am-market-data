@@ -22,6 +22,11 @@
         <!-- Internal module dependencies -->
         <dependency>
             <groupId>com.marketdata</groupId>
+            <artifactId>market-data-internal</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.marketdata</groupId>
             <artifactId>market-data-api</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -91,6 +96,11 @@
   <artifactId>logstash-logback-encoder</artifactId>
   <version>7.4</version>
 </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>

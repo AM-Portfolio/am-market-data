@@ -264,7 +264,8 @@ public class MarketDataPollingService {
                 TimeFrame.DAY,
                 "STOCK",
                 additionalParams,
-                false);
+                false,
+                false); // fetchIndexStocks = false (keep symbols as-is for polling)
     }
 
     /**
