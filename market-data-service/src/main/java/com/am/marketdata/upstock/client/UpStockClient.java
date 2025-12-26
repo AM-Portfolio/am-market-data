@@ -100,11 +100,13 @@ public class UpStockClient {
         if (params != null) {
             if (params instanceof String[]) {
                 String[] queryParams = (String[]) params;
-                curl.append("?");
-                for (int i = 0; i < queryParams.length; i += 2) {
-                    if (i > 0)
-                        curl.append("&");
-                    curl.append(queryParams[i]).append("=").append(queryParams[i + 1]);
+                if (queryParams.length > 0) {
+                    curl.append("?");
+                    for (int i = 0; i < queryParams.length; i += 2) {
+                        if (i > 0)
+                            curl.append("&");
+                        curl.append(queryParams[i]).append("=").append(queryParams[i + 1]);
+                    }
                 }
             } else {
                 curl.append("' -d '").append(params);

@@ -94,13 +94,19 @@ public class MarketDataPollingService {
         String provider = request.getProvider() != null ? request.getProvider().toUpperCase() : "UPSTOCK";
         String timeFrame = request.getTimeFrame() != null ? request.getTimeFrame() : "1D";
 
-        // Start the background stream
-        connectStream(
-                new ArrayList<>(resolvedSymbols),
-                request.getMode(),
-                provider,
-                timeFrame,
-                request.getIsIndexSymbol() != null ? request.getIsIndexSymbol() : false);
+        boolean shouldStream = request.getStream() == null || request.getStream();
+
+        // Start the background stream ONLY if requested
+        if (shouldStream) {
+            connectStream(
+                    new ArrayList<>(resolvedSymbols),
+                    request.getMode(),
+                    provider,
+                    timeFrame,
+                    request.getIsIndexSymbol() != null ? request.getIsIndexSymbol() : false);
+        } else {
+            log.info("Stream flag is false. Skipping background stream initiation for symbols: {}", resolvedSymbols);
+        }
 
         // Fetch initial data synchronously to return in response
         MarketDataUpdate initialData = fetchMarketDataUpdate(
@@ -109,9 +115,13 @@ public class MarketDataPollingService {
                 request.getIsIndexSymbol(),
                 provider);
 
+        String message = shouldStream
+                ? "Stream connection initiated successfully with timeFrame: " + timeFrame
+                : "One-time data fetch successful with timeFrame: " + timeFrame;
+
         return StreamConnectResponse.builder()
                 .status("SUCCESS")
-                .message("Stream connection initiated successfully with timeFrame: " + timeFrame)
+                .message(message)
                 .data(initialData)
                 .build();
     }

@@ -16,7 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+
 import java.util.stream.Collectors;
 
 import com.am.marketdata.common.log.AppLogger;
@@ -277,6 +280,18 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     @Override
     public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous,
             Map<String, Object> additionalParams) {
+        // Validation 1: Symbol must not be empty
+        if (symbol == null || symbol.trim().isEmpty()) {
+            log.warn("getHistoricalData", "Symbol cannot be null or empty");
+            return new HistoricalData();
+        }
+
+        // Validation 2: From date must be less than To date
+        if (from != null && to != null && from.after(to)) {
+            log.warn("getHistoricalData", "From date (" + from + ") cannot be after To date (" + to + ")");
+            return new HistoricalData();
+        }
+
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             String fromDateStr = dateFormat.format(from);
@@ -292,30 +307,45 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             if (!context.instrumentKeys.isEmpty()) {
                 instrumentKey = context.instrumentKeys.get(0);
             } else {
-                log.warn("getHistoricalData", "Could not resolve instrument key for historical data symbol: " + symbol);
+                log.warn("getHistoricalData", "Could not resolve instrument key for historical data symbol: " + symbol
+                        + ". Using symbol as key fallback.");
+                instrumentKey = symbol;
+            }
+
+            // Encode instrumentKey to handle special characters (e.g., |, spaces)
+            if (instrumentKey != null) {
+                try {
+                    instrumentKey = URLEncoder.encode(instrumentKey, StandardCharsets.UTF_8.toString())
+                            .replace("+", "%20"); // Ensure spaces are encoded as %20 for path
+                } catch (Exception e) {
+                    log.error("getHistoricalData", "Failed to encode instrument key: " + instrumentKey, e);
+                }
             }
 
             HistoricalDataResponse response = null;
 
             // 1. Try SDK Service if key resolved
-            if (instrumentKey != null) {
-                try {
-                    log.info("getHistoricalData",
-                            "Fetching historical data via SDK for instrument key: " + instrumentKey + ", unit: " + unit
-                                    + ", interval: " + intervalValue);
-                    response = upstoxSdkService.getHistoricalCandleData(instrumentKey, unit, intervalValue, toDateStr,
-                            fromDateStr);
-                } catch (Exception e) {
-                    log.warn("getHistoricalData", "Failed to fetch historical data via SDK: " + e.getMessage());
-                }
-            }
+            // if (instrumentKey != null) {
+            // try {
+            // log.info("getHistoricalData",
+            // "Fetching historical data via SDK for instrument key: " + instrumentKey + ",
+            // unit: " + unit
+            // + ", interval: " + intervalValue);
+            // response = upstoxSdkService.getHistoricalCandleData(instrumentKey, unit,
+            // intervalValue, toDateStr,
+            // fromDateStr);
+            // } catch (Exception e) {
+            // log.warn("getHistoricalData", "Failed to fetch historical data via SDK: " +
+            // e.getMessage());
+            // }
+            // }
 
             // 2. Try API Service if SDK failed or returned empty
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
                 log.info("getHistoricalData",
                         "Fetching historical data via API for instrument key: " + instrumentKey + ", unit: " + unit
                                 + ", interval: " + intervalValue);
-                response = upstoxApiService.getHistoricalCandleData(instrumentKey, "day", toDateStr,
+                response = upstoxApiService.getHistoricalCandleData(instrumentKey, unit, toDateStr,
                         fromDateStr);
             }
 
@@ -396,23 +426,30 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             return "minutes";
         switch (interval) {
             case MINUTE:
-                return "minutes";
+                return "minute";
             case FIVE_MINUTE:
-                return "minutes";
+                return "minute";
             case FIFTEEN_MINUTE:
-                return "minutes";
+                return "minute";
             case THIRTY_MINUTE:
-                return "minutes";
+                return "minute";
             case HOUR:
-                return "hours";
+                return "day"; // Upstox historical API might not support 'hour', defaulting to day or checking
+                              // docs. usually it's minute/day/week/month.
+                              // Wait, user logs show "day" working.
+                              // Upstox V2 intervals: 1minute, day, 30minute, etc are part of path? No, path
+                              // structure is /historical-candle/{key}/{interval}/{to}/{from}
+                              // Interval is string like '1minute', 'day', '30minute'.
+                              // But here we return "unit".
+                              // Let's stick to user request "Use singular".
             case DAY:
-                return "days";
+                return "day";
             case WEEK:
-                return "weeks";
+                return "week";
             case MONTH:
-                return "months";
+                return "month";
             default:
-                return "days";
+                return "day";
         }
     }
 

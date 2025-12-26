@@ -50,7 +50,7 @@
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"instrumentKeys\": [\"NSE_EQ|INFY\"],\n    \"mode\": \"FULL\",\n    \"provider\": \"UPSTOX\",\n    \"timeFrame\": \"1D\",\n    \"expandIndices\": false,\n    \"isIndexSymbol\": false\n}"
+                    "raw": "{\n    \"instrumentKeys\": [\"NSE_EQ|INFY\"],\n    \"mode\": \"FULL\",\n    \"provider\": \"UPSTOX\",\n    \"timeFrame\": \"1D\",\n    \"expandIndices\": false,\n    \"isIndexSymbol\": false,\n    \"stream\": true\n}"
                 },
                 "url": {
                     "raw": "{{baseUrl}}/api/v1/market-data/stream/initiate",
