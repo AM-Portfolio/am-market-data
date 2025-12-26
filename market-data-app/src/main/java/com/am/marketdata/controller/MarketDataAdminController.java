@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import org.springframework.format.annotation.DateTimeFormat;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/admin")
@@ -38,18 +43,32 @@ public class MarketDataAdminController {
     }
 
     @GetMapping("/logs")
-    public List<IngestionJobLog> getLogs(@RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ingestionJobLogRepository.findAll(
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startTime"))).getContent();
+    public List<IngestionJobLog> getLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        if (startDate != null && endDate != null) {
+            return ingestionJobLogRepository.findByStartTimeBetween(
+                    startDate.atStartOfDay(),
+                    endDate.plusDays(1).atStartOfDay(),
+                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startTime")))
+                    .getContent();
+        } else {
+            return ingestionJobLogRepository.findAll(
+                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startTime"))).getContent();
+        }
     }
 
     @PostMapping("/sync/historical")
-    public ResponseEntity<String> triggerHistoricalSync(@RequestParam(required = false) String symbol) {
-        log.info("Manual trigger: Historical Sync (Symbol: {})", symbol);
+    public ResponseEntity<String> triggerHistoricalSync(
+            @RequestParam(required = false) String symbol,
+            @RequestParam(defaultValue = "true") boolean forceRefresh) {
+        log.info("Manual trigger: Historical Sync (Symbol: {}, Force Refresh: {})", symbol, forceRefresh);
         // Running asynchronously to avoid blocking
-        new Thread(() -> historicalSyncService.syncHistoricalData(symbol)).start();
-        return ResponseEntity.ok("Historical Sync Triggered");
+        new Thread(() -> historicalSyncService.syncHistoricalData(symbol, forceRefresh)).start();
+        return ResponseEntity.ok("Historical Sync Triggered (Force: " + forceRefresh + ")");
     }
 
     @PostMapping("/ingestion/start")

@@ -1,9 +1,9 @@
 package com.am.marketdata.scheduler.service;
 
 import com.am.marketdata.internal.service.MarketDataIngestionService;
+import com.am.marketdata.common.log.AppLogger;
 import com.am.marketdata.internal.service.MarketDataHistoricalSyncService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,10 +16,11 @@ import java.time.LocalTime;
  * Scheduler to control Market Data Ingestion.
  * Starts ingestion at market open and stops at market close.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketDataIngestionScheduler {
+
+    private final AppLogger log = AppLogger.getLogger(MarketDataIngestionScheduler.class);
 
     private final MarketDataIngestionService ingestionService;
     private final MarketDataHistoricalSyncService historicalSyncService;
@@ -46,7 +47,7 @@ public class MarketDataIngestionScheduler {
     @PostConstruct
     public void init() {
         if (enabled && isMarketOpen()) {
-            log.info("Application started during market hours. Triggering ingestion.");
+            log.info("init", "Application started during market hours. Triggering ingestion.");
             startIngestion();
         }
     }
@@ -58,7 +59,7 @@ public class MarketDataIngestionScheduler {
     public void scheduledStart() {
         if (!enabled)
             return;
-        log.info("Scheduled trigger: Starting Market Data Ingestion");
+        log.info("scheduledStart", "Scheduled trigger: Starting Market Data Ingestion");
         startIngestion();
     }
 
@@ -69,7 +70,7 @@ public class MarketDataIngestionScheduler {
     public void scheduledStop() {
         if (!enabled)
             return;
-        log.info("Scheduled trigger: Stopping Market Data Ingestion");
+        log.info("scheduledStop", "Scheduled trigger: Stopping Market Data Ingestion");
         ingestionService.stopIngestion(provider);
     }
 
@@ -80,8 +81,8 @@ public class MarketDataIngestionScheduler {
     public void scheduledHistoricalSync() {
         if (!enabled)
             return;
-        log.info("Scheduled trigger: Starting Historical Data Sync (Smart Delta)");
-        historicalSyncService.syncHistoricalData(null);
+        log.info("scheduledHistoricalSync", "Scheduled trigger: Starting Historical Data Sync (Smart Delta)");
+        historicalSyncService.syncHistoricalData(null, true);
     }
 
     private void startIngestion() {

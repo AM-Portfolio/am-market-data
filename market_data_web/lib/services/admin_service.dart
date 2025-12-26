@@ -6,8 +6,16 @@ class AdminService {
   // Use localhost for now, assume proxy or direct access
   static const String baseUrl = 'http://localhost:8092/api/admin';
 
-  Future<List<IngestionLog>> getLogs({int page = 0, int size = 20}) async {
-    final response = await http.get(Uri.parse('$baseUrl/logs?page=$page&size=$size'));
+  Future<List<IngestionLog>> getLogs({int page = 0, int size = 20, DateTime? startDate, DateTime? endDate}) async {
+    String query = 'page=$page&size=$size';
+    if (startDate != null) {
+      query += '&startDate=${startDate.toIso8601String().split('T')[0]}';
+    }
+    if (endDate != null) {
+      query += '&endDate=${endDate.toIso8601String().split('T')[0]}';
+    }
+    
+    final response = await http.get(Uri.parse('$baseUrl/logs?$query'));
     
     if (response.statusCode == 200) {
       final List<dynamic> body = jsonDecode(response.body);
@@ -26,8 +34,13 @@ class AdminService {
     }
   }
 
-  Future<void> triggerHistoricalSync({String? symbol}) async {
-    final uri = Uri.parse('$baseUrl/sync/historical').replace(queryParameters: symbol != null && symbol.isNotEmpty ? {'symbol': symbol} : null);
+  Future<void> triggerHistoricalSync({String? symbol, bool forceRefresh = true}) async {
+    final uri = Uri.parse('$baseUrl/sync/historical').replace(
+      queryParameters: {
+        if (symbol != null && symbol.isNotEmpty) 'symbol': symbol,
+        'forceRefresh': forceRefresh.toString()
+      }
+    );
     final response = await http.post(uri);
     if (response.statusCode != 200) {
       throw Exception('Failed to trigger sync: ${response.body}');

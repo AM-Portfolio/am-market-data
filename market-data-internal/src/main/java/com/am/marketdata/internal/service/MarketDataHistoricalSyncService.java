@@ -1,7 +1,5 @@
 package com.am.marketdata.internal.service;
 
-import com.am.common.investment.model.stockindice.StockIndicesMarketData;
-import com.am.common.investment.service.StockIndicesMarketDataService;
 import com.am.marketdata.api.model.HistoricalDataResponseV1;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.api.util.InstrumentUtils;
@@ -12,7 +10,6 @@ import com.am.marketdata.internal.repository.IngestionJobLogRepository;
 import com.am.marketdata.internal.repository.MarketDataIngestionStatusRepository;
 import com.am.marketdata.common.log.AppLogger;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -24,13 +21,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketDataHistoricalSyncService {
 
+    private final AppLogger log = AppLogger.getLogger(MarketDataHistoricalSyncService.class);
+
     private final MarketDataFetchService marketDataFetchService;
-    private final StockIndicesMarketDataService stockIndicesMarketDataService;
     private final InstrumentUtils instrumentUtils;
     private final MarketDataIngestionStatusRepository ingestionStatusRepository;
     private final IngestionJobLogRepository ingestionJobLogRepository;
@@ -42,10 +39,11 @@ public class MarketDataHistoricalSyncService {
     /**
      * Triggered by Scheduler at 07:15 AM
      */
-    public void syncHistoricalData(String symbol) {
+    public void syncHistoricalData(String symbol, boolean forceRefresh) {
         String jobId = UUID.randomUUID().toString();
         LocalDateTime startTime = LocalDateTime.now();
-        log.info("Starting Historical Data Sync Job: {}", jobId);
+        log.info("syncHistoricalData", "Starting Historical Data Sync Job: {} (Force Refresh: {})", jobId,
+                forceRefresh);
 
         IngestionJobLog jobLog = IngestionJobLog.builder()
                 .jobId(jobId)
@@ -55,24 +53,31 @@ public class MarketDataHistoricalSyncService {
                 .logs(new ArrayList<>())
                 .build();
 
-        addLog(jobLog, "Starting Historical Data Sync Job: " + jobId);
+        addLog(jobLog, "Starting Historical Data Sync Job: " + jobId + ", Force Refresh: " + forceRefresh);
         jobLog = ingestionJobLogRepository.save(jobLog);
 
         try {
             // 1. Get Symbols
             Set<String> allSymbols;
             if (symbol != null && !symbol.trim().isEmpty()) {
-                allSymbols = Collections.singleton(symbol);
-                addLog(jobLog, "Targeting single symbol: " + symbol);
+                allSymbols = java.util.Arrays.stream(symbol.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toSet());
+                addLog(jobLog, "Targeting symbols: " + allSymbols);
             } else {
                 allSymbols = getAllSymbolsToSync();
             }
             jobLog.setTotalSymbols(allSymbols.size());
             addLog(jobLog, "Found " + allSymbols.size() + " symbols to sync");
-            log.info("Found {} symbols to sync", allSymbols.size());
+            log.info("syncHistoricalData", "Found {} symbols to sync", allSymbols.size());
 
             // 2. Resolve Status & Group into Buckets
-            Map<LocalDate, List<String>> buckets = groupSymbolsByStartDate(allSymbols);
+            Map<LocalDate, List<String>> buckets = groupSymbolsByStartDate(allSymbols, forceRefresh);
+
+            if (!forceRefresh) {
+                // Comments preserved
+            }
 
             int successCount = 0;
             int failureCount = 0;
@@ -84,10 +89,11 @@ public class MarketDataHistoricalSyncService {
                 LocalDate fromDate = entry.getKey();
                 List<String> symbolsInBucket = entry.getValue();
 
-                log.info("Processing bucket for date {}: {} symbols", fromDate, symbolsInBucket.size());
+                log.info("syncHistoricalData", "Processing bucket for date {}: {} symbols", fromDate,
+                        symbolsInBucket.size());
                 addLog(jobLog, "Processing bucket for date " + fromDate + ": " + symbolsInBucket.size() + " symbols");
 
-                ProcessingResult result = processBucket(symbolsInBucket, fromDate, jobLog);
+                ProcessingResult result = processBucket(symbolsInBucket, fromDate, jobLog, forceRefresh);
                 successCount += result.successCount;
                 failureCount += result.failureCount;
                 totalPayloadSize += result.totalPayloadSize;
@@ -100,17 +106,21 @@ public class MarketDataHistoricalSyncService {
             jobLog.setSuccessCount(successCount);
             jobLog.setFailureCount(failureCount);
             jobLog.setFailedSymbols(failedSymbols);
-            jobLog.setPayloadSize(totalPayloadSize); // Set total payload size
+            jobLog.setPayloadSize(totalPayloadSize);
             jobLog.setStatus(failureCount == 0 ? "SUCCESS" : (successCount > 0 ? "PARTIAL_SUCCESS" : "FAILED"));
 
+            addLog(jobLog, "Job Completed. Saved: " + successCount + ", Failed: " + failureCount + ", Payload: "
+                    + (totalPayloadSize / 1024) + " KB");
+
         } catch (Exception e) {
-            log.error("Fatal error in Historical Data Sync Job", e);
+            log.error("syncHistoricalData", "Fatal error in Historical Data Sync Job", e);
             jobLog.setEndTime(LocalDateTime.now());
             jobLog.setStatus("FAILED");
             jobLog.setMessage(e.getMessage());
+            addLog(jobLog, "Fatal Error: " + e.getMessage());
         } finally {
             ingestionJobLogRepository.save(jobLog);
-            log.info("Historical Data Sync Job Completed. Status: {}", jobLog.getStatus());
+            log.info("syncHistoricalData", "Historical Data Sync Job Completed. Status: {}", jobLog.getStatus());
         }
     }
 
@@ -129,7 +139,7 @@ public class MarketDataHistoricalSyncService {
         return resolvedSymbols;
     }
 
-    private Map<LocalDate, List<String>> groupSymbolsByStartDate(Set<String> symbols) {
+    private Map<LocalDate, List<String>> groupSymbolsByStartDate(Set<String> symbols, boolean forceRefresh) {
         Map<LocalDate, List<String>> buckets = new HashMap<>();
         LocalDate today = LocalDate.now();
         LocalDate defaultStart = today.minusYears(10);
@@ -143,9 +153,8 @@ public class MarketDataHistoricalSyncService {
             LocalDate lastDate = statusMap.get(symbol);
             LocalDate nextDate = (lastDate != null) ? lastDate.plusDays(1) : defaultStart;
 
-            // If up to date (nextDate > yesterday), skip or optional check?
-            // If nextDate is today or future, we skip.
-            if (!nextDate.isBefore(today)) {
+            // If not forcing refresh, and up to date/future, skip
+            if (!forceRefresh && !nextDate.isBefore(today)) {
                 continue;
             }
 
@@ -154,7 +163,8 @@ public class MarketDataHistoricalSyncService {
         return buckets;
     }
 
-    private ProcessingResult processBucket(List<String> symbols, LocalDate fromDate, IngestionJobLog jobLog) {
+    private ProcessingResult processBucket(List<String> symbols, LocalDate fromDate, IngestionJobLog jobLog,
+            boolean forceRefresh) {
         ProcessingResult totalResult = new ProcessingResult();
         LocalDate toDate = LocalDate.now(); // Up to current
 
@@ -164,7 +174,7 @@ public class MarketDataHistoricalSyncService {
 
         for (List<String> batch : batches) {
             CompletableFuture<ProcessingResult> future = CompletableFuture.supplyAsync(() -> {
-                return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog);
+                return fetchBatch(new HashSet<>(batch), fromDate, toDate, jobLog, forceRefresh);
             }, batchExecutor);
             futures.add(future);
         }
@@ -175,7 +185,7 @@ public class MarketDataHistoricalSyncService {
                 ProcessingResult batchResult = f.join();
                 totalResult.add(batchResult);
             } catch (Exception e) {
-                log.error("Error processing batch", e);
+                log.error("processBucket", "Error processing batch", e);
             }
         }
 
@@ -183,7 +193,7 @@ public class MarketDataHistoricalSyncService {
     }
 
     private ProcessingResult fetchBatch(Set<String> batch, LocalDate fromDate, LocalDate toDate,
-            IngestionJobLog jobLog) {
+            IngestionJobLog jobLog, boolean forceRefresh) {
         ProcessingResult result = new ProcessingResult();
         try {
             // Log locally for debug, but maybe not all batch start to avoid spam in main
@@ -191,7 +201,7 @@ public class MarketDataHistoricalSyncService {
             // but user asked for "what is happening inside".
             // Let's add significant events.
             addLogAsync(jobLog, "Fetching batch of " + batch.size() + " symbols from " + fromDate + " to " + toDate
-                    + " (Force Refresh: true)");
+                    + " (Force Refresh: " + forceRefresh + ")");
 
             Date from = Date.from(fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
             Date to = Date.from(toDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
@@ -204,7 +214,7 @@ public class MarketDataHistoricalSyncService {
                     TimeFrame.DAY,
                     "STOCK", // Instrument Type
                     new HashMap<>(), // Additional Params
-                    true // Force Refresh (we need to fetch from provider)
+                    forceRefresh // Force Refresh (we need to fetch from provider)
             );
 
             // Access data from response
@@ -245,7 +255,7 @@ public class MarketDataHistoricalSyncService {
 
                 } else {
                     // Fail or Empty
-                    log.warn("No data for symbol {}", symbol);
+                    log.warn("fetchBatch", "No data for symbol {}", symbol);
                     result.failureCount++;
                     result.failedSymbols.add(symbol);
                 }
@@ -273,7 +283,7 @@ public class MarketDataHistoricalSyncService {
             addLogAsync(jobLog, "Batch processed. Estimated size: " + (batchSize / 1024) + " KB");
 
         } catch (Exception e) {
-            log.error("Error fetching batch starting {}", fromDate, e);
+            log.error("fetchBatch", "Error fetching batch starting {}", fromDate, e);
             result.failureCount += batch.size();
             result.failedSymbols.addAll(batch);
         }

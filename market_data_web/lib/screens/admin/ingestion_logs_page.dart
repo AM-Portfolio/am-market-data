@@ -25,6 +25,10 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
 
   final TextEditingController _symbolController = TextEditingController();
   bool _filtersExpanded = true;
+  
+  // New State
+  DateTimeRange? _selectedDateRange;
+  bool _forceRefresh = true;
 
   // Data State
   List<IngestionLog> _logs = [];
@@ -52,7 +56,10 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
 
   Future<void> _fetchLogs() async {
     try {
-      final logs = await _adminService.getLogs();
+      final logs = await _adminService.getLogs(
+          startDate: _selectedDateRange?.start,
+          endDate: _selectedDateRange?.end
+      );
       if (mounted) {
         setState(() {
           _logs = logs;
@@ -87,19 +94,19 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
   }
 
   Future<void> _triggerHistoricalSync() async {
-    // Determine symbol: Dropdown takes precedence if selected, else Text Input
-    String symbol = _selectedIndex ?? _symbolController.text;
+    // Determine symbol: Text Input is the source of truth (populated by dropdown or manual)
+    String symbol = _symbolController.text;
     
     if (symbol.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select an Index or enter a Symbol")));
         return;
     }
 
-    AppLogger.info("Admin", "Triggering sync for $symbol via $_selectedProvider");
+    AppLogger.info("Admin", "Triggering sync for $symbol (Force: $_forceRefresh)");
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Triggering sync for $symbol...")));
     
     try {
-        await _adminService.triggerHistoricalSync(symbol: symbol);
+        await _adminService.triggerHistoricalSync(symbol: symbol, forceRefresh: _forceRefresh);
         if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync Triggered Successfully!")));
             _fetchLogs();
@@ -109,6 +116,15 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to trigger sync: $e"), backgroundColor: Colors.red));
         }
     }
+  }
+
+  Future<void> _stopIngestion() async {
+      try {
+          await _adminService.stopIngestion(_selectedProvider); // Uses selected provider
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingestion Stopped Successfully!")));
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to stop ingestion: $e"), backgroundColor: Colors.red));
+      }
   }
 
   void _startStream() {
@@ -427,7 +443,7 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
                           ),
                         ),
                         
-                        // NEW: Index Dropdown (e.g. NIFTY 50) - as requested
+                        // Index Dropdown
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
@@ -457,21 +473,40 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
                             controller: _symbolController,
                             decoration: InputDecoration(
                               hintText: "Or Custom Symbol",
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                    _symbolController.clear();
+                                    setState(() => _selectedIndex = null); // Clear dropdown too
+                                },
+                              ),
                             ),
                           ),
                         ),
                         
-                        // Buttons
+                        // Trigger Button
                         ElevatedButton.icon(
                           onPressed: _triggerHistoricalSync,
-                          icon: const Icon(Icons.sync),
-                          label: const Text("Trigger Historical Sync"),
+                          icon: const Icon(Icons.sync, size: 18),
+                          label: const Text("Sync History"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blueAccent,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+
+                        // Stop Ingestion Button
+                        OutlinedButton.icon(
+                          onPressed: _stopIngestion,
+                          icon: const Icon(Icons.stop_circle_outlined, size: 18, color: Colors.red),
+                          label: const Text("Stop Ingest", style: TextStyle(color: Colors.red)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
@@ -480,26 +515,74 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
                         if (!_isStreaming)
                           OutlinedButton.icon(
                              onPressed: _startStream,
-                             icon: const Icon(Icons.play_arrow, color: Colors.green),
+                             icon: const Icon(Icons.play_arrow, color: Colors.green, size: 18),
                              label: const Text("Start Feed", style: TextStyle(color: Colors.green)),
                              style: OutlinedButton.styleFrom(
                                side: const BorderSide(color: Colors.green),
-                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                              ),
                           )
                         else
                           OutlinedButton.icon(
                              onPressed: _stopStream,
-                             icon: const Icon(Icons.stop, color: Colors.red),
+                             icon: const Icon(Icons.stop, color: Colors.red, size: 18),
                              label: const Text("Stop Feed", style: TextStyle(color: Colors.red)),
                              style: OutlinedButton.styleFrom(
                                side: const BorderSide(color: Colors.red),
-                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                              ),
                           )
                       ],
+                   ),
+                   const SizedBox(height: 16),
+                   Wrap(
+                       spacing: 20,
+                       runSpacing: 16,
+                       crossAxisAlignment: WrapCrossAlignment.center,
+                       children: [
+                           // Date Filter
+                           OutlinedButton.icon(
+                               onPressed: () async {
+                                   final picked = await showDateRangePicker(
+                                       context: context,
+                                       firstDate: DateTime(2020),
+                                       lastDate: DateTime.now(),
+                                   );
+                                   if (picked != null) {
+                                       setState(() => _selectedDateRange = picked);
+                                       _fetchLogs();
+                                   }
+                               },
+                               icon: const Icon(Icons.calendar_today, size: 18),
+                               label: Text(_selectedDateRange == null 
+                                   ? "Filter by Date" 
+                                   : "${DateFormat('MM/dd').format(_selectedDateRange!.start)} - ${DateFormat('MM/dd').format(_selectedDateRange!.end)}"),
+                           ),
+                           if (_selectedDateRange != null)
+                               IconButton(
+                                   icon: const Icon(Icons.clear, size: 18), 
+                                   onPressed: () {
+                                       setState(() => _selectedDateRange = null);
+                                       _fetchLogs();
+                                   }
+                               ),
+                           
+                           // Force Refresh Toggle
+                           const SizedBox(width: 10),
+                           Row(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                   Switch(
+                                       value: _forceRefresh, 
+                                       onChanged: (val) => setState(() => _forceRefresh = val),
+                                       activeColor: Colors.blue,
+                                   ),
+                                   const Text("Force Refresh"),
+                               ],
+                           ),
+                       ],
                    ),
                  ],
                ),
