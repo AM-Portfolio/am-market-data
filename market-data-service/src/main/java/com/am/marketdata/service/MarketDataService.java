@@ -7,7 +7,7 @@ import com.am.common.investment.service.instrument.InstrumentService;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.InstrumentMapper;
-import com.am.marketdata.mapper.KiteModelMapper;
+import com.am.marketdata.mapper.MarketDataGenericMapper;
 import com.am.marketdata.service.util.DataSourceType;
 import com.am.marketdata.service.util.HistoricalDataRetriever;
 import com.am.marketdata.service.util.MarketDataRetrievalUtil;
@@ -46,7 +46,7 @@ public class MarketDataService {
     private final InstrumentService instrumentService;
     private final MeterRegistry meterRegistry;
     private final InstrumentMapper instrumentMapper;
-    private final KiteModelMapper kiteModelMapper;
+    private final MarketDataGenericMapper genericMapper;
     private final MarketDataPersistenceService persistenceService;
     private final MarketDataRetrievalUtil marketDataRetrievalUtil;
 
@@ -58,13 +58,13 @@ public class MarketDataService {
 
     public MarketDataService(MarketDataProviderFactory providerFactory, InstrumentService instrumentService,
             MeterRegistry meterRegistry, InstrumentMapper instrumentMapper,
-            KiteModelMapper kiteModelMapper, MarketDataPersistenceService persistenceService,
+            MarketDataGenericMapper genericMapper, MarketDataPersistenceService persistenceService,
             MarketDataRetrievalUtil marketDataRetrievalUtil) {
         this.providerFactory = providerFactory;
         this.instrumentService = instrumentService;
         this.meterRegistry = meterRegistry;
         this.instrumentMapper = instrumentMapper;
-        this.kiteModelMapper = kiteModelMapper;
+        this.genericMapper = genericMapper;
         this.persistenceService = persistenceService;
         this.marketDataRetrievalUtil = marketDataRetrievalUtil;
     }
@@ -501,29 +501,36 @@ public class MarketDataService {
         }
 
         // Map OHLC data to equity prices using the mapper
-        List<EquityPrice> prices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpData);
+        // Map OHLC data to equity prices using the mapper
+        List<EquityPrice> prices = genericMapper.mapLTPquoteToEquityPrices(ltpData);
         log.info("[DATA_SOURCE] Successfully mapped {} OHLC quotes to {} equity prices from PROVIDER",
                 ltpData != null ? ltpData.size() : 0, prices.size());
 
         return prices;
     }
 
-    public List<EquityPrice> getLivePrices(List<String> tradingSymbols, String providerName) {
+    public List<EquityPrice> getLivePrices(List<String> tradingSymbols, String providerName, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Fetching live prices for {} instruments", tradingSymbols != null ? tradingSymbols.size() : "all");
+            log.info("Fetching live prices for {} instruments, forceRefresh: {}",
+                    tradingSymbols != null ? tradingSymbols.size() : "all", forceRefresh);
 
             if (tradingSymbols == null || tradingSymbols.isEmpty()) {
                 log.warn("No trading symbols provided");
                 return Collections.emptyList();
             }
 
-            // Step 1: Try to get data from cache first
-            log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
-            Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
-
             Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
             List<EquityPrice> result = new ArrayList<>();
+            Map<String, OHLCQuote> cachedData = null;
+
+            // Step 1: Try to get data from cache first if not forced refresh
+            if (!forceRefresh) {
+                log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
+                cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
+            } else {
+                log.info("[CACHE] Skipping cache lookup due to forceRefresh=true");
+            }
 
             if (cachedData != null && !cachedData.isEmpty()) {
                 log.info("[CACHE] Found {} live prices in cache", cachedData.size());
@@ -537,7 +544,7 @@ public class MarketDataService {
                     ltpMap.put(entry.getKey(), ltp);
                 }
 
-                List<EquityPrice> cachedPrices = kiteModelMapper.mapLTPquoteToEquityPrices(ltpMap);
+                List<EquityPrice> cachedPrices = genericMapper.mapLTPquoteToEquityPrices(ltpMap);
                 result.addAll(cachedPrices);
 
                 // Remove symbols found in cache from remaining

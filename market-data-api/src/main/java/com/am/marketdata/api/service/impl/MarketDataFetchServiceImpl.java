@@ -106,7 +106,7 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     public Map<String, Object> getLivePrices(Set<String> symbols, boolean indexSymbol, boolean forceRefresh) {
         Set<String> symbolsSet = getSymbols(new HashSet<>(symbols), indexSymbol);
         List<com.am.common.investment.model.equity.EquityPrice> prices = marketDataService.getLivePrices(
-                new ArrayList<>(symbolsSet), null);
+                new ArrayList<>(symbolsSet), null, forceRefresh);
 
         Map<String, Object> result = new HashMap<>();
         result.put("prices", prices);

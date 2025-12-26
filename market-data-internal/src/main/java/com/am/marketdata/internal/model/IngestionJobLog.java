@@ -19,19 +19,22 @@ public class IngestionJobLog {
 
     @Id
     private String id;
-    
+
     private String jobId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    
+
     private String status; // SUCCESS, FAILED, PARTIAL
-    
+
     private int totalSymbols;
     private int successCount;
     private int failureCount;
-    
+
     private List<String> failedSymbols;
-    
+
     private long durationMs;
     private String message;
+
+    @org.springframework.data.annotation.Transient
+    private List<String> logs;
 }

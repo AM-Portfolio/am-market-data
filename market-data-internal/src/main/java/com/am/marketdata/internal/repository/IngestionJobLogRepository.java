@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface IngestionJobLogRepository extends MongoRepository<IngestionJobLog, String> {
+    java.util.Optional<IngestionJobLog> findByJobId(String jobId);
 }

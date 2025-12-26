@@ -4,7 +4,7 @@ import '../models/ingestion_log.dart';
 
 class AdminService {
   // Use localhost for now, assume proxy or direct access
-  static const String baseUrl = 'http://localhost:8080/api/admin';
+  static const String baseUrl = 'http://localhost:8092/api/admin';
 
   Future<List<IngestionLog>> getLogs({int page = 0, int size = 20}) async {
     final response = await http.get(Uri.parse('$baseUrl/logs?page=$page&size=$size'));
@@ -14,6 +14,15 @@ class AdminService {
       return body.map((e) => IngestionLog.fromJson(e)).toList();
     } else {
       throw Exception('Failed to load logs');
+    }
+  }
+
+  Future<IngestionLog> getJobDetails(String jobId) async {
+    final response = await http.get(Uri.parse('$baseUrl/logs/$jobId'));
+    if (response.statusCode == 200) {
+      return IngestionLog.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load job details');
     }
   }
 

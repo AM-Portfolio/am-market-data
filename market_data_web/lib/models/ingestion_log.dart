@@ -10,6 +10,7 @@ class IngestionLog {
   final List<String> failedSymbols;
   final double durationMs;
   final String? message;
+  final List<String>? logs;
 
   IngestionLog({
     required this.id,
@@ -23,6 +24,7 @@ class IngestionLog {
     required this.failedSymbols,
     required this.durationMs,
     this.message,
+    this.logs,
   });
 
   factory IngestionLog.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,7 @@ class IngestionLog {
       failedSymbols: (json['failedSymbols'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
       durationMs: (json['durationMs'] as num).toDouble(),
       message: json['message'] as String?,
+      logs: (json['logs'] as List<dynamic>?)?.map((e) => e as String).toList(),
     );
   }
 }

@@ -23,6 +23,20 @@ public class MarketDataAdminController {
     private final IngestionJobLogRepository ingestionJobLogRepository;
     private final MarketDataHistoricalSyncService historicalSyncService;
     private final MarketDataIngestionService ingestionService;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
+    @GetMapping("/logs/{jobId}")
+    public ResponseEntity<IngestionJobLog> getJobDetails(@PathVariable String jobId) {
+        return ingestionJobLogRepository.findByJobId(jobId)
+                .map(job -> {
+                    // Fetch transient logs from Redis
+                    String key = "job:logs:" + jobId;
+                    List<String> logs = redisTemplate.opsForList().range(key, 0, -1);
+                    job.setLogs(logs);
+                    return ResponseEntity.ok(job);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @GetMapping("/logs")
     public List<IngestionJobLog> getLogs(@RequestParam(defaultValue = "0") int page,

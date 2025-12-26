@@ -14,6 +14,10 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
   final AdminService _adminService = AdminService();
   String _selectedProvider = 'UPSTOX';
   final List<String> _providers = ['UPSTOX', 'ZERODHA'];
+  
+  Timer? _timer;
+  bool _isLoading = false;
+  List<IngestionLog> _logs = [];
 
   @override
   void initState() {
@@ -122,7 +126,13 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
           DataColumn(label: Text('Failed')),
         ],
         rows: _logs.map((log) {
-          return DataRow(cells: [
+          return DataRow(
+            onSelectChanged: (selected) {
+              if (selected == true) {
+                _showJobDetails(log.jobId);
+              }
+            },
+            cells: [
             DataCell(Text(log.jobId.substring(0, 8))),
             DataCell(Text(log.startTime.toString())),
             DataCell(Text(
@@ -139,6 +149,47 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
         }).toList(),
       ),
     );
+  }
+
+  Future<void> _showJobDetails(String jobId) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final log = await _adminService.getJobDetails(jobId);
+      Navigator.pop(context); // Pop loading
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Job Details: ${log.jobId.substring(0, 8)}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: log.logs == null || log.logs!.isEmpty
+                ? const Text('No logs available.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: log.logs!.length,
+                    itemBuilder: (context, index) {
+                      return Text(log.logs![index], style: const TextStyle(fontSize: 12, fontFamily: 'monospace'));
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Pop loading
+      _showError(e);
+    }
   }
 
   Future<void> _triggerSync() async {
