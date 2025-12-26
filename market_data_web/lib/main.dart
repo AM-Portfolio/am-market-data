@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/market_provider.dart';
 import 'services/api_service.dart';
 import 'screens/home_page.dart';
+import 'screens/admin/ingestion_logs_page.dart';
 
 void main() {
   runApp(const MarketDataApp());
@@ -33,7 +34,11 @@ class MarketDataApp extends StatelessWidget {
           ),
           scaffoldBackgroundColor: const Color(0xFF1E1E2F), // Dark background
         ),
-        home: const HomePage(),
+        initialRoute: '/',
+      routes: {
+        '/': (context) => const HomePage(),
+        '/admin': (context) => const IngestionLogsPage(),
+      },
       ),
     );
   }

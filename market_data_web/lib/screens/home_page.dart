@@ -278,6 +278,13 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
                 const SizedBox(height: 10),
+                ListTile(
+                  title: const Text("Admin Dashboard", style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.admin_panel_settings, color: Colors.red),
+                  onTap: () {
+                      Navigator.pushNamed(context, '/admin');
+                  },
+                ),
               ],
             ),
           );

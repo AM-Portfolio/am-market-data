@@ -34,7 +34,8 @@ import com.am.marketdata.config.MetricsConfig;
 })
 @EnableMongoRepositories(basePackages = {
                 "com.am.common.investment.persistence.repository",
-                "com.am.marketdata.service.repo"
+                "com.am.marketdata.service.repo",
+                "com.am.marketdata.internal.repository"
 })
 // @EnableRetry
 @EnableScheduling
