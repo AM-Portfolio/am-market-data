@@ -88,111 +88,122 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // White Theme Overrides for local scope if needed, or rely on Theme.of(context)
     return Container(
-      color: const Color(0xFF1A1A2E), // Match app theme
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Instrument Explorer',
-                style: TextStyle(
-                  fontSize: 28, 
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white
+        color: const Color(0xFFF5F7FA), // Light background
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Instrument Explorer',
+                  style: TextStyle(
+                    fontSize: 28, 
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87 // Dark text
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.blueAccent),
+                  onPressed: _clearFilters,
+                  tooltip: 'Clear Filters',
+                )
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Filters Card
+            Container(
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  ]
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _queryController,
+                            style: const TextStyle(color: Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Search (Name/Symbol)',
+                              labelStyle: TextStyle(color: Colors.grey.shade600),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            onSubmitted: (_) => _search(),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextField(
+                            controller: _isinController,
+                            style: const TextStyle(color: Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'ISIN',
+                              labelStyle: TextStyle(color: Colors.grey.shade600),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              prefixIcon: const Icon(Icons.qr_code, color: Colors.grey),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            onSubmitted: (_) => _search(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Toggles
+                    _buildMultiSelect('Exchanges', _exchanges, _selectedExchanges),
+                    const SizedBox(height: 8),
+                    _buildMultiSelect('Segments', _segments, _selectedSegments),
+                    const SizedBox(height: 8),
+                    _buildMultiSelect('Types', _types, _selectedTypes),
+                    
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _search, 
+                      icon: const Icon(Icons.search),
+                      label: const Text('Search Instruments'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    )
+                  ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: _clearFilters,
-                tooltip: 'Clear Filters',
-              )
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Filters Card
-          Card(
-            color: const Color(0xFF16213E),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _queryController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            labelText: 'Search (Name/Symbol)',
-                            labelStyle: TextStyle(color: Colors.white70),
-                            border: OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                            prefixIcon: Icon(Icons.search, color: Colors.white54),
-                          ),
-                          onSubmitted: (_) => _search(),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          controller: _isinController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            labelText: 'ISIN',
-                            labelStyle: TextStyle(color: Colors.white70),
-                            border: OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                            prefixIcon: Icon(Icons.qr_code, color: Colors.white54),
-                          ),
-                          onSubmitted: (_) => _search(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Toggles
-                  _buildMultiSelect('Exchanges', _exchanges, _selectedExchanges),
-                  const SizedBox(height: 8),
-                  _buildMultiSelect('Segments', _segments, _selectedSegments),
-                  const SizedBox(height: 8),
-                  _buildMultiSelect('Types', _types, _selectedTypes),
-                  
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _search, 
-                    icon: const Icon(Icons.search),
-                    label: const Text('Search Instruments'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      backgroundColor: Colors.blueAccent
-                    ),
-                  )
-                ],
-              ),
             ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Results
-          Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.redAccent)))
-                : _results.isEmpty
-                  ? const Center(child: Text('No instruments found. Adjust filters and search.', style: TextStyle(color: Colors.white54)))
-                  : _buildResultsTable(),
-          ),
-        ],
-      ),
-    );
+            
+            const SizedBox(height: 16),
+            
+            // Results
+            Expanded(
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                  ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.redAccent)))
+                  : _results.isEmpty
+                    ? const Center(child: Text('No instruments found. Adjust filters and search.', style: TextStyle(color: Colors.grey)))
+                    : _buildResultsTable(),
+            ),
+          ],
+        ),
+      );
   }
 
   Widget _buildMultiSelect(String label, List<String> options, List<String> selected) {
@@ -203,7 +214,7 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
           width: 80, 
           child: Padding(
             padding: const EdgeInsets.only(top: 10),
-            child: Text(label, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+            child: Text(label, style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
           )
         ),
         Expanded(
@@ -224,10 +235,11 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
                     }
                   });
                 },
-                backgroundColor: const Color(0xFF0F3460),
-                selectedColor: Colors.blueAccent.withOpacity(0.5),
-                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70),
-                checkmarkColor: Colors.white,
+                backgroundColor: Colors.grey.shade100,
+                selectedColor: Colors.blueAccent.withOpacity(0.1),
+                labelStyle: TextStyle(color: isSelected ? Colors.blueAccent : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                checkmarkColor: Colors.blueAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? Colors.blueAccent : Colors.grey.shade300)),
               );
             }).toList(),
           ),
@@ -237,28 +249,37 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
   }
 
   Widget _buildResultsTable() {
-    return Card(
-      color: const Color(0xFF16213E),
-      child: SingleChildScrollView(
-        child: PaginatedDataTable(
-          headingRowColor: MaterialStateProperty.all(const Color(0xFF0F3460)),
-          columns: const [
-            DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Segment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Type', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          ],
-          source: _InstrumentDataSource(_results),
-          rowsPerPage: _results.isEmpty ? 1 : (_results.length < 100 ? _results.length : 100),
-          availableRowsPerPage: const [10, 20, 50, 100, 200],
-          onRowsPerPageChanged: (val) {
-             // Basic support if needed, but setState logic is tricky purely inside build
-          },
-          showCheckboxColumn: false,
-          arrowHeadColor: Colors.white,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SingleChildScrollView(
+          child: PaginatedDataTable(
+            headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+            columns: const [
+              DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Name', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Segment', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Type', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+            ],
+            source: _InstrumentDataSource(_results),
+            rowsPerPage: _results.isEmpty ? 1 : (_results.length < 100 ? _results.length : 100),
+            availableRowsPerPage: const [10, 20, 50, 100, 200],
+            onRowsPerPageChanged: (val) {
+               // Basic support
+            },
+            showCheckboxColumn: false,
+            arrowHeadColor: Colors.black54,
+          ),
         ),
       ),
     );
@@ -277,13 +298,13 @@ class _InstrumentDataSource extends DataTableSource {
     
     return DataRow(
       cells: [
-        DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.white))),
-        DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis))),
-        DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.white70))),
-        DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.white70))),
-        DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.white70))),
-        DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.white70))),
-        DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.white54, fontSize: 11))),
+        DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+        DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.black54), overflow: TextOverflow.ellipsis))),
+        DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.grey, fontSize: 11))),
       ],
     );
   }

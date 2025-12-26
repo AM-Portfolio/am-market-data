@@ -23,15 +23,20 @@ class AppSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool isAdmin = provider.selectedIndex == "Admin Dashboard";
+
     return Container(
       width: 260,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E1E2F), Color(0xFF2D2D44)], // Premium Dark Gradient
-        ),
-        border: Border(right: BorderSide(color: Colors.white10)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(4, 0),
+          )
+        ],
       ),
       child: Column(
         children: [
@@ -40,114 +45,58 @@ class AppSidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
                 // Market Overview Option
-                ListTile(
-                  title: const Text("All Indices (Overview)", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  leading: const Icon(Icons.dashboard_rounded, color: Colors.blueAccent),
-                  selected: isAllIndices,
-                  selectedTileColor: Colors.blueAccent.withOpacity(0.15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Rounded selection
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  onTap: () => provider.selectIndex("All Indices"),
-                ),
+                _buildMenuItem(context, "All Indices (Overview)", Icons.dashboard_rounded, Colors.blueAccent, isAllIndices),
 
                 const SizedBox(height: 5),
 
                 // Streamer Option
-                ListTile(
-                  title: const Text("Streamer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  leading: const Icon(Icons.waves, color: Colors.purpleAccent),
-                  selected: isStreamer,
-                  selectedTileColor: Colors.purpleAccent.withOpacity(0.15),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  onTap: () => provider.selectIndex("Streamer"),
-                ),
+                _buildMenuItem(context, "Streamer", Icons.waves, Colors.purpleAccent, isStreamer),
 
                 const SizedBox(height: 5),
 
                 // Instrument Explorer Option
-                ListTile(
-                  title: const Text("Instrument Explorer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  leading: const Icon(Icons.search, color: Colors.tealAccent),
-                  selected: isInstruments,
-                  selectedTileColor: Colors.tealAccent.withOpacity(0.15),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  onTap: () => provider.selectIndex("Instruments"),
-                ),
+                _buildMenuItem(context, "Instrument Explorer", Icons.search, Colors.tealAccent, isInstruments),
 
                 const SizedBox(height: 5),
 
                 // Security Explorer Option (Added)
-                ListTile(
-                  title: const Text("Security Explorer", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  leading: const Icon(Icons.security, color: Colors.redAccent),
-                  selected: isSecurityExplorer,
-                  selectedTileColor: Colors.redAccent.withOpacity(0.15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  onTap: () => provider.selectIndex("Security Explorer"),
-                ),
+                _buildMenuItem(context, "Security Explorer", Icons.security, Colors.redAccent, isSecurityExplorer),
 
                 const SizedBox(height: 5),
 
                 // Price Test Option (Added)
-                ListTile(
-                  title: const Text("Price Test", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  leading: const Icon(Icons.price_check, color: Colors.amberAccent),
-                  selected: isPriceTest,
-                  selectedTileColor: Colors.amberAccent.withOpacity(0.15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  onTap: () => provider.selectIndex("Price Test"),
-                ),
+                _buildMenuItem(context, "Price Test", Icons.price_check, Colors.amberAccent, isPriceTest),
 
                 const SizedBox(height: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text("INDICES", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text("INDICES", style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                 ),
 
                 if (provider.availableIndices != null) ...[
                   // Broad Market Dropdown
                   if (provider.availableIndices!.broad.isNotEmpty)
                     Theme(
-                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent), // Remove borders
+                      data: theme.copyWith(dividerColor: Colors.transparent), 
                       child: ExpansionTile(
                         leading: const Icon(Icons.public, color: Colors.greenAccent),
-                        title: const Text("Broad Market", style: TextStyle(fontSize: 14, color: Colors.white)),
+                        title: const Text("Broad Market", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         iconColor: Colors.greenAccent,
-                        collapsedIconColor: Colors.white54,
-                        children: provider.availableIndices!.broad.map((idx) => ListTile(
-                          title: Text(idx, style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                          selected: provider.selectedIndex == idx,
-                          selectedTileColor: Colors.greenAccent.withOpacity(0.1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.only(left: 32, right: 16),
-                          dense: true,
-                          onTap: () => provider.selectIndex(idx),
-                        )).toList(),
+                        collapsedIconColor: Colors.grey,
+                        children: provider.availableIndices!.broad.map((idx) => _buildSubMenuItem(context, idx)).toList(),
                       ),
                     ),
 
                   // Sectoral Indices Dropdown
                   if (provider.availableIndices!.sector.isNotEmpty)
                      Theme(
-                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      data: theme.copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         leading: const Icon(Icons.pie_chart, color: Colors.orangeAccent),
-                        title: const Text("Sectoral Indices", style: TextStyle(fontSize: 14, color: Colors.white)),
+                        title: const Text("Sectoral Indices", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         iconColor: Colors.orangeAccent,
-                        collapsedIconColor: Colors.white54,
-                        children: provider.availableIndices!.sector.map((idx) => ListTile(
-                          title: Text(idx, style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                          selected: provider.selectedIndex == idx,
-                          selectedTileColor: Colors.orangeAccent.withOpacity(0.1),
-                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.only(left: 32, right: 16),
-                          dense: true,
-                          onTap: () => provider.selectIndex(idx),
-                        )).toList(),
+                        collapsedIconColor: Colors.grey,
+                        children: provider.availableIndices!.sector.map((idx) => _buildSubMenuItem(context, idx)).toList(),
                       ),
                      ),
                 ]
@@ -155,13 +104,13 @@ class AppSidebar extends StatelessWidget {
             ),
           ),
           // System Tools Section (Bottom of Sidebar)
-          const Divider(color: Colors.white10),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text("SYSTEM TOOLS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Divider(color: Colors.grey.shade200),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text("SYSTEM TOOLS", style: TextStyle(color: Colors.grey.shade500, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
           ),
           ListTile(
-            title: const Text("Refresh Cookies", style: TextStyle(color: Colors.white)),
+            title: const Text("Refresh Cookies", style: TextStyle(fontWeight: FontWeight.w500)),
             leading: const Icon(Icons.cookie, color: Colors.orange),
             onTap: () async {
                 AppLogger.info("HomePage", "Refresh Cookies requested");
@@ -172,15 +121,35 @@ class AppSidebar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 10),
-          ListTile(
-            title: const Text("Admin Dashboard", style: TextStyle(color: Colors.white)),
-            leading: const Icon(Icons.admin_panel_settings, color: Colors.red),
-            onTap: () {
-                Navigator.pushNamed(context, '/admin');
-            },
-          ),
+          // Admin Dashboard integrated navigation
+          _buildMenuItem(context, "Admin Dashboard", Icons.admin_panel_settings, Colors.red, isAdmin, customLabel: "Admin Dashboard"),
         ],
       ),
+    );
+  }
+
+  Widget _buildMenuItem(BuildContext context, String id, IconData icon, Color color, bool isSelected, {String? customLabel}) {
+     return ListTile(
+      title: Text(customLabel ?? id, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? color : Colors.black87)),
+      leading: Icon(icon, color: color),
+      selected: isSelected,
+      selectedTileColor: color.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      onTap: () => provider.selectIndex(customLabel ?? id),
+    );
+  }
+
+  Widget _buildSubMenuItem(BuildContext context, String id) {
+    final isSelected = provider.selectedIndex == id;
+    return ListTile(
+      title: Text(id, style: TextStyle(fontSize: 13, color: isSelected ? Colors.blueAccent : Colors.black54, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      selected: isSelected,
+      selectedTileColor: Colors.blueAccent.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      contentPadding: const EdgeInsets.only(left: 32, right: 16),
+      dense: true,
+      onTap: () => provider.selectIndex(id),
     );
   }
 }
