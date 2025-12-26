@@ -106,18 +106,28 @@ market-data:
     history-ttl-minutes: ${MARKET_HISTORY_DATA_CACHE_HISTORY_TTL_MINUTES:15}
 # Logging Configuration
 logging:
+  file:
+    name: ./logs/market-data-app.log  # Log file in current directory
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+      clean-history-on-start: false
+  pattern:
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
   level:
-    root: WARN  # Reduce general noise from libraries
+    root: WARN
     '[com.am.marketdata]': INFO
     '[com.am.marketdata.scheduler]': INFO
     '[com.am.marketdata.service]': INFO
-    '[com.am.marketdata.redis]': INFO  # Keep at INFO for important cache operations
-    '[com.am.marketdata.external.api]': WARN  # Reduce external API noise
+    '[com.am.marketdata.redis]': INFO
+    '[com.am.marketdata.external.api]': WARN
     '[com.am.common.investment.service]': INFO
-    '[org.springframework]': WARN  # Reduce Spring framework noise
-    '[org.apache.kafka]': WARN  # Reduce Kafka noise
-  # pattern:
-  #   console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","thread":"%t","class":"%c","message":"%m"}%n'
+    '[org.springframework]': WARN
+    '[org.apache.kafka]': WARN
+    '[org.springframework.data.redis]': WARN  # Reduce Redis connection logging
 
 upstox:
   interval: I1

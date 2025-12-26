@@ -82,10 +82,22 @@ public class MarketDataCacheService {
                 cachedKeys.add(symbol + " -> " + redisKey);
             }
 
-            // Log only first 3 keys as samples
-            List<String> sampleKeys = cachedKeys.subList(0, Math.min(3, cachedKeys.size()));
-            log.info("cacheOHLCData", "Cached {} symbols with timeframe: {} for date: {}. Sample keys: {}",
-                    ohlcData.size(), interval, today, sampleKeys);
+            // Smart logging: if keys are huge (>1000), show only count in INFO and one
+            // sample in DEBUG
+            if (cachedKeys.size() > 1000) {
+                log.info("cacheOHLCData", "Cached {} symbols with timeframe: {} for date: {} ({} key-value pairs)",
+                        ohlcData.size(), interval, today, cachedKeys.size());
+
+                // Show one sample record in DEBUG mode to know the pattern
+                if (!cachedKeys.isEmpty()) {
+                    log.debug("cacheOHLCData", "Sample key pattern: {}", cachedKeys.get(0));
+                }
+            } else {
+                // Log first 3 keys as samples for smaller datasets
+                List<String> sampleKeys = cachedKeys.subList(0, Math.min(3, cachedKeys.size()));
+                log.info("cacheOHLCData", "Cached {} symbols with timeframe: {} for date: {}. Sample keys: {}",
+                        ohlcData.size(), interval, today, sampleKeys);
+            }
         } catch (Exception e) {
             // Use the specialized exception logging
             CacheLoggingUtil.logCacheException(log, "CACHE_OHLC", null, "Error caching OHLC data", e);
@@ -488,11 +500,28 @@ public class MarketDataCacheService {
                 }
 
                 if (!points.isEmpty()) {
-                    // Log the cache hits
-                    log.info("getHistoricalDataFromCache",
-                            String.format(
-                                    "Retrieved %d historical data points from cache for symbol: %s with values: %s",
-                                    points.size(), symbol, cacheHits));
+                    // Smart logging: if cache hits are huge (>1000), show only count in INFO and
+                    // one sample in DEBUG
+                    if (cacheHits.size() > 1000) {
+                        log.info("getHistoricalDataFromCache",
+                                String.format(
+                                        "Retrieved %d historical data points from cache for symbol: %s (%d cache hits)",
+                                        points.size(), symbol, cacheHits.size()));
+
+                        // Show one sample record in DEBUG mode to know the pattern
+                        if (!cacheHits.isEmpty()) {
+                            Map.Entry<String, String> firstEntry = cacheHits.entrySet().iterator().next();
+                            log.debug("getHistoricalDataFromCache",
+                                    String.format("Sample cache hit: %s -> %s", firstEntry.getKey(),
+                                            firstEntry.getValue()));
+                        }
+                    } else {
+                        // Log all cache hits for smaller datasets
+                        log.info("getHistoricalDataFromCache",
+                                String.format(
+                                        "Retrieved %d historical data points from cache for symbol: %s with values: %s",
+                                        points.size(), symbol, cacheHits));
+                    }
 
                     return convertToHistoricalData(symbol, points);
                 }
