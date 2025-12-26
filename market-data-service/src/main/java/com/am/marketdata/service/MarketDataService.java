@@ -9,6 +9,7 @@ import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.MarketDataGenericMapper;
 import com.am.marketdata.service.util.DataSourceType;
+import com.am.marketdata.service.util.DataRetrievalStrategyUtil;
 import com.am.marketdata.service.util.HistoricalDataRetriever;
 import com.am.marketdata.service.util.MarketDataRetrievalUtil;
 import com.am.marketdata.service.util.OHLCDataRetriever;
@@ -69,11 +70,11 @@ public class MarketDataService {
         this.marketDataRetrievalUtil = marketDataRetrievalUtil;
     }
 
-    private OHLCDataRetriever createOHLCDataRetriever(String providerName) {
+    private OHLCDataRetriever createOHLCDataRetriever(String providerName, boolean forceRefresh) {
         return OHLCDataRetriever.builder()
                 .persistenceService(persistenceService)
                 .providerFactory(providerFactory)
-                .retrievalOrder(Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                .retrievalOrder(DataRetrievalStrategyUtil.getRetrievalOrder(forceRefresh))
                 .cacheResults(true)
                 .targetProviderName(providerName)
                 .build();
@@ -172,7 +173,7 @@ public class MarketDataService {
                     "[INTERVAL_TRACE] MarketDataService.getOHLC → OHLCDataRetriever: Creating retriever with timeFrame: {} (apiValue: {})",
                     timeFrame, tfValue);
 
-            OHLCDataRetriever retriever = createOHLCDataRetriever(providerName);
+            OHLCDataRetriever retriever = createOHLCDataRetriever(providerName, forceRefresh);
             Map<String, OHLCQuote> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
 
             log.info("[INTERVAL_TRACE] MarketDataService.getOHLC: Retrieved {} OHLC quotes for timeFrame: {}",
@@ -262,11 +263,13 @@ public class MarketDataService {
      * @param providerName     Provider name
      * @param isIndexSymbol    Whether the symbols are index symbols (for index
      *                         cache checking)
+     * @param forceRefresh     Whether to force refresh from provider, skipping
+     *                         cache/database
      * @return Map of symbol to HistoricalData
      */
     public Map<String, HistoricalData> getHistoricalDataBatch(List<String> symbols, Date fromDate, Date toDate,
             TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName,
-            boolean isIndexSymbol) {
+            boolean isIndexSymbol, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
                 "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch: Fetching historical data for {} symbols, interval: {} (apiValue: {}), from: {}, to: {}",
@@ -275,11 +278,13 @@ public class MarketDataService {
         try {
             providerName = resolveProviderName(providerName);
 
+            // Determine retrieval order using centralized utility
+            List<DataSourceType> retrievalOrder = DataRetrievalStrategyUtil.getRetrievalOrder(forceRefresh);
+
             HistoricalDataRetriever retriever = HistoricalDataRetriever.builder()
                     .persistenceService(persistenceService)
                     .providerFactory(providerFactory)
-                    .retrievalOrder(
-                            Arrays.asList(DataSourceType.CACHE, DataSourceType.DATABASE, DataSourceType.PROVIDER))
+                    .retrievalOrder(retrievalOrder)
                     .cacheResults(true)
                     .fromDate(fromDate)
                     .toDate(toDate)
@@ -290,8 +295,8 @@ public class MarketDataService {
                     .build();
 
             log.info(
-                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch → HistoricalDataRetriever.retrieveData: Calling with {} symbols",
-                    symbols.size());
+                    "[BATCH_HISTORICAL] MarketDataService.getHistoricalDataBatch → Strategy: {}, Calling with {} symbols",
+                    DataRetrievalStrategyUtil.getStrategyDescription(forceRefresh), symbols.size());
 
             Map<String, HistoricalData> result = retriever.retrieveData(symbols, interval, false);
 

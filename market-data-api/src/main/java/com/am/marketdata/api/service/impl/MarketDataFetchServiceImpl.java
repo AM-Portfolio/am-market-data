@@ -177,7 +177,8 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
             }
 
             Map<String, HistoricalData> batchResult = marketDataService.getHistoricalDataBatch(
-                    new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null, isIndexSymbol);
+                    new ArrayList<>(symbols), fromDate, toDate, interval, false, additionalParams, null, isIndexSymbol,
+                    forceRefresh);
 
             int successCount = 0;
             int totalDataPoints = 0;

@@ -150,15 +150,24 @@ public class MarketDataHistoricalSyncService {
                         MarketDataIngestionStatus::getLastIngestionDate));
 
         for (String symbol : symbols) {
-            LocalDate lastDate = statusMap.get(symbol);
-            LocalDate nextDate = (lastDate != null) ? lastDate.plusDays(1) : defaultStart;
+            LocalDate startDate;
 
-            // If not forcing refresh, and up to date/future, skip
-            if (!forceRefresh && !nextDate.isBefore(today)) {
-                continue;
+            if (forceRefresh) {
+                // Force refresh: Always fetch from historical start, ignore last sync date
+                startDate = defaultStart;
+            } else {
+                // Normal mode: Use incremental sync from last sync date
+                LocalDate lastDate = statusMap.get(symbol);
+                LocalDate nextDate = (lastDate != null) ? lastDate.plusDays(1) : defaultStart;
+
+                // If already up to date, skip
+                if (!nextDate.isBefore(today)) {
+                    continue;
+                }
+                startDate = nextDate;
             }
 
-            buckets.computeIfAbsent(nextDate, k -> new ArrayList<>()).add(symbol);
+            buckets.computeIfAbsent(startDate, k -> new ArrayList<>()).add(symbol);
         }
         return buckets;
     }
