@@ -14,7 +14,7 @@ class IngestionLogsPage extends StatefulWidget {
   State<IngestionLogsPage> createState() => _IngestionLogsPageState();
 }
 
-class _IngestionLogsPageState extends State<IngestionLogsPage> {
+class _IngestionLogsPageState extends State<IngestionLogsPage> with RouteAware {
   final AdminService _adminService = AdminService();
   
   // Controls State
@@ -36,22 +36,46 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
   bool _isLoading = false;
   Timer? _timer;
   bool _isStreaming = false; // Mock state for feed button visual
+  bool _isPollingPaused = false; // Control polling state
 
   @override
   void initState() {
     super.initState();
     _fetchLogs();
-    // Auto-refresh every 5 seconds
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (mounted) _fetchLogs();
-    });
+    _startPolling();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _stopPolling();
     _symbolController.dispose();
     super.dispose();
+  }
+
+  void _startPolling() {
+    _stopPolling(); // Cancel any existing timer
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted && !_isPollingPaused) {
+        _fetchLogs();
+      }
+    });
+    AppLogger.info("Admin", "Started polling for logs");
+  }
+
+  void _stopPolling() {
+    _timer?.cancel();
+    _timer = null;
+    AppLogger.info("Admin", "Stopped polling for logs");
+  }
+
+  void _pausePolling() {
+    setState(() => _isPollingPaused = true);
+    AppLogger.info("Admin", "Paused polling for logs");
+  }
+
+  void _resumePolling() {
+    setState(() => _isPollingPaused = false);
+    AppLogger.info("Admin", "Resumed polling for logs");
   }
 
   Future<void> _fetchLogs() async {
@@ -121,7 +145,8 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
   Future<void> _stopIngestion() async {
       try {
           await _adminService.stopIngestion(_selectedProvider); // Uses selected provider
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingestion Stopped Successfully!")));
+          _pausePolling(); // Stop polling when stopping ingestion
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingestion Stopped Successfully! (Polling paused)")));
       } catch (e) {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to stop ingestion: $e"), backgroundColor: Colors.red));
       }
@@ -271,8 +296,60 @@ class _IngestionLogsPageState extends State<IngestionLogsPage> {
               _buildControlsCard(),
               const SizedBox(height: 24),
 
-              // Job History Table
-              const Text("Job History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              // Job History Table Header with Polling Status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Job History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  Row(
+                    children: [
+                      // Polling status indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isPollingPaused ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _isPollingPaused ? Colors.orange : Colors.green),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isPollingPaused ? Icons.pause_circle_filled : Icons.autorenew, 
+                              size: 16, 
+                              color: _isPollingPaused ? Colors.orange : Colors.green,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isPollingPaused ? "Polling Paused" : "Auto-refresh ON",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _isPollingPaused ? Colors.orange : Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_isPollingPaused) ...[
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: _resumePolling,
+                          icon: const Icon(Icons.play_arrow, size: 16),
+                          label: const Text("Resume"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
               
               Expanded(

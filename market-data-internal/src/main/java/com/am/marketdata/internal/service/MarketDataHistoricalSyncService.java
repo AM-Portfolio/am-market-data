@@ -144,10 +144,18 @@ public class MarketDataHistoricalSyncService {
         LocalDate today = LocalDate.now();
         LocalDate defaultStart = today.minusYears(10);
 
+        log.info("groupSymbolsByStartDate", "Grouping {} symbols by start date (forceRefresh: {})", symbols.size(),
+                forceRefresh);
+
         List<MarketDataIngestionStatus> statuses = ingestionStatusRepository.findAllById(symbols);
         Map<String, LocalDate> statusMap = statuses.stream()
                 .collect(Collectors.toMap(MarketDataIngestionStatus::getSymbol,
                         MarketDataIngestionStatus::getLastIngestionDate));
+
+        log.debug("groupSymbolsByStartDate", "Found {} existing ingestion statuses", statusMap.size());
+
+        List<String> skippedSymbols = new ArrayList<>();
+        int processedSymbols = 0;
 
         for (String symbol : symbols) {
             LocalDate startDate;
@@ -155,20 +163,44 @@ public class MarketDataHistoricalSyncService {
             if (forceRefresh) {
                 // Force refresh: Always fetch from historical start, ignore last sync date
                 startDate = defaultStart;
+                log.debug("groupSymbolsByStartDate", "Symbol {} will be fetched from {} (force refresh)", symbol,
+                        startDate);
             } else {
                 // Normal mode: Use incremental sync from last sync date
                 LocalDate lastDate = statusMap.get(symbol);
                 LocalDate nextDate = (lastDate != null) ? lastDate.plusDays(1) : defaultStart;
 
+                log.debug("groupSymbolsByStartDate", "Symbol {} - Last sync date: {}, Next date to fetch: {}",
+                        symbol, lastDate != null ? lastDate : "NEVER", nextDate);
+
                 // If already up to date, skip
                 if (!nextDate.isBefore(today)) {
+                    log.debug("groupSymbolsByStartDate", "Symbol {} is already up to date (last sync: {}), skipping",
+                            symbol, lastDate);
+                    skippedSymbols.add(symbol);
                     continue;
                 }
                 startDate = nextDate;
             }
 
             buckets.computeIfAbsent(startDate, k -> new ArrayList<>()).add(symbol);
+            processedSymbols++;
         }
+
+        if (!skippedSymbols.isEmpty()) {
+            log.info("groupSymbolsByStartDate", "Skipped {} symbols that are already up to date: {}",
+                    skippedSymbols.size(),
+                    skippedSymbols.size() > 10 ? skippedSymbols.subList(0, 10) + "..." : skippedSymbols);
+        }
+
+        log.info("groupSymbolsByStartDate", "Created {} buckets for {} symbols to process", buckets.size(),
+                processedSymbols);
+        for (Map.Entry<LocalDate, List<String>> entry : buckets.entrySet()) {
+            log.info("groupSymbolsByStartDate", "Bucket [{}]: {} symbols (sample: {})",
+                    entry.getKey(), entry.getValue().size(),
+                    entry.getValue().size() > 3 ? entry.getValue().subList(0, 3) + "..." : entry.getValue());
+        }
+
         return buckets;
     }
 
@@ -205,15 +237,18 @@ public class MarketDataHistoricalSyncService {
             IngestionJobLog jobLog, boolean forceRefresh) {
         ProcessingResult result = new ProcessingResult();
         try {
-            // Log locally for debug, but maybe not all batch start to avoid spam in main
-            // log,
-            // but user asked for "what is happening inside".
-            // Let's add significant events.
+            log.info("fetchBatch", "[BATCH_START] Processing batch of {} symbols from {} to {} (forceRefresh: {})",
+                    batch.size(), fromDate, toDate, forceRefresh);
+            log.info("fetchBatch", "[BATCH_SYMBOLS] Symbols in batch: {}", batch);
+
             addLogAsync(jobLog, "Fetching batch of " + batch.size() + " symbols from " + fromDate + " to " + toDate
                     + " (Force Refresh: " + forceRefresh + ")");
 
             Date from = Date.from(fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
             Date to = Date.from(toDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+            log.info("fetchBatch", "[API_CALL] Calling marketDataFetchService.getHistoricalDataMultipleSymbols...");
+            long apiStartTime = System.currentTimeMillis();
 
             // Use getHistoricalDataMultipleSymbols
             HistoricalDataResponseV1 response = marketDataFetchService.getHistoricalDataMultipleSymbols(
@@ -226,19 +261,52 @@ public class MarketDataHistoricalSyncService {
                     forceRefresh // Force Refresh (we need to fetch from provider)
             );
 
+            long apiDuration = System.currentTimeMillis() - apiStartTime;
+            log.info("fetchBatch", "[API_RESPONSE] API call completed in {} ms", apiDuration);
+
             // Access data from response
             Map<String, com.am.common.investment.model.historical.HistoricalData> dataMap = response.getData();
 
+            // Log response metadata
+            String dataSource = (response.getMetadata() != null && response.getMetadata().getSource() != null)
+                    ? response.getMetadata().getSource()
+                    : "UNKNOWN";
+            log.info("fetchBatch", "[RESPONSE_SOURCE] Data source: {}", dataSource);
+
             if (dataMap == null) {
+                log.warn("fetchBatch", "[RESPONSE_ERROR] Response data map is NULL for batch");
+                addLogAsync(jobLog, "ERROR: Response data map is NULL for batch");
                 result.failureCount += batch.size();
                 result.failedSymbols.addAll(batch);
                 return result;
             }
 
+            log.info("fetchBatch", "[RESPONSE_DATA] Received data for {} symbols out of {} requested",
+                    dataMap.size(), batch.size());
+
+            // Track statistics
+            int totalDataPoints = 0;
+            Map<String, Integer> symbolDataCounts = new HashMap<>();
+
             for (String symbol : batch) {
                 if (dataMap.containsKey(symbol) &&
                         dataMap.get(symbol).getDataPoints() != null &&
                         !dataMap.get(symbol).getDataPoints().isEmpty()) {
+
+                    int dataPointCount = dataMap.get(symbol).getDataPoints().size();
+                    totalDataPoints += dataPointCount;
+                    symbolDataCounts.put(symbol, dataPointCount);
+
+                    log.info("fetchBatch", "[SYMBOL_SUCCESS] {} - Retrieved {} data points from {}",
+                            symbol, dataPointCount, dataSource);
+
+                    // Log a sample data point at DEBUG level
+                    if (!dataMap.get(symbol).getDataPoints().isEmpty()) {
+                        var firstPoint = dataMap.get(symbol).getDataPoints().get(0);
+                        log.debug("fetchBatch", "[SAMPLE_DATA] {} - First point: time={}, O={}, H={}, L={}, C={}, V={}",
+                                symbol, firstPoint.getTime(), firstPoint.getOpen(), firstPoint.getHigh(),
+                                firstPoint.getLow(), firstPoint.getClose(), firstPoint.getVolume());
+                    }
 
                     // Success
                     result.successCount++;
@@ -264,11 +332,24 @@ public class MarketDataHistoricalSyncService {
 
                 } else {
                     // Fail or Empty
-                    log.warn("fetchBatch", "No data for symbol {}", symbol);
+                    String reason = !dataMap.containsKey(symbol) ? "NOT_IN_RESPONSE"
+                            : (dataMap.get(symbol) == null ? "NULL_DATA"
+                                    : (dataMap.get(symbol).getDataPoints() == null ? "NULL_DATAPOINTS"
+                                            : "EMPTY_DATAPOINTS"));
+
+                    log.warn("fetchBatch", "[SYMBOL_FAILED] {} - Reason: {}", symbol, reason);
+                    addLogAsync(jobLog, "FAILED: " + symbol + " - " + reason);
                     result.failureCount++;
                     result.failedSymbols.add(symbol);
                 }
             }
+
+            // Summary log for the batch
+            log.info("fetchBatch",
+                    "[BATCH_SUMMARY] Processed {} symbols: {} succeeded, {} failed, {} total data points from {}",
+                    batch.size(), result.successCount, result.failureCount, totalDataPoints, dataSource);
+            addLogAsync(jobLog, "Batch Summary: " + result.successCount + " succeeded, " + result.failureCount +
+                    " failed, " + totalDataPoints + " data points from " + dataSource);
 
             // Estimate Payload Size (very rough: JSON string length or object grap)
             // Since we don't have serialized size here easily without overhead,
