@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/market_provider.dart';
 import '../widgets/heatmap_filters.dart';
 import '../widgets/heatmap_grid.dart';
+import '../domain/models/security_quote.dart';
 
 class HeatmapView extends StatefulWidget {
   const HeatmapView({super.key});
@@ -23,12 +24,12 @@ class _HeatmapViewState extends State<HeatmapView> {
     final provider = context.watch<MarketProvider>();
     final data = provider.currentIndexData;
 
-    if (data == null || data.stocks.isEmpty) {
+    if (data == null || data.constituents.isEmpty) {
       return const Center(child: Text('No data available'));
     }
 
     // Filter Logic
-    List stocks = data.stocks;
+    List<SecurityQuote> stocks = data.constituents;
     if (_percentFilter != null) {
       stocks = stocks.where((s) {
         final p = s.pChange;

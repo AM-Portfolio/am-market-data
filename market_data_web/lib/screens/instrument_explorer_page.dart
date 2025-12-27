@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../domain/repository/market_data_repository.dart';
+import '../domain/models/security_quote.dart';
+import '../domain/models/security_search_request.dart';
 
 class InstrumentExplorerPage extends StatefulWidget {
   const InstrumentExplorerPage({super.key});
@@ -9,8 +12,6 @@ class InstrumentExplorerPage extends StatefulWidget {
 }
 
 class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
-  final ApiService _apiService = ApiService();
-
   // Filter State
   final TextEditingController _queryController = TextEditingController();
   final TextEditingController _isinController = TextEditingController();
@@ -20,7 +21,7 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
   final List<String> _selectedTypes = [];
   
   bool _isLoading = false;
-  List<Map<String, dynamic>> _results = [];
+  List<SecurityQuote> _results = [];
   String? _error;
 
   // Options
@@ -52,16 +53,17 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
     });
 
     try {
-      final criteria = {
-        'queries': _queryController.text.isNotEmpty ? [_queryController.text] : [],
-        'isins': _isinController.text.isNotEmpty ? [_isinController.text] : [],
-        'exchanges': _selectedExchanges.isNotEmpty ? _selectedExchanges : null,
-        'segments': _selectedSegments.isNotEmpty ? _selectedSegments : null,
-        'instrumentTypes': _selectedTypes.isNotEmpty ? _selectedTypes : null,
-        'provider': 'UPSTOX' // Default to Upstox for now
-      };
+      final request = SecuritySearchRequest(
+        queries: _queryController.text.isNotEmpty ? [_queryController.text] : [],
+        isins: _isinController.text.isNotEmpty ? [_isinController.text] : [],
+        exchanges: _selectedExchanges,
+        segments: _selectedSegments,
+        instrumentTypes: _selectedTypes,
+        provider: 'UPSTOX' // Default
+      );
 
-      final results = await _apiService.advancedSearchInstruments(criteria);
+      final repository = context.read<MarketDataRepository>();
+      final results = await repository.searchSecuritiesAdvanced(request);
       
       setState(() {
         _results = results;
@@ -167,10 +169,6 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
                     
                     // Toggles
                     _buildMultiSelect('Exchanges', _exchanges, _selectedExchanges),
-                    const SizedBox(height: 8),
-                    _buildMultiSelect('Segments', _segments, _selectedSegments),
-                    const SizedBox(height: 8),
-                    _buildMultiSelect('Types', _types, _selectedTypes),
                     
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
@@ -266,8 +264,6 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
               DataColumn(label: Text('Trading Symbol', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Name', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Exchange', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Segment', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Type', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('ISIN', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Instrument Key', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
             ],
@@ -287,7 +283,7 @@ class _InstrumentExplorerPageState extends State<InstrumentExplorerPage> {
 }
 
 class _InstrumentDataSource extends DataTableSource {
-  final List<Map<String, dynamic>> _data;
+  final List<SecurityQuote> _data;
 
   _InstrumentDataSource(this._data);
 
@@ -298,13 +294,11 @@ class _InstrumentDataSource extends DataTableSource {
     
     return DataRow(
       cells: [
-        DataCell(Text(item['trading_symbol'] ?? '-', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
-        DataCell(SizedBox(width: 200, child: Text(item['name'] ?? '-', style: const TextStyle(color: Colors.black54), overflow: TextOverflow.ellipsis))),
-        DataCell(Text(item['exchange'] ?? '-', style: const TextStyle(color: Colors.black87))),
-        DataCell(Text(item['segment'] ?? '-', style: const TextStyle(color: Colors.black87))),
-        DataCell(Text(item['instrument_type'] ?? '-', style: const TextStyle(color: Colors.black87))),
-        DataCell(Text(item['isin'] ?? '-', style: const TextStyle(color: Colors.black87))),
-        DataCell(Text(item['instrument_key'] ?? '-', style: const TextStyle(color: Colors.grey, fontSize: 11))),
+        DataCell(Text(item.symbol, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+        DataCell(SizedBox(width: 200, child: Text(item.name ?? '-', style: const TextStyle(color: Colors.black54), overflow: TextOverflow.ellipsis))),
+        DataCell(Text(item.exchange ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item.isin ?? '-', style: const TextStyle(color: Colors.black87))),
+        DataCell(Text(item.symbol, style: const TextStyle(color: Colors.grey, fontSize: 11))), // Assuming symbol is instrument key for now
       ],
     );
   }

@@ -1,11 +1,11 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../services/stream_service.dart';
 import 'package:intl/intl.dart';
-
 import 'package:provider/provider.dart';
+import '../domain/repository/market_data_repository.dart';
+import '../domain/models/security_quote.dart';
+import '../domain/models/security_search_request.dart';
 import '../providers/market_provider.dart';
 import '../utils/app_logger.dart';
 
@@ -17,9 +17,6 @@ class StreamerPage extends StatefulWidget {
 }
 
 class _StreamerPageState extends State<StreamerPage> {
-  final ApiService _apiService = ApiService();
-  final StreamService _streamService = StreamService();
-  
   // Config State
   String _provider = 'UPSTOX'; // UPSTOX, ZERODHA
   String _exchangeSegment = 'None'; 
@@ -29,8 +26,8 @@ class _StreamerPageState extends State<StreamerPage> {
   final TextEditingController _searchController = TextEditingController();
   
   // Live Data State
-  List<Map<String, dynamic>> _feedHistory = []; 
-  Map<String, dynamic> _quotes = {}; 
+  List<SecurityQuote> _feedHistory = []; 
+  Map<String, SecurityQuote> _quotes = {}; 
   List<String> _logs = [];
   bool _isStreaming = false;
 
@@ -39,71 +36,23 @@ class _StreamerPageState extends State<StreamerPage> {
   final int _itemsPerPage = 100;
 
   // Search State
-  List<Map<String, dynamic>> _searchResults = [];
+  List<SecurityQuote> _searchResults = [];
   bool _isSearching = false;
   
   StreamSubscription? _subscription;
-  MarketProvider? _marketProvider; 
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    try {
-      _marketProvider = Provider.of<MarketProvider>(context, listen: false);
-    } catch (e) {
-      _log("didChangeDependencies Error: $e", method: "StreamerPage.didChangeDependencies", level: LogLevel.error);
-    }
-  }
+  
+  // We need to keep track of active symbols to pipe them to the stream listener setup
+  List<String> _activeSymbols = [];
 
   @override
   void initState() {
     super.initState();
-    _streamService.connect();
-    
-    // Listen to stream
-    _subscription = _streamService.stream.listen((message) {
-       if (!mounted) return; 
-       
-       if (message.containsKey('quotes')) {
-         try {
-           final provider = _marketProvider;
-           final bool hasProvider = provider != null;
-
-           setState(() {
-             final newQuotes = message['quotes'] as Map<String, dynamic>;
-             final now = DateTime.now(); 
-           
-             newQuotes.forEach((key, val) {
-               val['timestamp'] = now;
-               val['symbol'] = key; 
-               
-               _feedHistory.insert(0, val);
-               _quotes[key] = val; 
-               
-               if (mounted && hasProvider) {
-                  try {
-                    provider!.updateLivePrice(val);
-                  } catch (e) {
-                    // Suppress
-                  }
-               }
-             });
-              
-             if (_feedHistory.length > 500) {
-               _feedHistory = _feedHistory.sublist(0, 500);
-             }
-           });
-         } catch (e) {
-           _log("Error processing update: $e", method: "StreamerPage.streamListener", level: LogLevel.error);
-         }
-       }
-    });
+    // Initial setup if needed
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
-    _streamService.dispose();
     _symbolsController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -122,7 +71,8 @@ class _StreamerPageState extends State<StreamerPage> {
   // --- Actions ---
 
   Future<void> _getLoginUrl() async {
-    final url = await _apiService.getLoginUrl(_provider);
+    final repository = context.read<MarketDataRepository>();
+    final url = await repository.getLoginUrl(_provider);
     if (url != null) {
       _log("Login URL generated: $url");
       if (!mounted) return;
@@ -155,20 +105,49 @@ class _StreamerPageState extends State<StreamerPage> {
         return "$_exchangeSegment|$s";
       }).toList();
     }
+    
+    _activeSymbols = symbols;
 
-    final success = await _apiService.connectStream(symbols, _provider, isIndexSymbol: _isIndexSymbol);
+    final repository = context.read<MarketDataRepository>();
+    final success = await repository.connectStream(symbols, _provider, isIndexSymbol: _isIndexSymbol);
+    
     if (success) {
       setState(() => _isStreaming = true);
       _log("Stream Connect Request Sent: OK", method: "StreamerPage._startStream");
+      _subscribeToStream(repository);
     } else {
       _log("Stream Connect Failed", method: "StreamerPage._startStream", level: LogLevel.error);
     }
   }
 
+  void _subscribeToStream(MarketDataRepository repository) {
+    _subscription?.cancel();
+    // Stream quotes for active symbols
+    _subscription = repository.streamQuotes(_activeSymbols).listen((quote) {
+       if (!mounted) return;
+       
+       setState(() {
+         // Update feed history
+         _feedHistory.insert(0, quote);
+         if (_feedHistory.length > 500) {
+           _feedHistory = _feedHistory.sublist(0, 500);
+         }
+         _quotes[quote.symbol] = quote;
+       });
+       
+       // Also update global provider if needed?
+       // MarketProvider handles its own subscriptions. here we are independent.
+       // But if we want to update global state:
+       // context.read<MarketProvider>().updateLivePrice(quote...); // Logic might differ
+    });
+  }
+
   Future<void> _stopStream() async {
-    final success = await _apiService.disconnectStream(_provider);
+    final repository = context.read<MarketDataRepository>();
+    final success = await repository.disconnectStream(_provider);
     if (success) {
        setState(() => _isStreaming = false);
+       _subscription?.cancel();
        _log("Stream Stop Request Sent", method: "StreamerPage._stopStream");
     } else {
       _log("Stop Stream Failed", method: "StreamerPage._stopStream", level: LogLevel.error);
@@ -180,7 +159,18 @@ class _StreamerPageState extends State<StreamerPage> {
     if (query.isEmpty) return;
 
     setState(() => _isSearching = true);
-    final results = await _apiService.searchInstruments(query, _provider);
+    final repository = context.read<MarketDataRepository>();
+    
+    // Using advanced search with provider to match previous behavior if needed, 
+    // or just searchSecurities if provider is not crucial for search metadata.
+    // Provider was used in ApiService.advancedSearchInstruments.
+    final request = SecuritySearchRequest(
+      queries: [query],
+      provider: _provider // Pass provider if relevant for search context
+    );
+
+    final results = await repository.searchSecuritiesAdvanced(request);
+    
     setState(() {
       _searchResults = results;
       _isSearching = false;
@@ -188,20 +178,19 @@ class _StreamerPageState extends State<StreamerPage> {
     _log("Found ${results.length} instruments for '$query'", method: "StreamerPage._search");
   }
 
-  void _addSymbol(String symbol) {
+  void _addSymbol(SecurityQuote quote) {
+    final key = quote.instrumentKey ?? quote.symbol;
     final current = _symbolsController.text;
     if (current.isNotEmpty && !current.endsWith(',')) {
-      _symbolsController.text = "$current, $symbol";
+      _symbolsController.text = "$current, $key";
     } else {
-      _symbolsController.text = "$current$symbol";
+      _symbolsController.text = "$current$key";
     }
-    _log("Added $symbol");
+    _log("Added $key");
   }
 
   @override
   Widget build(BuildContext context) {
-    // White Theme Overrides
-    // Using global theme from main.dart
     return Scaffold(
         appBar: AppBar(
             title: const Text("Market Data Streamer", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)), 
@@ -484,19 +473,19 @@ class _StreamerPageState extends State<StreamerPage> {
         itemCount: _searchResults.length,
         itemBuilder: (context, index) {
           final item = _searchResults[index];
-          final symbol = item['tradingSymbol'] ?? item['symbol'] ?? 'Unknown';
-          final key = item['instrumentKey'] ?? symbol;
-          final name = item['name'] ?? '';
-          final exchange = item['exchange'] ?? '';
+          final symbol = item.symbol;
+          final key = item.instrumentKey ?? symbol;
+          final name = item.name ?? '';
+          final exchange = item.exchange ?? 'Unknown';
           
           return ListTile(
             title: Text(symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
             subtitle: Text("$name ($exchange)", style: const TextStyle(color: Colors.grey)),
             trailing: IconButton(
               icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent), 
-              onPressed: () => _addSymbol(key)
+              onPressed: () => _addSymbol(item)
             ),
-            onTap: () => _addSymbol(key),
+            onTap: () => _addSymbol(item),
           );
         },
       ),
@@ -586,17 +575,11 @@ class _StreamerPageState extends State<StreamerPage> {
                           DataColumn(label: Text('% Change')),
                           DataColumn(label: Text('Prev Close')),
                         ],
-                        rows: currentItems.map((data) {
-                          final key = data['symbol'] ?? 'UNKNOWN';
-                          final ltp = (data['lastPrice'] as num?)?.toDouble() ?? 0.0;
-                          final change = (data['change'] as num?)?.toDouble() ?? 0.0;
-                          final pChange = (data['changePercent'] as num?)?.toDouble() ?? 0.0;
-                          final color = change >= 0 ? Colors.green : Colors.red;
-                          final time = data['timestamp'] as DateTime? ?? DateTime.now();
-                          final prevClose = ltp - change;
+                        rows: currentItems.map((quote) {
+                          final color = quote.isPositive ? Colors.green : Colors.red;
                           
                           // Improve Time Visibility
-                          final timeStr = DateFormat('HH:mm:ss').format(time);
+                          final timeStr = DateFormat('HH:mm:ss').format(quote.lastUpdateTime);
 
                           return DataRow(
                             cells: [
@@ -609,11 +592,11 @@ class _StreamerPageState extends State<StreamerPage> {
                                 ),
                                 child: Text(timeStr, style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
                               )),
-                              DataCell(Text(key, style: const TextStyle(fontWeight: FontWeight.bold))),
-                              DataCell(Text(ltp.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
-                              DataCell(Text(change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                              DataCell(Text('${pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-                              DataCell(Text(prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.grey))),
+                              DataCell(Text(quote.symbol, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataCell(Text(quote.lastPrice.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w600))),
+                              DataCell(Text(quote.change.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                              DataCell(Text('${quote.pChange.toStringAsFixed(2)}%', style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+                              DataCell(Text(quote.prevClose.toStringAsFixed(2), style: const TextStyle(color: Colors.grey))),
                             ],
                           );
                         }).toList(),

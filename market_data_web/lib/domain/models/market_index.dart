@@ -11,8 +11,11 @@ class MarketIndex {
     required this.symbol,
     required this.name,
     required this.quote,
+    this.category,
     this.constituents = const [],
   });
+
+  final IndexCategory? category;
 }
 
 /// Categories for organizing indices.

@@ -121,7 +121,7 @@ market-data-sdk/market-data-sdk-python/
 !market-data-sdk/market-data-sdk-python/tests/
 
 # Dart/Flutter SDK - Generated files
-market-data-sdk/market-data-sdk-flutter/
+# market-data-sdk/market-data-sdk-flutter/
 # Keep only custom test files if added
 !market-data-sdk/market-data-sdk-flutter/test/
 

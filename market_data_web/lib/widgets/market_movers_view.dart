@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../domain/models/security_quote.dart';
 
 class MarketMoversView extends StatelessWidget {
-  final List<Map<String, dynamic>> gainers;
-  final List<Map<String, dynamic>> losers;
+  final List<SecurityQuote> gainers;
+  final List<SecurityQuote> losers;
   final bool isLoading;
 
   const MarketMoversView({
@@ -58,7 +59,7 @@ class MarketMoversView extends StatelessWidget {
     );
   }
 
-  Widget _buildMoversList(String title, List<Map<String, dynamic>> data, Color accentColor) {
+  Widget _buildMoversList(String title, List<SecurityQuote> data, Color accentColor) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -79,9 +80,9 @@ class MarketMoversView extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ...data.take(5).map((stock) {
-            final symbol = stock['symbol'] ?? 'N/A';
-            final pChange = (stock['pChange'] ?? 0.0).toDouble();
-            final ltp = (stock['lastPrice'] ?? 0.0).toDouble();
+            final symbol = stock.symbol;
+            final pChange = stock.pChange;
+            final ltp = stock.lastPrice;
 
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),

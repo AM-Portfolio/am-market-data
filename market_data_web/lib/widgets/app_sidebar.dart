@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/market_provider.dart';
+import '../domain/models/market_index.dart';
 import '../utils/app_logger.dart';
 
 class AppSidebar extends StatelessWidget {
@@ -73,9 +74,9 @@ class AppSidebar extends StatelessWidget {
                   child: Text("INDICES", style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                 ),
 
-                if (provider.availableIndices != null) ...[
+                if (provider.availableIndices.isNotEmpty) ...[
                   // Broad Market Dropdown
-                  if (provider.availableIndices!.broad.isNotEmpty)
+                  if (provider.availableIndices.containsKey(IndexCategory.build) && provider.availableIndices[IndexCategory.build]!.isNotEmpty)
                     Theme(
                       data: theme.copyWith(dividerColor: Colors.transparent), 
                       child: ExpansionTile(
@@ -83,12 +84,12 @@ class AppSidebar extends StatelessWidget {
                         title: const Text("Broad Market", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         iconColor: Colors.greenAccent,
                         collapsedIconColor: Colors.grey,
-                        children: provider.availableIndices!.broad.map((idx) => _buildSubMenuItem(context, idx)).toList(),
+                        children: provider.availableIndices[IndexCategory.build]!.map((idx) => _buildSubMenuItem(context, idx)).toList(),
                       ),
                     ),
 
                   // Sectoral Indices Dropdown
-                  if (provider.availableIndices!.sector.isNotEmpty)
+                  if (provider.availableIndices.containsKey(IndexCategory.sectoral) && provider.availableIndices[IndexCategory.sectoral]!.isNotEmpty)
                      Theme(
                       data: theme.copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
@@ -96,7 +97,7 @@ class AppSidebar extends StatelessWidget {
                         title: const Text("Sectoral Indices", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         iconColor: Colors.orangeAccent,
                         collapsedIconColor: Colors.grey,
-                        children: provider.availableIndices!.sector.map((idx) => _buildSubMenuItem(context, idx)).toList(),
+                        children: provider.availableIndices[IndexCategory.sectoral]!.map((idx) => _buildSubMenuItem(context, idx)).toList(),
                       ),
                      ),
                 ]

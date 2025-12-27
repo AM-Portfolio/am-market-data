@@ -9,7 +9,7 @@ import '../screens/streamer_page.dart';
 import '../screens/market_analytics_page.dart';
 import '../screens/instrument_explorer_page.dart';
 import '../screens/security_explorer_page.dart';
-import '../screens/price_test_page.dart'; // Added for Price Test
+
 import '../screens/admin/ingestion_logs_page.dart';
 import '../utils/app_logger.dart';
 
@@ -183,10 +183,7 @@ class _HomePageState extends State<HomePage> {
                    // Index 3: Security Explorer
                    SecurityExplorerPage(),
 
-                   // Index 4: Price Test
-                   PriceTestPage(),
-
-                   // Index 5: Analytics or Index Details (Table/Heatmap)
+                   // Index 4: Analytics or Index Details (Table/Heatmap)
                    provider.isLoading
                      ? const Center(child: CircularProgressIndicator())
                      : provider.error != null

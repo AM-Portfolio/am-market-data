@@ -3,8 +3,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../widgets/stock_chart.dart';
 import '../widgets/time_range_selector.dart';
-import 'package:intl/intl.dart';
-import '../services/api_service.dart';
+import '../domain/models/candle.dart';
+import '../domain/repository/market_data_repository.dart';
+import '../domain/models/security_quote.dart';
 
 import 'package:provider/provider.dart';
 import '../providers/market_provider.dart';
@@ -19,8 +20,7 @@ class StockDetailPage extends StatefulWidget {
 }
 
 class _StockDetailPageState extends State<StockDetailPage> {
-  final ApiService _apiService = ApiService();
-  List<Map<String, dynamic>> _chartData = [];
+  List<Candle> _chartData = [];
   bool _isLoading = true;
   String? _error;
   String _selectedRange = '1D'; // '1D' or '5Y'
@@ -38,12 +38,12 @@ class _StockDetailPageState extends State<StockDetailPage> {
     });
 
     try {
-      final data = await _apiService.fetchHistory(widget.symbol, _selectedRange);
+      final repository = context.read<MarketDataRepository>();
+      final data = await repository.getHistoricalData(widget.symbol, _selectedRange);
+      
       // Sort data by time ascending (oldest to newest)
       data.sort((a, b) {
-        final dateA = DateTime.tryParse(a['time'].toString()) ?? DateTime.now();
-        final dateB = DateTime.tryParse(b['time'].toString()) ?? DateTime.now();
-        return dateA.compareTo(dateB);
+        return a.date.compareTo(b.date);
       });
 
       setState(() {
@@ -66,8 +66,8 @@ class _StockDetailPageState extends State<StockDetailPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E2E), // Dark Theme Background
       appBar: AppBar(
-        title: StreamBuilder<Map<String, dynamic>>(
-          stream: marketProvider.livePriceStream.where((event) => event['symbol'] == widget.symbol),
+        title: StreamBuilder<SecurityQuote>(
+          stream: marketProvider.quoteStream.where((quote) => quote.symbol == widget.symbol),
           builder: (context, snapshot) {
             final liveData = marketProvider.livePrices[widget.symbol];
             
@@ -77,9 +77,15 @@ class _StockDetailPageState extends State<StockDetailPage> {
             Color color = Colors.grey;
 
             if (liveData != null) {
-               ltp = (liveData['lastPrice'] as num).toDouble();
-               change = (liveData['change'] as num).toDouble();
-               pChange = (liveData['changePercent'] as num).toDouble();
+               ltp = liveData.lastPrice;
+               change = liveData.change;
+               pChange = liveData.pChange;
+               color = change >= 0 ? Colors.greenAccent : Colors.redAccent;
+            } else if (snapshot.hasData) {
+               final data = snapshot.data!;
+               ltp = data.lastPrice;
+               change = data.change;
+               pChange = data.pChange;
                color = change >= 0 ? Colors.greenAccent : Colors.redAccent;
             }
 

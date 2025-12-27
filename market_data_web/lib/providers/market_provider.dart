@@ -33,6 +33,7 @@ class MarketProvider with ChangeNotifier {
   List<MarketIndex> get allIndicesData => _allIndicesData;
   Map<String, SecurityQuote> get livePrices => _livePrices;
   Stream<SecurityQuote> get livePriceStream => _livePriceController.stream;
+  Stream<SecurityQuote> get quoteStream => livePriceStream;
   
   String? get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
@@ -54,22 +55,13 @@ class MarketProvider with ChangeNotifier {
     }
   }
 
-  void updateLivePrice(Map<String, dynamic> data) {
-    if (data.containsKey('symbol')) {
-      final String rawSymbol = data['symbol'];
-      
-      // 1. Store with raw key (e.g., "NSE_EQ:TCS")
-      _livePrices[rawSymbol] = data;
+  void updateLivePrice(SecurityQuote quote) {
+    // 1. Store with raw key
+    _livePrices[quote.symbol] = quote;
 
-      // 2. Store with base key (e.g., "TCS") if a prefix exists
-      if (rawSymbol.contains(':')) {
-        final baseSymbol = rawSymbol.split(':').last;
-        _livePrices[baseSymbol] = data;
-      }
-
-      // Emit event to stream instead of global notifyListeners
-      _livePriceController.add(data);
-    }
+    // 2. Emit event
+    _livePriceController.add(quote);
+    notifyListeners();
   }
 
   @override
@@ -196,23 +188,6 @@ class MarketProvider with ChangeNotifier {
       } else if (_selectedIndex != null) {
         await refreshIndexData();
       }
-  }
-}
-  }
-
-  Future<void> refreshCookies() async {
-    bool success = await _apiService.refreshCookies();
-    if (success) {
-      // Re-fetch current view data
-      if (_selectedIndex == "All Indices") {
-        await loadAllIndicesData();
-      } else if (_selectedIndex != null) {
-        await refreshIndexData();
-      }
-    } else {
-      _error = "Failed to refresh cookies";
-      notifyListeners();
-    }
   }
 }
 

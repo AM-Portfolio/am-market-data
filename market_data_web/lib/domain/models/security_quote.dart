@@ -3,6 +3,9 @@
 class SecurityQuote {
   final String symbol;
   final String? name;
+  final String? instrumentKey;
+  final String? exchange;
+  final String? isin;
   final double lastPrice;
   final double change;
   final double pChange;
@@ -15,6 +18,9 @@ class SecurityQuote {
   const SecurityQuote({
     required this.symbol,
     this.name,
+    this.instrumentKey,
+    this.exchange,
+    this.isin,
     required this.lastPrice,
     required this.change,
     required this.pChange,

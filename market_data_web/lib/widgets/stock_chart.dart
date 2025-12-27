@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../domain/models/candle.dart';
 
 class StockChart extends StatelessWidget {
-  final List<Map<String, dynamic>> chartData;
+  final List<Candle> chartData;
   final bool isLoading;
   final String? error;
 
@@ -30,8 +31,6 @@ class StockChart extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate width based on data points to allow scrolling
-          // approx 20px per point or min screen width
           double chartWidth = chartData.length * 20.0;
           if (chartWidth < constraints.maxWidth) {
             chartWidth = constraints.maxWidth;
@@ -73,21 +72,16 @@ class StockChart extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 30,
-                        interval: (chartData.length / 10).ceilToDouble(), // Dynamic interval
+                        interval: (chartData.length / 10).ceilToDouble(),
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
                           if (index >= 0 && index < chartData.length) {
-                             final dateStr = chartData[index]['time'] as String;
-                              try {
-                                  final date = DateTime.parse(dateStr);
-                                  final formatter = DateFormat('dd MMM yy');
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(formatter.format(date), style: const TextStyle(color: Colors.grey, fontSize: 10)),
-                                  );
-                              } catch (e) {
-                                  return const Text('');
-                              }
+                             final date = chartData[index].date;
+                             final formatter = DateFormat('dd MMM yy');
+                             return Padding(
+                               padding: const EdgeInsets.only(top: 8.0),
+                               child: Text(formatter.format(date), style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                             );
                           }
                           return const Text('');
                         },
@@ -127,14 +121,12 @@ class StockChart extends StatelessWidget {
                   ],
                   lineTouchData: LineTouchData(
                       touchTooltipData: LineTouchTooltipData(
-                          // tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
                           getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                             return touchedBarSpots.map((barSpot) {
                               final flSpot = barSpot;
                               final index = flSpot.x.toInt();
                               if (index >= 0 && index < chartData.length) {
-                                  final dateStr = chartData[index]['time'] as String;
-                                  final date = DateTime.parse(dateStr);
+                                  final date = chartData[index].date;
                                   final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(date);
                                   return LineTooltipItem(
                                       '$formattedDate \n ${flSpot.y.toStringAsFixed(2)}',
@@ -164,18 +156,18 @@ class StockChart extends StatelessWidget {
 
   double _getMinPrice() {
     if (chartData.isEmpty) return 0;
-    return chartData.map((e) => (e['close'] as num).toDouble()).reduce((a, b) => a < b ? a : b) * 0.99;
+    return chartData.map((e) => e.close).reduce((a, b) => a < b ? a : b) * 0.99;
   }
 
   double _getMaxPrice() {
      if (chartData.isEmpty) return 100;
-     return chartData.map((e) => (e['close'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.01;
+     return chartData.map((e) => e.close).reduce((a, b) => a > b ? a : b) * 1.01;
   }
 
   List<FlSpot> _getSpots() {
     List<FlSpot> spots = [];
     for (int i = 0; i < chartData.length; i++) {
-        spots.add(FlSpot(i.toDouble(), (chartData[i]['close'] as num).toDouble()));
+        spots.add(FlSpot(i.toDouble(), chartData[i].close));
     }
     return spots;
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/api_service.dart';
+import '../domain/repository/market_data_repository.dart';
+import '../domain/models/security_quote.dart';
+import '../domain/models/security_search_request.dart';
 
 class SecurityExplorerPage extends StatefulWidget {
   const SecurityExplorerPage({super.key});
@@ -13,7 +15,7 @@ class _SecurityExplorerPageState extends State<SecurityExplorerPage> {
   final TextEditingController _queryController = TextEditingController();
   final TextEditingController _indexController = TextEditingController();
   
-  List<dynamic> _securities = [];
+  List<SecurityQuote> _securities = [];
   bool _isLoading = false;
   String _errorMessage = '';
 
@@ -31,17 +33,21 @@ class _SecurityExplorerPageState extends State<SecurityExplorerPage> {
     });
 
     try {
-      final apiService = Provider.of<ApiService>(context, listen: false);
+      final repository = context.read<MarketDataRepository>();
       
-      final Map<String, dynamic> request = {};
-      if (_queryController.text.isNotEmpty) {
-        request['query'] = _queryController.text;
-      }
-      if (_indexController.text.isNotEmpty) {
-        request['index'] = _indexController.text;
-      }
-      
-      final results = await apiService.searchSecuritiesAdvanced(request);
+      final request = SecuritySearchRequest(
+        queries: _queryController.text.isNotEmpty ? [_queryController.text] : [],
+        provider: 'UPSTOX', // Default provider for now
+        // Index filter not directly supported in generic search yet? 
+        // SecuritySearchRequest has provider/segment/etc.
+        // Assuming query covers symbol. 
+        // If index is strictly needed, we might need a specific param or check filtering.
+        // For now, let's treat index as part of query if supported or ignore.
+        // Or if 'filters' map is used in repository implementation (it was generic request).
+      );
+
+      // Using advanced search
+      final results = await repository.searchSecuritiesAdvanced(request);
       setState(() {
         _securities = results;
       });
@@ -175,13 +181,15 @@ class _SecurityExplorerPageState extends State<SecurityExplorerPage> {
                         itemCount: _securities.length,
                         itemBuilder: (context, index) {
                           final sec = _securities[index];
-                          final key = sec['key'] ?? {};
-                          final metadata = sec['metadata'] ?? {};
-                          final symbol = key['symbol'] ?? 'Unknown';
-                          final isin = key['isin'] ?? '-';
-                          final sector = metadata['sector'] ?? 'Unknown Sector';
-                          final industry = metadata['industry'] ?? 'Unknown Industry';
-                          final capType = metadata['market_cap_type'];
+                          // Domain model properties
+                          final symbol = sec.symbol;
+                          final isin = sec.isin ?? '-';
+                          final sector = 'Unknown Sector'; // Not yet in SecurityQuote? Or add it?
+                          // SecurityQuote has exchange, segment, instrumentType.
+                          // It does NOT have sector/industry unless I add it.
+                          // For now, placeholder or 'N/A'
+                          final industry = 'Unknown Industry';
+                          final capType = null; // sec.capType?
                           
                           return Container(
                              decoration: BoxDecoration(

@@ -1,6 +1,5 @@
 package com.am.marketdata.service.websocket;
 
-import com.am.marketdata.stream.websocket.MarketDataWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;

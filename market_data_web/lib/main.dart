@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'providers/market_provider.dart';
-import 'services/api_service.dart';
 import 'screens/home_page.dart';
 import 'screens/admin/ingestion_logs_page.dart';
 import 'domain/repository/market_data_repository.dart';
@@ -19,7 +18,6 @@ class MarketDataApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider(create: (_) => ApiService()),
         Provider<MarketDataRepository>(
           create: (_) => MarketDataRepositoryImpl(baseUrl: 'http://localhost:8092'),
         ),

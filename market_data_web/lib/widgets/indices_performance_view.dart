@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/market_provider.dart';
-import '../models/market_data.dart';
-import '../services/api_service.dart';
-import '../services/stream_service.dart';
+import '../domain/models/market_index.dart'; // New Domain Model
+import '../domain/models/candle.dart'; // New Domain Model
 import '../widgets/multi_index_chart.dart';
 import '../utils/app_logger.dart';
 
@@ -17,8 +16,7 @@ class IndicesPerformanceView extends StatefulWidget {
 }
 
 class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
-  final ApiService _apiService = ApiService();
-  final StreamService _streamService = StreamService();
+  // Removed ApiService
   StreamSubscription? _streamSubscription;
 
   // State
@@ -41,8 +39,16 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
     _toDate = DateTime.now();
     _fromDate = _toDate.subtract(const Duration(days: 30));
 
-    _streamService.connect();
-    _setupStreamListener();
+    // Connect stream via Repository/Provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<MarketProvider>();
+      // Use fire-and-forget or handle potential duplicates inside repository
+      provider.repository.connectStream(
+          _defaultIndices + ['NIFTY BANK', 'NIFTY IT'],
+          'UPSTOX', 
+          isIndexSymbol: true
+      );
+    });
     
     // Pre-select default indices for chart
     _selectedForChart = Set.from(_defaultIndices);
@@ -66,36 +72,13 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
   @override
   void dispose() {
     _streamSubscription?.cancel();
-    _streamService.dispose();
     super.dispose();
-  }
-
-  void _setupStreamListener() {
-    _streamSubscription = _streamService.stream.listen((message) {
-      if (!mounted) return;
-
-      if (message.containsKey('quotes')) {
-        final provider = context.read<MarketProvider>();
-        final newQuotes = message['quotes'] as Map<String, dynamic>;
-
-        newQuotes.forEach((symbol, quoteData) {
-          provider.updateLivePrice(quoteData);
-        });
-      }
-    });
   }
 
   Future<void> _fetchHistoricalDataForIndices(List<String> indicesToFetch) async {
     final provider = context.read<MarketProvider>();
     
-    AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-        "Starting fetch for ${indicesToFetch.length} indices: ${indicesToFetch.join(', ')}");
-    
-    if (provider.allIndicesData.isEmpty) {
-      AppLogger.warning("IndicesPerformanceView.fetchHistorical", 
-          "No indices data available, skipping historical fetch");
-      return;
-    }
+    if (provider.allIndicesData.isEmpty) return;
 
     setState(() {
       _isLoadingHistorical = true;
@@ -103,62 +86,25 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
     });
 
     try {
-      final dateFormat = DateFormat('yyyy-MM-dd');
-      final fromStr = dateFormat.format(_fromDate);
-      final toStr = dateFormat.format(_toDate);
-
-      AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-          "Fetching data from $fromStr to $toStr");
-
       final Map<String, List<Map<String, dynamic>>> newCache = Map.from(_historicalDataCache);
 
-      // Fetch historical data only for specified indices
       for (final indexSymbol in indicesToFetch) {
-        // Skip if already cached
-        if (newCache.containsKey(indexSymbol)) {
-          AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-              "Skipping $indexSymbol (already cached)");
-          continue;
-        }
+        if (newCache.containsKey(indexSymbol)) continue;
 
         try {
-          AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-              "Fetching for $indexSymbol");
-          
-          final data = await _apiService.fetchHistoricalData(
-            symbols: [indexSymbol],
-            from: fromStr,
-            to: toStr,
-            interval: '1D',
-            isIndexSymbol: true,
-            forceRefresh: false,
-          );
+          // Use Repository
+          final candles = await provider.repository.getHistoricalData(indexSymbol, "1M");
 
-          AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-              "Response for $indexSymbol: ${data.keys.join(', ')}");
-
-          if (data.containsKey('data')) {
-            final historicalData = data['data'] as Map<String, dynamic>;
-            historicalData.forEach((sym, stockData) {
-              AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-                  "Processing symbol: $sym");
-              
-              if (stockData is Map && stockData['dataPoints'] != null) {
-                final dataPoints = (stockData['dataPoints'] as List)
-                    .map((e) => Map<String, dynamic>.from(e))
-                    .toList();
-
-                if (dataPoints.isNotEmpty) {
-                  newCache[sym] = dataPoints;
-                  AppLogger.info("IndicesPerformanceView.fetchHistorical", 
-                      "Cached ${dataPoints.length} points for $sym");
-                }
-              }
-            });
+          if (candles.isNotEmpty) {
+             final dataPoints = candles.map((c) => {
+               'time': c.date.toIso8601String(),
+               'close': c.close,
+             }).toList();
+             
+             newCache[indexSymbol] = dataPoints;
           }
         } catch (e) {
-          AppLogger.error("IndicesPerformanceView.fetchHistorical",
-              "Error fetching data for $indexSymbol", e);
+             AppLogger.error("IndicesPerformanceView", "Error fetching history for $indexSymbol", e);
         }
       }
 
@@ -166,22 +112,17 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
         _historicalDataCache = newCache;
         _isLoadingHistorical = false;
       });
-
-      AppLogger.info("IndicesPerformanceView.fetchHistorical",
-          "Completed! Total cached: ${newCache.length} indices: ${newCache.keys.join(', ')}");
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoadingHistorical = false;
       });
-      AppLogger.error(
-          "IndicesPerformanceView.fetchHistorical", "Error fetching historical data", e);
     }
   }
 
   Future<void> _fetchHistoricalDataForAll() async {
     final provider = context.read<MarketProvider>();
-    final allSymbols = provider.allIndicesData.map((e) => e.indexSymbol).toList();
+    final allSymbols = provider.allIndicesData.map((e) => e.symbol).toList();
     await _fetchHistoricalDataForIndices(allSymbols);
   }
 
@@ -237,8 +178,8 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
           );
         }
 
-        final allIndices = List<StockIndicesMarketData>.from(provider.allIndicesData);
-        allIndices.sort((a, b) => b.pChange.compareTo(a.pChange));
+        final allIndices = List<MarketIndex>.from(provider.allIndicesData);
+        allIndices.sort((a, b) => b.quote.pChange.compareTo(a.quote.pChange));
 
         return Container(
           color: Colors.grey[50],
@@ -400,7 +341,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
     );
   }
 
-  Widget _buildIndexSelector(List<StockIndicesMarketData> allIndices) {
+  Widget _buildIndexSelector(List<MarketIndex> allIndices) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -440,11 +381,11 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
             spacing: 8,
             runSpacing: 8,
             children: allIndices.take(10).map((indexData) {
-              final isSelected = _selectedForChart.contains(indexData.indexSymbol);
-              final isPositive = indexData.change >= 0;
+              final isSelected = _selectedForChart.contains(indexData.symbol);
+              final isPositive = indexData.quote.change >= 0;
 
               return InkWell(
-                onTap: () => _toggleIndexForChart(indexData.indexSymbol),
+                onTap: () => _toggleIndexForChart(indexData.symbol),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -464,7 +405,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
                           child: Icon(Icons.check_circle, color: Colors.blue, size: 16),
                         ),
                       Text(
-                        indexData.indexSymbol,
+                        indexData.symbol,
                         style: TextStyle(
                           color: isSelected ? Colors.blue : Colors.black87,
                           fontSize: 12,
@@ -473,7 +414,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${isPositive ? '+' : ''}${indexData.pChange.toStringAsFixed(2)}%',
+                        '${isPositive ? '+' : ''}${indexData.quote.pChange.toStringAsFixed(2)}%',
                         style: TextStyle(
                           color: isPositive ? Colors.green : Colors.red,
                           fontSize: 11,
@@ -491,7 +432,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
     );
   }
 
-  Widget _buildIndexGrid(List<StockIndicesMarketData> allIndices) {
+  Widget _buildIndexGrid(List<MarketIndex> allIndices) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -522,12 +463,12 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
     );
   }
 
-  Widget _buildCompactIndexCard(StockIndicesMarketData data) {
-    final isPositive = data.change >= 0;
-    final isSelected = _selectedForChart.contains(data.indexSymbol);
+  Widget _buildCompactIndexCard(MarketIndex data) {
+    final isPositive = data.quote.change >= 0;
+    final isSelected = _selectedForChart.contains(data.symbol);
 
     return InkWell(
-      onTap: () => _toggleIndexForChart(data.indexSymbol),
+      onTap: () => _toggleIndexForChart(data.symbol),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -554,7 +495,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
               children: [
                 Expanded(
                   child: Text(
-                    data.indexSymbol,
+                    data.symbol,
                     style: const TextStyle(
                       color: Colors.black87,
                       fontSize: 12,
@@ -569,7 +510,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
               ],
             ),
             Text(
-              data.lastPrice.toStringAsFixed(2),
+              data.quote.lastPrice.toStringAsFixed(2),
               style: const TextStyle(
                 color: Colors.black87,
                 fontSize: 14,
@@ -585,7 +526,7 @@ class _IndicesPerformanceViewState extends State<IndicesPerformanceView> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${isPositive ? '+' : ''}${data.pChange.toStringAsFixed(2)}%',
+                  '${isPositive ? '+' : ''}${data.quote.pChange.toStringAsFixed(2)}%',
                   style: TextStyle(
                     color: isPositive ? Colors.green : Colors.red,
                     fontSize: 11,

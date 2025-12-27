@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../domain/models/security_quote.dart';
 import '../providers/market_provider.dart';
 import '../screens/stock_detail_page.dart';
 
 class HeatmapGrid extends StatelessWidget {
-  final List stocks;
+  final List<SecurityQuote> stocks;
   final MarketProvider provider;
 
   const HeatmapGrid({
@@ -23,7 +24,7 @@ class HeatmapGrid extends StatelessWidget {
           int crossAxisCount = (constraints.maxWidth / 200).floor();
           if (crossAxisCount < 2) crossAxisCount = 2; // Min columns
 
-          return StreamBuilder<Map<String, dynamic>>(
+          return StreamBuilder(
             stream: provider.livePriceStream,
             builder: (context, snapshot) {
               return GridView.builder(
@@ -39,13 +40,9 @@ class HeatmapGrid extends StatelessWidget {
                   // Merge with live data
                   final liveData = provider.livePrices[stock.symbol];
                   
-                  double price = stock.lastPrice;
-                  double pChange = stock.pChange;
-                  
-                  if (liveData != null) {
-                      price = (liveData['lastPrice'] as num?)?.toDouble() ?? price;
-                      pChange = (liveData['changePercent'] as num?)?.toDouble() ?? pChange;
-                  }
+                  // Use live data if available, else static
+                  final double price = liveData?.lastPrice ?? stock.lastPrice;
+                  final double pChange = liveData?.pChange ?? stock.pChange;
 
                   final isPositive = pChange >= 0;
                   final intensity = (pChange.abs() / 3).clamp(0.2, 1.0); // Simple intensity scaling

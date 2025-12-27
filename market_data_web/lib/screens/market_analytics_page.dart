@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../domain/repository/market_data_repository.dart';
+import '../domain/models/security_quote.dart';
+import '../domain/models/sector_performance.dart';
+import '../providers/market_provider.dart';
 import '../widgets/market_movers_view.dart';
 import '../widgets/sector_performance_view.dart';
 import '../widgets/heatmap_view.dart';
-import 'package:provider/provider.dart';
-import '../providers/market_provider.dart';
 
 class MarketAnalyticsPage extends StatefulWidget {
   final String indexSymbol;
@@ -16,11 +18,10 @@ class MarketAnalyticsPage extends StatefulWidget {
 }
 
 class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
-  final ApiService _apiService = ApiService();
   
-  List<Map<String, dynamic>> _gainers = [];
-  List<Map<String, dynamic>> _losers = [];
-  List<Map<String, dynamic>> _sectors = [];
+  List<SecurityQuote> _gainers = [];
+  List<SecurityQuote> _losers = [];
+  List<SectorPerformance> _sectors = [];
   
   bool _isLoadingMovers = false;
   bool _isLoadingSectors = false;
@@ -54,16 +55,9 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
 
   Future<void> _loadMovers() async {
     try {
-      final gainers = await _apiService.fetchMovers(
-        type: 'gainers',
-        limit: 10,
-        indexSymbol: widget.indexSymbol,
-      );
-      final losers = await _apiService.fetchMovers(
-        type: 'losers',
-        limit: 10,
-        indexSymbol: widget.indexSymbol,
-      );
+      final repository = context.read<MarketDataRepository>();
+      final gainers = await repository.getMarketMovers('gainers');
+      final losers = await repository.getMarketMovers('losers');
       
       if (mounted) {
         setState(() {
@@ -81,9 +75,8 @@ class _MarketAnalyticsPageState extends State<MarketAnalyticsPage> {
 
   Future<void> _loadSectors() async {
     try {
-      final sectors = await _apiService.fetchSectorPerformance(
-        indexSymbol: widget.indexSymbol,
-      );
+      final repository = context.read<MarketDataRepository>();
+      final sectors = await repository.getSectorPerformance(widget.indexSymbol);
       
       if (mounted) {
         setState(() {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../domain/models/sector_performance.dart';
 
 class SectorPerformanceView extends StatelessWidget {
-  final List<Map<String, dynamic>> sectors;
+  final List<SectorPerformance> sectors;
   final bool isLoading;
 
   const SectorPerformanceView({
@@ -49,9 +50,9 @@ class SectorPerformanceView extends StatelessWidget {
               itemCount: sectors.length,
               itemBuilder: (context, index) {
                 final sector = sectors[index];
-                final sectorName = sector['sector'] ?? 'Unknown';
-                final change = (sector['change'] ?? 0.0).toDouble();
-                final stockCount = sector['stockCount'] ?? 0;
+                final sectorName = sector.sector;
+                final change = sector.change;
+                final stockCount = sector.stockCount;
                 
                 final color = change >= 0 ? Colors.green : Colors.red;
                 

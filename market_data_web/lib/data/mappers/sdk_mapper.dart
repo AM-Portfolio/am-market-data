@@ -2,6 +2,7 @@ import 'package:market_data_client/api.dart';
 import '../../domain/models/security_quote.dart';
 import '../../domain/models/market_index.dart';
 import '../../domain/models/candle.dart';
+import '../../domain/models/sector_performance.dart';
 
 /// Anti-Corruption Layer (ACL) Mapper.
 /// Translates SDK-specific models into clean Domain entities.
@@ -10,6 +11,7 @@ class SdkMapper {
   static SecurityQuote mapUpdateToQuote(MarketDataUpdateV1 update) {
     return SecurityQuote(
       symbol: update.instrumentKey ?? 'Unknown',
+      instrumentKey: update.instrumentKey,
       lastPrice: update.lastPrice ?? 0.0,
       change: update.change ?? 0.0,
       pChange: update.pChange ?? 0.0,
@@ -87,7 +89,7 @@ class SdkMapper {
     if (historicalData.dataPoints == null) return [];
 
     return historicalData.dataPoints!.map((p) => Candle(
-      date: DateTime.parse(p.time!).toLocal(),
+      date: p.time!.toLocal(),
       open: p.open ?? 0.0,
       high: p.high ?? 0.0,
       low: p.low ?? 0.0,
@@ -98,11 +100,13 @@ class SdkMapper {
 
   /// Map Security Search response to List<SecurityQuote>.
   /// Note: Search results might not have price data.
-  static SecurityQuote mapSecurityToQuote(SecurityV1 security) {
+
+  /// Map Security DTO to SecurityQuote.
+  static SecurityQuote mapSecurityDtoToQuote(SecurityDTOV1 dto) {
     return SecurityQuote(
-      symbol: security.symbol ?? 'Unknown',
-      name: security.name,
-      lastPrice: 0.0, // Search results usually don't have price
+      symbol: dto.symbol ?? 'Unknown',
+      name: dto.symbol, // Use symbol as name if name field missing
+      lastPrice: 0.0,
       change: 0.0,
       pChange: 0.0,
       open: 0.0,
@@ -110,21 +114,33 @@ class SdkMapper {
       low: 0.0,
       prevClose: 0.0,
       lastUpdateTime: DateTime.now(),
+      isin: dto.isin,
     );
   }
 
   /// Map Market Mover to SecurityQuote.
-  static SecurityQuote mapMarketMoverToQuote(MarketMoverV1 mover) {
+  /// Accepts dynamic as the specific SDK model might be generic or map.
+  static SecurityQuote mapMarketMoverToQuote(Map<String, dynamic> mover) {
     return SecurityQuote(
-      symbol: mover.symbol ?? 'Unknown',
-      lastPrice: mover.lastPrice ?? 0.0,
-      change: mover.change ?? 0.0,
-      pChange: mover.pChange ?? 0.0,
-      open: 0.0, // Not provided in Mover DTO
+      symbol: mover['symbol'] ?? 'Unknown',
+      lastPrice: (mover['lastPrice'] as num?)?.toDouble() ?? 0.0,
+      change: (mover['change'] as num?)?.toDouble() ?? 0.0,
+      pChange: (mover['pChange'] as num?)?.toDouble() ?? 0.0,
+      open: 0.0,
       high: 0.0,
       low: 0.0,
-      prevClose: (mover.lastPrice ?? 0.0) - (mover.change ?? 0.0),
+      prevClose: ((mover['lastPrice'] as num?)?.toDouble() ?? 0.0) - ((mover['change'] as num?)?.toDouble() ?? 0.0),
       lastUpdateTime: DateTime.now(),
+    );
+  }
+
+  /// Map Sector mapped response to SectorPerformance domain model.
+  static SectorPerformance mapSectorPerformance(Map<String, dynamic> data) {
+    return SectorPerformance(
+      sector: data['sector'] ?? 'Unknown',
+      change: (data['change'] as num?)?.toDouble() ?? 0.0,
+      pChange: (data['pChange'] as num?)?.toDouble() ?? 0.0,
+      stockCount: (data['stockCount'] as num?)?.toInt() ?? 0,
     );
   }
 }
