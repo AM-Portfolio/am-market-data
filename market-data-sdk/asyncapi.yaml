@@ -1,0 +1,36 @@
+asyncapi: 3.0.0
+info:
+  title: AM Market Data Streaming API
+  version: 1.0.0
+  description: Real-time market data streaming via WebSockets.
+
+servers:
+  dev:
+    host: localhost:8092
+    protocol: ws
+    pathname: /ws/market-data-stream
+    description: Development server
+
+channels:
+  marketDataStream:
+    address: /ws/market-data-stream
+    messages:
+      marketDataUpdate:
+        $ref: '#/components/messages/MarketDataUpdate'
+
+operations:
+  receiveMarketData:
+    action: receive
+    channel:
+      $ref: '#/channels/marketDataStream'
+    summary: Subscribe to real-time market data updates.
+
+components:
+  messages:
+    MarketDataUpdate:
+      payload:
+        $ref: '#/components/schemas/MarketDataUpdate'
+
+  schemas:
+    MarketDataUpdate:
+      $ref: '../market-data-api/target/openapi.json#/components/schemas/MarketDataUpdateV1'

@@ -27,7 +27,6 @@
         
         <!-- Layer 4: Messaging & Streaming -->
         <module>market-data-kafka</module>
-        <module>market-data-stream</module>
         
         <!-- Layer 5: Infrastructure -->
         <module>market-data-redis</module>
@@ -35,7 +34,6 @@
         
         <!-- Layer 6: Internal/Testing -->
         <module>market-data-internal</module>
-        <module>market-data-sdk/market-data-sdk-java</module>
         
         <!-- Commented out/Other modules -->
         <!-- <module>market-data-external-api</module>  -->

@@ -1,0 +1,2208 @@
+openapi: 3.0.1
+info:
+  contact:
+    email: support@amportfolio.com
+    name: AM Portfolio Team
+  description: "API documentation for the Market Data service providing access to\
+    \ stock quotes, historical data, market indices, brokerage calculations, and more."
+  license:
+    name: Private License
+    url: https://amportfolio.com/license
+  title: Market Data API Documentation
+  version: 1.0.0
+servers:
+- description: Default Server URL
+  url: /
+tags:
+- description: Endpoints for retrieving market index data
+  name: Market Indices
+- description: "Endpoints for searching and retrieving security metadata (sector,\
+    \ industry, market cap)"
+  name: Security Metadata
+- description: "Endpoints for calculating brokerage, taxes, and other charges"
+  name: Brokerage Calculator
+- description: "APIs for retrieving various types of market data including quotes,\
+    \ historical data, option chains, and more"
+  name: Market Data
+- description: Endpoints for retrieving stock indices constituent data
+  name: Stock Indices
+- description: Endpoints for calculating margin requirements for trades
+  name: Margin Calculator
+- description: Endpoints for real-time market data polling
+  name: Market Data Polling
+- description: "Endpoints for market analytics, summaries, and insights"
+  name: Market Analytics
+paths:
+  /api/v1/stock-indices/batch:
+    post:
+      description: Returns constituent stocks for multiple indices
+      operationId: getStockIndicesBatch
+      parameters:
+      - explode: true
+        in: query
+        name: forceRefresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                type: string
+              type: array
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: "#/components/schemas/NSEStockIndicesDataV1"
+                type: array
+          description: OK
+      summary: Get multiple stock indices
+      tags:
+      - Stock Indices
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/security/search:
+    post:
+      description: Search for securities using various filters
+      operationId: search
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecuritySearchRequestV1"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: "#/components/schemas/SecurityDTOV1"
+                type: array
+          description: OK
+      summary: Search securities
+      tags:
+      - Security Metadata
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/polling/unsubscribe:
+    post:
+      description: Unsubscribe from symbols
+      operationId: unsubscribe
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                type: string
+              type: array
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Unsubscribe from symbols
+      tags:
+      - Market Data Polling
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/polling/subscribe:
+    post:
+      description: Subscribe to symbols for real-time updates
+      operationId: subscribe
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                type: string
+              type: array
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Subscribe to symbols
+      tags:
+      - Market Data Polling
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/market-data/quotes:
+    get:
+      description: Retrieves latest quotes for multiple symbols with support for different
+        timeframes
+      operationId: getQuotes
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: timeFrame
+        required: false
+        schema:
+          default: 5m
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Quotes retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Invalid request parameters
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+      summary: Get quotes for multiple symbols
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+    post:
+      description: Retrieves latest quotes for multiple symbols with support for different
+        timeframes using POST request
+      operationId: getQuotesPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuotesRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Quotes retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Invalid request parameters
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+      summary: Get quotes for multiple symbols (POST)
+      tags:
+      - Market Data
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/market-data/ohlc:
+    post:
+      description: Retrieves Open-High-Low-Close data for multiple symbols with support
+        for different timeframes
+      operationId: getOHLC
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OHLCRequest"
+        required: true
+      responses:
+        "400":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: Invalid request parameters
+        "500":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: OHLC data retrieved successfully
+      summary: Get OHLC data for multiple symbols
+      tags:
+      - Market Data
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/market-data/historical-data:
+    post:
+      description: Retrieves historical price and volume data for one or more instruments
+        with filtering options
+      operationId: getHistoricalData
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HistoricalDataRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalDataResponseV1"
+          description: Historical data retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalDataResponseV1"
+          description: Invalid request parameters
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalDataResponseV1"
+          description: Internal server error
+      summary: Get historical market data
+      tags:
+      - Market Data
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/market-data/auth/logout:
+    post:
+      description: Invalidates the current broker session and clears authentication
+        tokens
+      operationId: logout
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Logout successful
+      summary: Logout and invalidate session
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/margin/calculate:
+    post:
+      description: "Calculates SPAN, exposure, and total margin requirements for various\
+        \ positions"
+      operationId: calculateMargin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarginCalculationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MarginCalculationResponse"
+          description: OK
+      summary: Calculate margin requirements
+      tags:
+      - Margin Calculator
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/brokerage/calculate:
+    post:
+      description: "Calculates total brokerage, taxes, and other charges based on\
+        \ trade details"
+      operationId: calculateBrokerage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrokerageCalculationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerageCalculationResponse"
+          description: OK
+      summary: Calculate brokerage and charges
+      tags:
+      - Brokerage Calculator
+      x-content-type: application/json
+      x-accepts:
+      - '*/*'
+  /api/v1/stock-indices/{indexSymbol}:
+    get:
+      description: Returns constituent stocks for a specific index
+      operationId: getStockIndices
+      parameters:
+      - explode: false
+        in: path
+        name: indexSymbol
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: true
+        in: query
+        name: forceRefresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NSEStockIndicesDataV1"
+          description: OK
+      summary: Get stock indices data
+      tags:
+      - Stock Indices
+      x-accepts:
+      - '*/*'
+  /api/v1/stock-indices/available:
+    get:
+      description: Returns list of available broad market and sector indices
+      operationId: getAvailableIndices
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                type: object
+          description: OK
+      summary: Get available indices
+      tags:
+      - Stock Indices
+      x-accepts:
+      - '*/*'
+  /api/v1/security/sectors:
+    get:
+      description: Returns a mapping of symbol to sector
+      operationId: getSectors
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: OK
+      summary: Get sectors for symbols
+      tags:
+      - Security Metadata
+      x-accepts:
+      - '*/*'
+  /api/v1/security/find:
+    get:
+      description: Returns metadata for specific symbols
+      operationId: findBySymbols
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: "#/components/schemas/SecurityDTOV1"
+                type: array
+          description: OK
+      summary: Find securities by symbols
+      tags:
+      - Security Metadata
+      x-accepts:
+      - '*/*'
+  /api/v1/security/all:
+    get:
+      description: Returns all available securities in the database
+      operationId: getAll
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: "#/components/schemas/SecurityDTOV1"
+                type: array
+          description: OK
+      summary: Get all securities
+      tags:
+      - Security Metadata
+      x-accepts:
+      - '*/*'
+  /api/v1/polling/status:
+    get:
+      description: Returns streaming connection status
+      operationId: getConnectionStatus
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Get connection status
+      tags:
+      - Market Data Polling
+      x-accepts:
+      - '*/*'
+  /api/v1/polling/schema/update:
+    get:
+      operationId: getUpdateSchema
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MarketDataUpdateV1"
+          description: OK
+      summary: Internal use for SDK generation
+      tags:
+      - Market Data Polling
+      x-accepts:
+      - '*/*'
+  /api/v1/polling/data:
+    get:
+      description: Poll live market data for given symbols
+      operationId: pollMarketData
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: timeFrame
+        required: false
+        schema:
+          default: 1m
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: indexSymbol
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Poll market data
+      tags:
+      - Market Data Polling
+      x-accepts:
+      - '*/*'
+  /api/v1/market-data/symbols/{exchange}:
+    get:
+      description: Retrieves all available trading symbols for a specific exchange
+      operationId: getSymbolsForExchange
+      parameters:
+      - explode: false
+        in: path
+        name: exchange
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                items:
+                  type: object
+                type: array
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  type: object
+                type: array
+          description: Symbols retrieved successfully
+      summary: Get symbols for a specific exchange
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/option-chain:
+    get:
+      description: Retrieves option chain data including calls and puts for a given
+        underlying instrument
+      operationId: getOptionChain
+      parameters:
+      - explode: true
+        in: query
+        name: symbol
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: expiryDate
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Invalid request parameters
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Option chain data retrieved successfully
+      summary: Get option chain data
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/mutual-fund/{schemeCode}:
+    get:
+      description: "Retrieves detailed information about a mutual fund including NAV,\
+        \ returns, and other metrics"
+      operationId: getMutualFundDetails
+      parameters:
+      - explode: false
+        in: path
+        name: schemeCode
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Mutual fund details retrieved successfully
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+      summary: Get mutual fund details
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/mutual-fund/{schemeCode}/history:
+    get:
+      description: Retrieves historical Net Asset Value (NAV) data for a mutual fund
+        over a specified date range
+      operationId: getMutualFundNavHistory
+      parameters:
+      - explode: false
+        in: path
+        name: schemeCode
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: true
+        in: query
+        name: from
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: to
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: NAV history retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Invalid date format or request parameters
+      summary: Get mutual fund NAV history
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/live-prices:
+    get:
+      description: Retrieves real-time market prices for specified symbols or all
+        available symbols
+      operationId: getLivePrices
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: isIndexSymbol
+        required: false
+        schema:
+          type: boolean
+        style: form
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Live prices retrieved successfully
+      summary: Get live market prices
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/live-ltp:
+    get:
+      description: Retrieves current LTP and calculates change based on historical
+        closing price for the specified timeframe
+      operationId: getLiveLTP
+      parameters:
+      - explode: true
+        in: query
+        name: symbols
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: timeframe
+        required: false
+        schema:
+          default: 1D
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: isIndexSymbol
+        required: false
+        schema:
+          default: true
+          type: boolean
+        style: form
+      - explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: Live LTP with change retrieved successfully
+      summary: Get live LTP with change calculation
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/auth/session:
+    get:
+      description: Creates a new authenticated session using the request token obtained
+        from broker login
+      operationId: generateSession
+      parameters:
+      - explode: true
+        in: query
+        name: request_token
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: requestToken
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: code
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          default: success
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: Session generated successfully
+        "500":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: Internal server error
+        "400":
+          content:
+            application/json:
+              schema:
+                type: object
+          description: Invalid request token or authentication failed
+      summary: Generate session from request token
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/market-data/auth/login-url:
+    get:
+      description: Returns a URL that can be used to authenticate with the broker's
+        login page
+      operationId: getLoginUrl
+      parameters:
+      - explode: true
+        in: query
+        name: provider
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal server error
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Login URL generated successfully
+      summary: Get login URL for broker authentication
+      tags:
+      - Market Data
+      x-accepts:
+      - application/json
+  /api/v1/indices/{symbol}:
+    get:
+      description: Returns a specific index by its symbol
+      operationId: getIndex
+      parameters:
+      - explode: false
+        in: path
+        name: symbol
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NSEIndexV1"
+          description: OK
+      summary: Get index by symbol
+      tags:
+      - Market Indices
+      x-accepts:
+      - '*/*'
+  /api/v1/indices/all:
+    get:
+      description: Returns all available market indices
+      operationId: getAllIndices
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: "#/components/schemas/NSEIndexV1"
+                type: array
+          description: OK
+      summary: Get all market indices
+      tags:
+      - Market Indices
+      x-accepts:
+      - '*/*'
+  /api/v1/analytics/summary:
+    get:
+      description: Returns overall market summary with key metrics
+      operationId: getMarketSummary
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Get market summary
+      tags:
+      - Market Analytics
+      x-accepts:
+      - '*/*'
+  /api/v1/analytics/sectors:
+    get:
+      description: Returns sector-wise performance data
+      operationId: getSectorPerformance
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Get sector performance
+      tags:
+      - Market Analytics
+      x-accepts:
+      - '*/*'
+  /api/v1/analytics/movers:
+    get:
+      description: Returns top gaining and losing stocks
+      operationId: getTopMovers
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 10
+          format: int32
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  items:
+                    type: object
+                  type: array
+                type: object
+          description: OK
+      summary: Get top gainers and losers
+      tags:
+      - Market Analytics
+      x-accepts:
+      - '*/*'
+  /api/v1/analytics/breadth:
+    get:
+      description: "Returns market breadth data (advances, declines, unchanged)"
+      operationId: getMarketBreadth
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                additionalProperties:
+                  type: object
+                type: object
+          description: OK
+      summary: Get market breadth
+      tags:
+      - Market Analytics
+      x-accepts:
+      - '*/*'
+components:
+  schemas:
+    Advance:
+      example:
+        declines: declines
+        advances: advances
+        unchanged: unchanged
+      properties:
+        declines:
+          type: string
+        advances:
+          type: string
+        unchanged:
+          type: string
+      type: object
+    IndexMetadata:
+      example:
+        yearLow: 6.438423552598547
+        last: 9.369310271410669
+        totalTradedVolume: 6
+        indexName: indexName
+        change: 8.762042012749001
+        yearHigh: 9.018348186070783
+        previousClose: 9.965781217890562
+        ffmc_sum: 2.8841621266687802
+        high: 4.965218492984954
+        low: 5.025004791520295
+        totalTradedValue: 1.284659006116532
+        indicativeClose: 3.5571952270680973
+        percChange: 6.683562403749608
+        timeVal: timeVal
+        open: 1.1730742509559433
+      properties:
+        indexName:
+          type: string
+        open:
+          format: double
+          type: number
+        high:
+          format: double
+          type: number
+        low:
+          format: double
+          type: number
+        previousClose:
+          format: double
+          type: number
+        last:
+          format: double
+          type: number
+        percChange:
+          format: double
+          type: number
+        change:
+          format: double
+          type: number
+        timeVal:
+          type: string
+        yearHigh:
+          format: double
+          type: number
+        yearLow:
+          format: double
+          type: number
+        indicativeClose:
+          format: double
+          type: number
+        totalTradedVolume:
+          format: int64
+          type: integer
+        totalTradedValue:
+          format: double
+          type: number
+        ffmc_sum:
+          format: double
+          type: number
+      type: object
+    MarketStatus:
+      example:
+        market: market
+        marketStatusMessage: marketStatusMessage
+        percentChange: 5.944895607614016
+        last: 6.778324963048013
+        marketStatus: marketStatus
+        index: index
+        tradeDate: tradeDate
+        variation: 6.878052220127876
+      properties:
+        market:
+          type: string
+        marketStatus:
+          type: string
+        tradeDate:
+          type: string
+        index:
+          type: string
+        last:
+          format: double
+          type: number
+        variation:
+          format: double
+          type: number
+        percentChange:
+          format: double
+          type: number
+        marketStatusMessage:
+          type: string
+      type: object
+    Metadata:
+      example:
+        symbol: symbol
+        companyName: companyName
+        industry: industry
+        activeSeries:
+        - activeSeries
+        - activeSeries
+        isin: isin
+      properties:
+        symbol:
+          type: string
+        companyName:
+          type: string
+        industry:
+          type: string
+        activeSeries:
+          items:
+            type: string
+          type: array
+        isin:
+          type: string
+      type: object
+    NSEStockIndicesDataV1:
+      example:
+        metadata:
+          yearLow: 6.438423552598547
+          last: 9.369310271410669
+          totalTradedVolume: 6
+          indexName: indexName
+          change: 8.762042012749001
+          yearHigh: 9.018348186070783
+          previousClose: 9.965781217890562
+          ffmc_sum: 2.8841621266687802
+          high: 4.965218492984954
+          low: 5.025004791520295
+          totalTradedValue: 1.284659006116532
+          indicativeClose: 3.5571952270680973
+          percChange: 6.683562403749608
+          timeVal: timeVal
+          open: 1.1730742509559433
+        data:
+        - symbol: symbol
+          chartTodayPath: chartTodayPath
+          nearWKL: 1.4894159098541704
+          date30dAgo: date30dAgo
+          stockIndClosePrice: 3.616076749251911
+          perChange30d: 6.84685269835264
+          yearHigh: 4.145608029883936
+          chart30dPath: chart30dPath
+          previousClose: 2.3021358869347655
+          date365dAgo: date365dAgo
+          dayHigh: 1.4658129805029452
+          nearWKH: 1.0246457001441578
+          yearLow: 1.2315135367772556
+          identifier: identifier
+          totalTradedVolume: 9
+          change: 7.061401241503109
+          dayLow: 5.962133916683182
+          priority: 0
+          chart365dPath: chart365dPath
+          perChange365d: perChange365d
+          totalTradedValue: 2.027123023002322
+          pChange: 7.457744773683766
+          series: series
+          meta:
+            symbol: symbol
+            companyName: companyName
+            industry: industry
+            activeSeries:
+            - activeSeries
+            - activeSeries
+            isin: isin
+          ffmc: 7.386281948385884
+          open: 6.027456183070403
+          lastPrice: 5.637376656633329
+        - symbol: symbol
+          chartTodayPath: chartTodayPath
+          nearWKL: 1.4894159098541704
+          date30dAgo: date30dAgo
+          stockIndClosePrice: 3.616076749251911
+          perChange30d: 6.84685269835264
+          yearHigh: 4.145608029883936
+          chart30dPath: chart30dPath
+          previousClose: 2.3021358869347655
+          date365dAgo: date365dAgo
+          dayHigh: 1.4658129805029452
+          nearWKH: 1.0246457001441578
+          yearLow: 1.2315135367772556
+          identifier: identifier
+          totalTradedVolume: 9
+          change: 7.061401241503109
+          dayLow: 5.962133916683182
+          priority: 0
+          chart365dPath: chart365dPath
+          perChange365d: perChange365d
+          totalTradedValue: 2.027123023002322
+          pChange: 7.457744773683766
+          series: series
+          meta:
+            symbol: symbol
+            companyName: companyName
+            industry: industry
+            activeSeries:
+            - activeSeries
+            - activeSeries
+            isin: isin
+          ffmc: 7.386281948385884
+          open: 6.027456183070403
+          lastPrice: 5.637376656633329
+        date30dAgo: date30dAgo
+        date365dAgo: date365dAgo
+        name: name
+        marketStatus:
+          market: market
+          marketStatusMessage: marketStatusMessage
+          percentChange: 5.944895607614016
+          last: 6.778324963048013
+          marketStatus: marketStatus
+          index: index
+          tradeDate: tradeDate
+          variation: 6.878052220127876
+        advance:
+          declines: declines
+          advances: advances
+          unchanged: unchanged
+        timestamp: timestamp
+      properties:
+        name:
+          type: string
+        advance:
+          $ref: "#/components/schemas/Advance"
+        timestamp:
+          type: string
+        data:
+          items:
+            $ref: "#/components/schemas/StockData"
+          type: array
+        metadata:
+          $ref: "#/components/schemas/IndexMetadata"
+        marketStatus:
+          $ref: "#/components/schemas/MarketStatus"
+        date30dAgo:
+          type: string
+        date365dAgo:
+          type: string
+      type: object
+    StockData:
+      example:
+        symbol: symbol
+        chartTodayPath: chartTodayPath
+        nearWKL: 1.4894159098541704
+        date30dAgo: date30dAgo
+        stockIndClosePrice: 3.616076749251911
+        perChange30d: 6.84685269835264
+        yearHigh: 4.145608029883936
+        chart30dPath: chart30dPath
+        previousClose: 2.3021358869347655
+        date365dAgo: date365dAgo
+        dayHigh: 1.4658129805029452
+        nearWKH: 1.0246457001441578
+        yearLow: 1.2315135367772556
+        identifier: identifier
+        totalTradedVolume: 9
+        change: 7.061401241503109
+        dayLow: 5.962133916683182
+        priority: 0
+        chart365dPath: chart365dPath
+        perChange365d: perChange365d
+        totalTradedValue: 2.027123023002322
+        pChange: 7.457744773683766
+        series: series
+        meta:
+          symbol: symbol
+          companyName: companyName
+          industry: industry
+          activeSeries:
+          - activeSeries
+          - activeSeries
+          isin: isin
+        ffmc: 7.386281948385884
+        open: 6.027456183070403
+        lastPrice: 5.637376656633329
+      properties:
+        priority:
+          format: int32
+          type: integer
+        symbol:
+          type: string
+        identifier:
+          type: string
+        series:
+          type: string
+        open:
+          format: double
+          type: number
+        dayHigh:
+          format: double
+          type: number
+        dayLow:
+          format: double
+          type: number
+        lastPrice:
+          format: double
+          type: number
+        previousClose:
+          format: double
+          type: number
+        change:
+          format: double
+          type: number
+        totalTradedVolume:
+          format: int64
+          type: integer
+        stockIndClosePrice:
+          format: double
+          type: number
+        totalTradedValue:
+          format: double
+          type: number
+        yearHigh:
+          format: double
+          type: number
+        ffmc:
+          format: double
+          type: number
+        yearLow:
+          format: double
+          type: number
+        nearWKH:
+          format: double
+          type: number
+        nearWKL:
+          format: double
+          type: number
+        perChange365d:
+          type: string
+        date365dAgo:
+          type: string
+        chart365dPath:
+          type: string
+        date30dAgo:
+          type: string
+        perChange30d:
+          format: double
+          type: number
+        chart30dPath:
+          type: string
+        chartTodayPath:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Metadata"
+        pChange:
+          format: double
+          type: number
+      type: object
+    SecuritySearchRequestV1:
+      example:
+        query: query
+        index: index
+        industry: industry
+        sector: sector
+        symbols:
+        - symbols
+        - symbols
+        isin: isin
+      properties:
+        symbols:
+          items:
+            type: string
+          type: array
+        isin:
+          type: string
+        sector:
+          type: string
+        industry:
+          type: string
+        index:
+          type: string
+        query:
+          type: string
+      type: object
+    SecurityDTOV1:
+      example:
+        symbol: symbol
+        marketCapType: marketCapType
+        industry: industry
+        sector: sector
+        marketCapValue: 0
+        isin: isin
+      properties:
+        symbol:
+          type: string
+        isin:
+          type: string
+        sector:
+          type: string
+        industry:
+          type: string
+        marketCapValue:
+          format: int64
+          type: integer
+        marketCapType:
+          type: string
+      type: object
+    QuotesRequest:
+      example:
+        indexSymbol: true
+        symbols: symbols
+        timeFrame: timeFrame
+        forceRefresh: true
+      properties:
+        symbols:
+          type: string
+        timeFrame:
+          type: string
+        forceRefresh:
+          type: boolean
+        indexSymbol:
+          type: boolean
+      type: object
+    OHLCRequest:
+      example:
+        refresh: true
+        isIndexSymbol: true
+        symbols: symbols
+        timeFrame: timeFrame
+      properties:
+        symbols:
+          type: string
+        isIndexSymbol:
+          type: boolean
+        timeFrame:
+          type: string
+        refresh:
+          type: boolean
+      type: object
+    HistoricalDataRequest:
+      example:
+        instrumentType: instrumentType
+        additionalParams:
+          key: "{}"
+        continuous: true
+        from: 2024-01-01
+        interval: MINUTE
+        filterFrequency: 0
+        to: 2024-12-31
+        filterType: filterType
+        isIndexSymbol: false
+        symbols: symbols
+        forceRefresh: true
+      properties:
+        symbols:
+          type: string
+        from:
+          description: Start date in yyyy-MM-dd format
+          example: 2024-01-01
+          type: string
+        to:
+          description: "End date in yyyy-MM-dd format (optional, defaults to current\
+            \ date)"
+          example: 2024-12-31
+          type: string
+        interval:
+          enum:
+          - MINUTE
+          - THREE_MINUTE
+          - FIVE_MINUTE
+          - TEN_MINUTE
+          - FIFTEEN_MINUTE
+          - THIRTY_MINUTE
+          - HOUR
+          - FOUR_HOUR
+          - DAY
+          - WEEK
+          - MONTH
+          - YEAR
+          type: string
+        continuous:
+          type: boolean
+        instrumentType:
+          type: string
+        forceRefresh:
+          type: boolean
+        filterType:
+          type: string
+        filterFrequency:
+          format: int32
+          type: integer
+        additionalParams:
+          additionalProperties:
+            type: object
+          type: object
+        isIndexSymbol:
+          description: Whether the symbols represent indices that should be expanded
+            to constituent stocks
+          example: false
+          type: boolean
+      type: object
+    HistoricalData:
+      example:
+        fromDate: 2000-01-23T04:56:07.000+00:00
+        dataPointCount: 2
+        toDate: 2000-01-23T04:56:07.000+00:00
+        dataPoints:
+        - volume: 5
+          high: 6.027456183070403
+          low: 1.4658129805029452
+          time: 2000-01-23T04:56:07.000+00:00
+          close: 5.962133916683182
+          open: 0.8008281904610115
+        - volume: 5
+          high: 6.027456183070403
+          low: 1.4658129805029452
+          time: 2000-01-23T04:56:07.000+00:00
+          close: 5.962133916683182
+          open: 0.8008281904610115
+        interval: interval
+        exchange: exchange
+        currency: currency
+        retrievalTime: 2000-01-23T04:56:07.000+00:00
+        tradingSymbol: tradingSymbol
+        isin: isin
+      properties:
+        tradingSymbol:
+          type: string
+        isin:
+          type: string
+        fromDate:
+          format: date-time
+          type: string
+        toDate:
+          format: date-time
+          type: string
+        interval:
+          type: string
+        dataPoints:
+          items:
+            $ref: "#/components/schemas/OHLCVTPoint"
+          type: array
+        dataPointCount:
+          format: int32
+          type: integer
+        exchange:
+          type: string
+        currency:
+          type: string
+        retrievalTime:
+          format: date-time
+          type: string
+      type: object
+    HistoricalDataMetadata:
+      example:
+        intervalEnum: intervalEnum
+        toDate: toDate
+        successfulSymbols: 9
+        filteredDataPoints: 2
+        source: source
+        fromDate: fromDate
+        filtered: true
+        processingTimeMs: 7
+        totalDataPoints: 3
+        interval: interval
+        filterFrequency: 4
+        filterType: filterType
+        totalSymbols: 7
+      properties:
+        fromDate:
+          type: string
+        toDate:
+          type: string
+        interval:
+          type: string
+        intervalEnum:
+          type: string
+        totalSymbols:
+          format: int32
+          type: integer
+        successfulSymbols:
+          format: int32
+          type: integer
+        totalDataPoints:
+          format: int32
+          type: integer
+        filteredDataPoints:
+          format: int32
+          type: integer
+        filtered:
+          type: boolean
+        filterType:
+          type: string
+        filterFrequency:
+          format: int32
+          type: integer
+        processingTimeMs:
+          format: int64
+          type: integer
+        source:
+          type: string
+      type: object
+    HistoricalDataResponseV1:
+      example:
+        metadata:
+          intervalEnum: intervalEnum
+          toDate: toDate
+          successfulSymbols: 9
+          filteredDataPoints: 2
+          source: source
+          fromDate: fromDate
+          filtered: true
+          processingTimeMs: 7
+          totalDataPoints: 3
+          interval: interval
+          filterFrequency: 4
+          filterType: filterType
+          totalSymbols: 7
+        data:
+          key:
+            fromDate: 2000-01-23T04:56:07.000+00:00
+            dataPointCount: 2
+            toDate: 2000-01-23T04:56:07.000+00:00
+            dataPoints:
+            - volume: 5
+              high: 6.027456183070403
+              low: 1.4658129805029452
+              time: 2000-01-23T04:56:07.000+00:00
+              close: 5.962133916683182
+              open: 0.8008281904610115
+            - volume: 5
+              high: 6.027456183070403
+              low: 1.4658129805029452
+              time: 2000-01-23T04:56:07.000+00:00
+              close: 5.962133916683182
+              open: 0.8008281904610115
+            interval: interval
+            exchange: exchange
+            currency: currency
+            retrievalTime: 2000-01-23T04:56:07.000+00:00
+            tradingSymbol: tradingSymbol
+            isin: isin
+        error: error
+        message: message
+      properties:
+        data:
+          additionalProperties:
+            $ref: "#/components/schemas/HistoricalData"
+          type: object
+        metadata:
+          $ref: "#/components/schemas/HistoricalDataMetadata"
+        error:
+          type: string
+        message:
+          type: string
+      type: object
+    OHLCVTPoint:
+      example:
+        volume: 5
+        high: 6.027456183070403
+        low: 1.4658129805029452
+        time: 2000-01-23T04:56:07.000+00:00
+        close: 5.962133916683182
+        open: 0.8008281904610115
+      properties:
+        time:
+          format: date-time
+          type: string
+        open:
+          format: double
+          type: number
+        high:
+          format: double
+          type: number
+        low:
+          format: double
+          type: number
+        close:
+          format: double
+          type: number
+        volume:
+          format: int64
+          type: integer
+      type: object
+    MarginCalculationRequest:
+      example:
+        orderType: orderType
+        positions:
+        - optionType: optionType
+          product: product
+          quantity: 0
+          price: 6.027456183070403
+          exchange: exchange
+          expiry: expiry
+          tradingSymbol: tradingSymbol
+          type: type
+          strikePrice: 1.4658129805029452
+        - optionType: optionType
+          product: product
+          quantity: 0
+          price: 6.027456183070403
+          exchange: exchange
+          expiry: expiry
+          tradingSymbol: tradingSymbol
+          type: type
+          strikePrice: 1.4658129805029452
+        exchange: exchange
+      properties:
+        positions:
+          items:
+            $ref: "#/components/schemas/Position"
+          type: array
+        orderType:
+          type: string
+        exchange:
+          type: string
+      type: object
+    Position:
+      example:
+        optionType: optionType
+        product: product
+        quantity: 0
+        price: 6.027456183070403
+        exchange: exchange
+        expiry: expiry
+        tradingSymbol: tradingSymbol
+        type: type
+        strikePrice: 1.4658129805029452
+      properties:
+        tradingSymbol:
+          type: string
+        quantity:
+          format: int32
+          type: integer
+        type:
+          type: string
+        product:
+          type: string
+        exchange:
+          type: string
+        price:
+          type: number
+        optionType:
+          type: string
+        strikePrice:
+          type: number
+        expiry:
+          type: string
+      type: object
+    MarginCalculationResponse:
+      example:
+        totalMarginRequired: 0.8008281904610115
+        positionMargins:
+          key:
+            spanMargin: 2.3021358869347655
+            exchange: exchange
+            exposureMargin: 7.061401241503109
+            tradingSymbol: tradingSymbol
+            type: type
+            totalMargin: 5.637376656633329
+            additionalMargin: 9.301444243932576
+        spanMargin: 6.027456183070403
+        exposureMargin: 1.4658129805029452
+        error: error
+        additionalMargin: 5.962133916683182
+        status: status
+      properties:
+        totalMarginRequired:
+          type: number
+        spanMargin:
+          type: number
+        exposureMargin:
+          type: number
+        additionalMargin:
+          type: number
+        positionMargins:
+          additionalProperties:
+            $ref: "#/components/schemas/PositionMargin"
+          type: object
+        status:
+          type: string
+        error:
+          type: string
+      type: object
+    PositionMargin:
+      example:
+        spanMargin: 2.3021358869347655
+        exchange: exchange
+        exposureMargin: 7.061401241503109
+        tradingSymbol: tradingSymbol
+        type: type
+        totalMargin: 5.637376656633329
+        additionalMargin: 9.301444243932576
+      properties:
+        tradingSymbol:
+          type: string
+        totalMargin:
+          type: number
+        spanMargin:
+          type: number
+        exposureMargin:
+          type: number
+        additionalMargin:
+          type: number
+        type:
+          type: string
+        exchange:
+          type: string
+      type: object
+    BrokerageCalculationRequest:
+      example:
+        buyPrice: 6.027456183070403
+        quantity: 0
+        brokerFlatFee: 5.962133916683182
+        brokerType: DISCOUNT
+        sellPrice: 1.4658129805029452
+        exchange: exchange
+        stateCode: stateCode
+        tradingSymbol: tradingSymbol
+        brokerName: brokerName
+        brokerPercentageFee: 5.637376656633329
+        tradeType: DELIVERY
+      properties:
+        tradingSymbol:
+          type: string
+        quantity:
+          format: int32
+          type: integer
+        buyPrice:
+          type: number
+        sellPrice:
+          type: number
+        exchange:
+          type: string
+        tradeType:
+          enum:
+          - DELIVERY
+          - INTRADAY
+          type: string
+        brokerType:
+          enum:
+          - DISCOUNT
+          - FULL_SERVICE
+          type: string
+        brokerName:
+          type: string
+        brokerFlatFee:
+          type: number
+        brokerPercentageFee:
+          type: number
+        stateCode:
+          type: string
+      type: object
+    BrokerageCalculationResponse:
+      example:
+        buyGST: 3.616076749251911
+        breakEvenPrice: 9.965781217890562
+        netProfitLoss: 4.965218492984954
+        sellSTT: 2.3021358869347655
+        error: error
+        buySTT: 5.637376656633329
+        buyStampDuty: 1.2315135367772556
+        sellStampDuty: 1.0246457001441578
+        buyExchangeCharges: 7.061401241503109
+        sellSEBICharges: 7.386281948385884
+        sellTransactionValue: 6.027456183070403
+        buySEBICharges: 4.145608029883936
+        buyBrokerage: 1.4658129805029452
+        sellBrokerage: 5.962133916683182
+        dpCharges: 1.4894159098541704
+        totalBuyCharges: 6.84685269835264
+        totalCharges: 1.1730742509559433
+        buyTransactionValue: 0.8008281904610115
+        sellGST: 2.027123023002322
+        totalSellCharges: 7.457744773683766
+        sellExchangeCharges: 9.301444243932576
+        chargesPercentage: 5.025004791520295
+        status: status
+      properties:
+        buyTransactionValue:
+          type: number
+        sellTransactionValue:
+          type: number
+        buyBrokerage:
+          type: number
+        sellBrokerage:
+          type: number
+        buySTT:
+          type: number
+        sellSTT:
+          type: number
+        buyExchangeCharges:
+          type: number
+        sellExchangeCharges:
+          type: number
+        buyGST:
+          type: number
+        sellGST:
+          type: number
+        buySEBICharges:
+          type: number
+        sellSEBICharges:
+          type: number
+        buyStampDuty:
+          type: number
+        sellStampDuty:
+          type: number
+        dpCharges:
+          type: number
+        totalBuyCharges:
+          type: number
+        totalSellCharges:
+          type: number
+        totalCharges:
+          type: number
+        netProfitLoss:
+          type: number
+        chargesPercentage:
+          type: number
+        breakEvenPrice:
+          type: number
+        status:
+          type: string
+        error:
+          type: string
+      type: object
+    MarketDataUpdateV1:
+      example:
+        volume: 7
+        previousClose: 2.3021358869347655
+        high: 5.962133916683182
+        instrumentKey: instrumentKey
+        low: 5.637376656633329
+        pChange: 9.301444243932576
+        change: 6.027456183070403
+        open: 1.4658129805029452
+        lastPrice: 0.8008281904610115
+        timestamp: timestamp
+      properties:
+        instrumentKey:
+          type: string
+        lastPrice:
+          format: double
+          type: number
+        change:
+          format: double
+          type: number
+        open:
+          format: double
+          type: number
+        high:
+          format: double
+          type: number
+        low:
+          format: double
+          type: number
+        previousClose:
+          format: double
+          type: number
+        volume:
+          format: int64
+          type: integer
+        timestamp:
+          type: string
+        pChange:
+          format: double
+          type: number
+      type: object
+    NSEIndexV1:
+      example:
+        oneYearAgo: 6.84685269835264
+        chartTodayPath: chartTodayPath
+        oneWeekAgo: 1.0246457001441578
+        date30dAgo: date30dAgo
+        yearHigh: 9.301444243932576
+        variation: 6.027456183070403
+        percentChange30d: 7.386281948385884
+        chart30dPath: chart30dPath
+        previousClose: 7.061401241503109
+        indexSymbol: indexSymbol
+        high: 5.637376656633329
+        low: 2.3021358869347655
+        dy: dy
+        advances: advances
+        date365dAgo: date365dAgo
+        key: key
+        yearLow: 3.616076749251911
+        declines: declines
+        oneMonthAgo: 1.4894159098541704
+        percentChange: 1.4658129805029452
+        last: 0.8008281904610115
+        unchanged: unchanged
+        percentChange365d: 4.145608029883936
+        index: index
+        chart365dPath: chart365dPath
+        previousDay: 1.2315135367772556
+        pb: pb
+        pe: pe
+        indicativeClose: 2.027123023002322
+        open: 5.962133916683182
+      properties:
+        key:
+          type: string
+        index:
+          type: string
+        indexSymbol:
+          type: string
+        last:
+          format: double
+          type: number
+        variation:
+          format: double
+          type: number
+        percentChange:
+          format: double
+          type: number
+        open:
+          format: double
+          type: number
+        high:
+          format: double
+          type: number
+        low:
+          format: double
+          type: number
+        previousClose:
+          format: double
+          type: number
+        yearHigh:
+          format: double
+          type: number
+        yearLow:
+          format: double
+          type: number
+        indicativeClose:
+          format: double
+          type: number
+        pe:
+          type: string
+        pb:
+          type: string
+        dy:
+          type: string
+        declines:
+          type: string
+        advances:
+          type: string
+        unchanged:
+          type: string
+        percentChange365d:
+          format: double
+          type: number
+        date365dAgo:
+          type: string
+        chart365dPath:
+          type: string
+        date30dAgo:
+          type: string
+        percentChange30d:
+          format: double
+          type: number
+        chart30dPath:
+          type: string
+        chartTodayPath:
+          type: string
+        previousDay:
+          format: double
+          type: number
+        oneWeekAgo:
+          format: double
+          type: number
+        oneMonthAgo:
+          format: double
+          type: number
+        oneYearAgo:
+          format: double
+          type: number
+      type: object
+

@@ -5,6 +5,8 @@ import 'providers/market_provider.dart';
 import 'services/api_service.dart';
 import 'screens/home_page.dart';
 import 'screens/admin/ingestion_logs_page.dart';
+import 'domain/repository/market_data_repository.dart';
+import 'data/repository/market_data_repository_impl.dart';
 
 void main() {
   runApp(const MarketDataApp());
@@ -18,7 +20,14 @@ class MarketDataApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider(create: (_) => ApiService()),
-        ChangeNotifierProvider(create: (_) => MarketProvider()),
+        Provider<MarketDataRepository>(
+          create: (_) => MarketDataRepositoryImpl(baseUrl: 'http://localhost:8092'),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => MarketProvider(
+            repository: context.read<MarketDataRepository>(),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Market Data Dashboard',

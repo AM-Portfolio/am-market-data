@@ -1,3 +1,4 @@
+import '../models/candle.dart';
 import '../models/security_quote.dart';
 import '../models/market_index.dart';
 
@@ -15,4 +16,13 @@ abstract class MarketDataRepository {
   
   /// Fetch the list of available indices by category.
   Future<Map<IndexCategory, List<String>>> getAvailableIndices();
+
+  /// Fetch historical data for charting.
+  Future<List<Candle>> getHistoricalData(String symbol, String range);
+
+  /// Search for securities by query string.
+  Future<List<SecurityQuote>> searchSecurities(String query);
+
+  /// Fetch top market movers (gainers/losers).
+  Future<List<SecurityQuote>> getMarketMovers(String type);
 }

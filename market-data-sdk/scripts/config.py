@@ -18,6 +18,7 @@ SDK_DIR = SCRIPTS_DIR.parent
 PROJECT_ROOT = SDK_DIR.parent
 API_DIR = PROJECT_ROOT / "market-data-api"
 SCHEMA_PATH = API_DIR / "target" / "openapi.json"
+ASYNC_SCHEMA_PATH = SDK_DIR / "asyncapi.yaml"
 
 SDKS = {
     "Python": {

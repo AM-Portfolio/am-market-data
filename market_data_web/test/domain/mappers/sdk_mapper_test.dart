@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:market_data_client/api.dart';
 import 'package:market_data_web/data/mappers/sdk_mapper.dart';
-import 'package:market_data_web/domain/models/security_quote.dart';
+import 'package:market_data_client/api.dart';
 
 void main() {
   group('SdkMapper Tests', () {
     test('mapUpdateToQuote should correctly map all fields', () {
       final update = MarketDataUpdateV1(
-        symbol: 'RELIANCE',
+        instrumentKey: 'RELIANCE',
         lastPrice: 2500.0,
         change: 10.0,
         pChange: 0.4,

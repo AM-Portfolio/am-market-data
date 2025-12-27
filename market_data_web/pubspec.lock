@@ -177,7 +177,7 @@ packages:
       path: "../market-data-sdk/market-data-sdk-flutter"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "0.0.0"
   matcher:
     dependency: transitive
     description:
