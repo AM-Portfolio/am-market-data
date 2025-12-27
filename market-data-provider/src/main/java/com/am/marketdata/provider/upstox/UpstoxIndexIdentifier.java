@@ -72,11 +72,11 @@ public class UpstoxIndexIdentifier {
     }
 
     /**
-     * Resolves a list of symbols to their Upstox instrument keys if they are
+     * Resolves a list of symbols to their Upstox InstrumentV1 keys if they are
      * indices.
      * 
      * @param symbols List of potential index names
-     * @return Map of {Original Symbol -> Upstox Instrument Key} for found indices.
+     * @return Map of {Original Symbol -> Upstox InstrumentV1 Key} for found indices.
      */
     public Map<String, String> resolveIndices(List<String> symbols) {
         Map<String, String> resolved = new HashMap<>();

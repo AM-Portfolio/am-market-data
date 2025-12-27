@@ -5,7 +5,7 @@
 
 // import org.springframework.stereotype.Service;
 
-// import com.am.marketdata.common.model.events.BoardOfDirector;
+// import com.am.marketdata.common.model.events.BoardOfDirectorV1;
 // import com.am.common.investment.model.board.BoardOfDirectors;
 // import com.am.common.investment.service.BoardOfDirectorsService;
 // import com.am.marketdata.external.api.client.TradeBrainClient;
@@ -102,7 +102,7 @@
 // }
 
 // // Parse response data
-// List<BoardOfDirector> directors = parseDirectors(response.getData());
+// List<BoardOfDirectorV1> directors = parseDirectors(response.getData());
 
 // if (directors.isEmpty()) {
 // log.warn("No board of directors data found for symbol: {}", symbol);
@@ -135,12 +135,12 @@
 // * Parse directors from JSON string
 // *
 // * @param jsonData JSON string containing directors data
-// * @return List of parsed BoardOfDirector objects
+// * @return List of parsed BoardOfDirectorV1 objects
 // */
-// private List<BoardOfDirector> parseDirectors(String jsonData) {
+// private List<BoardOfDirectorV1> parseDirectors(String jsonData) {
 // try {
 // return objectMapper.readValue(jsonData, new
-// TypeReference<List<BoardOfDirector>>() {});
+// TypeReference<List<BoardOfDirectorV1>>() {});
 // } catch (JsonProcessingException e) {
 // log.error("Error parsing board of directors data: {}", e.getMessage(), e);
 // return Collections.emptyList();

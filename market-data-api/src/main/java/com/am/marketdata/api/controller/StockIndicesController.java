@@ -1,7 +1,7 @@
 package com.am.marketdata.api.controller;
 
 import com.am.marketdata.api.service.StockIndicesApiService;
-import com.am.marketdata.common.model.NSEStockInsidicesData;
+import com.am.marketdata.common.model.NSEStockIndicesDataV1;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +24,10 @@ public class StockIndicesController {
 
     @GetMapping("/{indexSymbol}")
     @Operation(summary = "Get stock indices data", description = "Returns constituent stocks for a specific index")
-    public ResponseEntity<NSEStockInsidicesData> getStockIndices(
+    public ResponseEntity<NSEStockIndicesDataV1> getStockIndices(
             @PathVariable String indexSymbol,
             @RequestParam(defaultValue = "false") boolean forceRefresh) {
-        NSEStockInsidicesData data = stockIndicesApiService.getStockIndices(indexSymbol, forceRefresh);
+        NSEStockIndicesDataV1 data = stockIndicesApiService.getStockIndices(indexSymbol, forceRefresh);
         if (data != null) {
             return ResponseEntity.ok(data);
         }
@@ -36,7 +36,7 @@ public class StockIndicesController {
 
     @PostMapping("/batch")
     @Operation(summary = "Get multiple stock indices", description = "Returns constituent stocks for multiple indices")
-    public ResponseEntity<List<NSEStockInsidicesData>> getStockIndicesBatch(
+    public ResponseEntity<List<NSEStockIndicesDataV1>> getStockIndicesBatch(
             @RequestBody List<String> indexSymbols,
             @RequestParam(defaultValue = "false") boolean forceRefresh) {
         return ResponseEntity.ok(stockIndicesApiService.getStockIndicesBatch(indexSymbols, forceRefresh));

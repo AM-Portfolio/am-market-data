@@ -1,7 +1,7 @@
 package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.equity.financial.resultstatement.QuaterlyResult;
-import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialStatementResponseV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -74,7 +74,7 @@ public class QuaterlyFinancialDataOperation extends AbstractMarketDataOperation<
         try {
             ApiResponse response = tradeBrainClient.getQuaterlyFinancials(getIndexSymbol());
             log.info("Quaterly Financials Response: {}", response);
-            QuaterlyFinancialStatementResponse financials = stockQuaterlyResultFinanceMapper.parseQuaterlyFinancials(response.getData());
+            QuarterlyFinancialStatementResponseV1 financials = stockQuaterlyResultFinanceMapper.parseQuaterlyFinancials(response.getData());
             if (financials == null) {
                 return null;
             }

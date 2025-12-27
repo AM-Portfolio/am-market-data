@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -33,7 +33,7 @@ public class HistoricalDataRequest {
 
     @Builder.Default
     @JsonDeserialize(using = TimeFrameDeserializer.class)
-    private TimeFrame interval = TimeFrame.MINUTE;
+    private TimeFrameV1 interval = TimeFrameV1.MINUTE;
 
     private boolean continuous;
 

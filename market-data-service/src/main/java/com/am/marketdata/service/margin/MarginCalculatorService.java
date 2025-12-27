@@ -128,7 +128,7 @@ public class MarginCalculatorService {
             BigDecimal positionValue = position.getPrice()
                     .multiply(BigDecimal.valueOf(Math.abs(position.getQuantity())));
 
-            // Calculate SPAN margin (varies by instrument type)
+            // Calculate SPAN margin (varies by InstrumentV1 type)
             BigDecimal spanMarginPercent = getSpanMarginPercent(position);
             BigDecimal spanMargin = positionValue
                     .multiply(spanMarginPercent)
@@ -185,7 +185,7 @@ public class MarginCalculatorService {
      * @return SPAN margin percentage
      */
     private BigDecimal getSpanMarginPercent(MarginCalculationRequest.Position position) {
-        // Different margin requirements based on instrument type
+        // Different margin requirements based on InstrumentV1 type
         switch (position.getType().toLowerCase()) {
             case "equity":
                 return BigDecimal.valueOf("MIS".equals(position.getProduct()) ? 8 : defaultSpanMarginPercent);
@@ -205,7 +205,7 @@ public class MarginCalculatorService {
      * @return Exposure margin percentage
      */
     private BigDecimal getExposureMarginPercent(MarginCalculationRequest.Position position) {
-        // Different exposure margin requirements based on instrument type
+        // Different exposure margin requirements based on InstrumentV1 type
         switch (position.getType().toLowerCase()) {
             case "equity":
                 return BigDecimal.valueOf("MIS".equals(position.getProduct()) ? 3 : defaultExposureMarginPercent);

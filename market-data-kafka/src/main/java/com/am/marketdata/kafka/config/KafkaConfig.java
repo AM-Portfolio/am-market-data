@@ -1,13 +1,13 @@
 package com.am.marketdata.kafka.config;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
-import com.am.marketdata.common.model.events.BalanceSheetFinancialsUpdateEvent;
-import com.am.marketdata.common.model.events.BoardOfDirectorsUpdateEvent;
-import com.am.marketdata.common.model.events.CashFlowFinancialsUpdateEvent;
-import com.am.marketdata.common.model.events.FactSheetFinancialsUpdateEvent;
-import com.am.marketdata.common.model.events.QuaterlyFinancialsUpdateEvent;
-import com.am.marketdata.common.model.events.StockProfitAndLossFinancialsUpdateEvent;
-import com.am.marketdata.common.model.events.StockResultsFinancialsUpdateEvent;
+import com.am.marketdata.common.model.events.BalanceSheetFinancialsUpdateEventV1;
+import com.am.marketdata.common.model.events.BoardOfDirectorsUpdateEventV1;
+import com.am.marketdata.common.model.events.CashFlowFinancialsUpdateEventV1;
+import com.am.marketdata.common.model.events.FactSheetFinancialsUpdateEventV1;
+import com.am.marketdata.common.model.events.QuarterlyFinancialsUpdateEventV1;
+import com.am.marketdata.common.model.events.StockProfitAndLossFinancialsUpdateEventV1;
+import com.am.marketdata.common.model.events.StockResultsFinancialsUpdateEventV1;
 import com.am.common.investment.model.events.EquityPriceUpdateEvent;
 import com.am.common.investment.model.events.MarketIndexIndicesPriceUpdateEvent;
 import com.am.common.investment.model.events.StockIndicesPriceUpdateEvent;
@@ -124,37 +124,37 @@ public class KafkaConfig {
     }
 
     @Bean
-    public BaseKafkaProducer<BoardOfDirectorsUpdateEvent> boardOfDirectorsProducer() {
+    public BaseKafkaProducer<BoardOfDirectorsUpdateEventV1> boardOfDirectorsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<QuaterlyFinancialsUpdateEvent> quaterlyFinancialsProducer() {
+    public BaseKafkaProducer<QuarterlyFinancialsUpdateEventV1> quaterlyFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<BalanceSheetFinancialsUpdateEvent> balanceSheetFinancialsProducer() {
+    public BaseKafkaProducer<BalanceSheetFinancialsUpdateEventV1> balanceSheetFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<CashFlowFinancialsUpdateEvent> cashFlowFinancialsProducer() {
+    public BaseKafkaProducer<CashFlowFinancialsUpdateEventV1> cashFlowFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<StockProfitAndLossFinancialsUpdateEvent> profitAndLossFinancialsProducer() {
+    public BaseKafkaProducer<StockProfitAndLossFinancialsUpdateEventV1> profitAndLossFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<StockResultsFinancialsUpdateEvent> resultsFinancialsProducer() {
+    public BaseKafkaProducer<StockResultsFinancialsUpdateEventV1> resultsFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 
     @Bean
-    public BaseKafkaProducer<FactSheetFinancialsUpdateEvent> factSheetFinancialsProducer() {
+    public BaseKafkaProducer<FactSheetFinancialsUpdateEventV1> factSheetFinancialsProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());
     }
 

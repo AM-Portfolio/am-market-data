@@ -1,7 +1,7 @@
 package com.am.marketdata.service.util;
 
 import com.am.common.investment.model.historical.HistoricalData;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.provider.AMMarketDataProvider;
 import com.am.marketdata.service.provider.MarketDataProviderFactory;
@@ -19,7 +19,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
 
     private final Date fromDate;
     private final Date toDate;
-    private final TimeFrame interval;
+    private final TimeFrameV1 interval;
     private final boolean continuous;
     private final Map<String, Object> additionalParams;
     private final boolean isIndexSymbol;
@@ -32,7 +32,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             boolean cacheResults,
             Date fromDate,
             Date toDate,
-            TimeFrame interval,
+            TimeFrameV1 interval,
             boolean continuous,
             Map<String, Object> additionalParams,
             String targetProviderName,
@@ -52,13 +52,13 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      * @param allSymbols       All symbols being requested
      * @param remainingSymbols Set of symbols that still need to be retrieved (will
      *                         be modified)
-     * @param timeFrame        The time frame for the data (ignored as we use the
+     * @param TimeFrameV1      The time frame for the data (ignored as we use the
      *                         interval from constructor)
      * @return Map of symbol to historical data
      */
     @Override
     protected Map<String, HistoricalData> retrieveFromCache(List<String> allSymbols, Set<String> remainingSymbols,
-            TimeFrame timeFrame) {
+            TimeFrameV1 timeFrame) {
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -91,12 +91,12 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      *
      * @param remainingSymbols Set of symbols that still need to be retrieved (will
      *                         be modified)
-     * @param timeFrame        The time frame for the data (ignored as we use the
+     * @param TimeFrameV1      The time frame for the data (ignored as we use the
      *                         interval from constructor)
      * @return Map of symbol to historical data
      */
     @Override
-    protected Map<String, HistoricalData> retrieveFromDatabase(Set<String> remainingSymbols, TimeFrame timeFrame) {
+    protected Map<String, HistoricalData> retrieveFromDatabase(Set<String> remainingSymbols, TimeFrameV1 timeFrame) {
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -262,7 +262,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
     public static class Builder extends AbstractBuilder<String, HistoricalData, Builder, HistoricalDataRetriever> {
         private Date fromDate;
         private Date toDate;
-        private TimeFrame interval;
+        private TimeFrameV1 interval;
         private boolean continuous;
         private Map<String, Object> additionalParams;
         private boolean isIndexSymbol;
@@ -277,7 +277,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
             return this;
         }
 
-        public Builder interval(TimeFrame interval) {
+        public Builder interval(TimeFrameV1 interval) {
             this.interval = interval;
             return this;
         }

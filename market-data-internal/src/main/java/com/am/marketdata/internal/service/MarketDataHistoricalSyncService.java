@@ -4,7 +4,7 @@ import com.marketdata.common.model.HistoricalDataResponseV1;
 import com.am.marketdata.service.MarketDataService;
 // import com.am.marketdata.api.service.MarketDataFetchService;
 // import com.am.marketdata.api.util.InstrumentUtils;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.internal.model.IngestionJobLog;
 import com.am.marketdata.internal.model.MarketDataIngestionStatus;
 import com.am.marketdata.internal.repository.IngestionJobLogRepository;

@@ -2,9 +2,9 @@ package com.am.marketdata.provider.zerodha;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.am.marketdata.common.model.Instrument;
-import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.InstrumentV1;
+import com.am.marketdata.common.model.OHLCQuoteV1;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.provider.AMMarketDataProvider;
 import com.am.marketdata.provider.dto.InstrumentSearchCriteria;
 import com.am.marketdata.provider.zerodha.model.ZerodhaInstrument;
@@ -62,19 +62,19 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public Map<String, OHLCQuote> getQuotes(List<String> symbols) {
+    public Map<String, OHLCQuoteV1> getQuotes(List<String> symbols) {
         if (symbols == null || symbols.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<String, OHLCQuote> resultMap = new HashMap<>();
+        Map<String, OHLCQuoteV1> resultMap = new HashMap<>();
         try {
             // Zerodha's getOHLC uses "NSE:SYMBOL" format
             String[] symbolArray = symbols.stream()
                     .map(s -> s.startsWith("NSE:") ? s : "NSE:" + s)
                     .toArray(String[]::new);
 
-            // Map common OHLCQuote from Zerodha model
+            // Map common OHLCQuoteV1 from Zerodha model
             Map<String, com.zerodhatech.models.OHLCQuote> zerodhaQuotes = zerodhaApiService.getOHLC(symbolArray);
 
             if (zerodhaQuotes != null) {
@@ -99,8 +99,8 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
 
         Date fromDate = parseDate(from);
         Date toDate = parseDate(to);
-        // Map interval string (e.g. "1d") to TimeFrame enum if needed by logic
-        TimeFrame timeFrame = mapInterval(interval);
+        // Map interval string (e.g. "1d") to TimeFrameV1 enum if needed by logic
+        TimeFrameV1 timeFrame = mapInterval(interval);
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -127,7 +127,7 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public List<Instrument> getInstruments(String exchange) {
+    public List<InstrumentV1> getInstruments(String exchange) {
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setExchanges(Collections.singletonList(exchange));
 
@@ -136,7 +136,7 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public List<Instrument> searchInstruments(String query) {
+    public List<InstrumentV1> searchInstruments(String query) {
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setQueries(Collections.singletonList(query));
 
@@ -146,11 +146,11 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
 
     // --- Mappers ---
 
-    private OHLCQuote mapToCommonOHLC(com.zerodhatech.models.OHLCQuote zQuote) {
-        OHLCQuote q = new OHLCQuote();
+    private OHLCQuoteV1 mapToCommonOHLC(com.zerodhatech.models.OHLCQuote zQuote) {
+        OHLCQuoteV1 q = new OHLCQuoteV1();
         q.setLastPrice(zQuote.lastPrice);
         if (zQuote.ohlc != null) {
-            OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+            OHLCQuoteV1.OHLC ohlc = new OHLCQuoteV1.OHLC();
             ohlc.setOpen(zQuote.ohlc.open);
             ohlc.setHigh(zQuote.ohlc.high);
             ohlc.setLow(zQuote.ohlc.low);
@@ -201,8 +201,8 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
         return data;
     }
 
-    private Instrument mapToCommonInstrument(ZerodhaInstrument zInst) {
-        return Instrument.builder()
+    private InstrumentV1 mapToCommonInstrument(ZerodhaInstrument zInst) {
+        return InstrumentV1.builder()
                 .instrumentToken(zInst.getInstrumentToken())
                 .tradingSymbol(zInst.getTradingSymbol())
                 .name(zInst.getName())
@@ -233,14 +233,14 @@ public class ZerodhaMarketDataProvider implements AMMarketDataProvider {
 
     // Unused method removed: parseDateIso
 
-    private TimeFrame mapInterval(String interval) {
-        // Map "1d" -> TimeFrame.DAY
+    private TimeFrameV1 mapInterval(String interval) {
+        // Map "1d" -> TimeFrameV1.DAY
         if ("1d".equalsIgnoreCase(interval))
-            return TimeFrame.DAY;
+            return TimeFrameV1.DAY;
         if ("1m".equalsIgnoreCase(interval))
-            return TimeFrame.MINUTE;
+            return TimeFrameV1.MINUTE;
         // Default
-        return TimeFrame.DAY;
+        return TimeFrameV1.DAY;
     }
 
 }

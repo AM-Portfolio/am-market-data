@@ -1,8 +1,8 @@
 package com.am.marketdata.api.controller;
 
 import com.am.marketdata.api.service.SecurityApiService;
-import com.am.marketdata.common.model.SecurityDTO;
-import com.am.marketdata.common.model.SecuritySearchRequest;
+import com.am.marketdata.common.model.SecurityDTOV1;
+import com.am.marketdata.common.model.SecuritySearchRequestV1;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ public class SecurityController {
 
     @GetMapping("/find")
     @Operation(summary = "Find securities by symbols", description = "Returns metadata for specific symbols")
-    public ResponseEntity<List<SecurityDTO>> findBySymbols(@RequestParam String symbols) {
+    public ResponseEntity<List<SecurityDTOV1>> findBySymbols(@RequestParam String symbols) {
         List<String> symbolList = Arrays.asList(symbols.split(","));
         return ResponseEntity.ok(securityApiService.findBySymbols(symbolList));
     }
@@ -45,13 +45,13 @@ public class SecurityController {
 
     @PostMapping("/search")
     @Operation(summary = "Search securities", description = "Search for securities using various filters")
-    public ResponseEntity<List<SecurityDTO>> search(@RequestBody SecuritySearchRequest request) {
+    public ResponseEntity<List<SecurityDTOV1>> search(@RequestBody SecuritySearchRequestV1 request) {
         return ResponseEntity.ok(securityApiService.search(request));
     }
 
     @GetMapping("/all")
     @Operation(summary = "Get all securities", description = "Returns all available securities in the database")
-    public ResponseEntity<List<SecurityDTO>> getAll() {
+    public ResponseEntity<List<SecurityDTOV1>> getAll() {
         return ResponseEntity.ok(securityApiService.getAllSecurities());
     }
 }

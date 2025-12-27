@@ -13,12 +13,12 @@ import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.LiabilitiesMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
-import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetData;
-import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetMetrics;
-import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetDataV1;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialStatementResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialDataV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -31,7 +31,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j
@@ -41,7 +41,7 @@ public class StockBalanceSheetFinanceMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public BalanceSheetResponse parse(String jsonData) {
+    public BalanceSheetResponseV1 parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructType(BalanceSheetResponse.class));
     }
@@ -50,13 +50,13 @@ public class StockBalanceSheetFinanceMapper {
 
     
     /**
-     * Create QuarterlyFinancialMetrics from symbol and QuaterlyFinancialStatementResponse object
+     * Create QuarterlyFinancialMetricsV1 from symbol and QuarterlyFinancialStatementResponseV1 object
      * 
      * @param symbol Stock symbol
-     * @param financials BalanceSheetResponse object
+     * @param financials BalanceSheetResponseV1 object
      * @return StockBalanceSheet object
      */
-    public StockBalanceSheet toBalanceSheet(String symbol, BalanceSheetResponse balanceSheetResponse) {
+    public StockBalanceSheet toBalanceSheet(String symbol, BalanceSheetResponseV1 balanceSheetResponse) {
         if (balanceSheetResponse == null) {
             return null;
         }
@@ -80,7 +80,7 @@ public class StockBalanceSheetFinanceMapper {
             .collect(Collectors.toList());
     }
 
-    private BalanceSheet toBalanceSheet(String key, BalanceSheetMetrics balanceSheet) {
+    private BalanceSheet toBalanceSheet(String key, BalanceSheetMetricsV1 balanceSheet) {
         if (balanceSheet == null) {
             return null;
         }

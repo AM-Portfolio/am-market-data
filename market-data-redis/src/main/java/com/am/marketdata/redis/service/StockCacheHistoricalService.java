@@ -1,6 +1,6 @@
 package com.am.marketdata.redis.service;
 
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.marketdata.redis.model.OHLCV;
 import com.am.marketdata.redis.model.StockBars;
@@ -115,7 +115,7 @@ public class StockCacheHistoricalService {
             if (dailyBar != null) {
                 String dateStr = BarCalculatorUtil.formatDate(date);
                 boolean success = stockRedisCache.saveHistoricalBar(symbol, dateStr, dailyBar,
-                        TimeFrame.DAY.getApiValue());
+                        TimeFrameV1.DAY.getApiValue());
                 log.debug("Processed and cached daily bar for {} on {}", symbol, dateStr);
                 return success;
             }

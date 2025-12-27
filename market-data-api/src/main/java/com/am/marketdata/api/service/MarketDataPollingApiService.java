@@ -11,7 +11,7 @@ public interface MarketDataPollingApiService {
      * Poll live market data for given symbols
      * 
      * @param symbols     Comma-separated list of symbols
-     * @param timeFrame   Time frame for the data
+     * @param TimeFrameV1   Time frame for the data
      * @param indexSymbol Whether symbols are index symbols
      * @return Polling response with market data
      */

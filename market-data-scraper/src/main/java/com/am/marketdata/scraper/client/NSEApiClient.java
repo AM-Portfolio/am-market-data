@@ -64,11 +64,11 @@ public class NSEApiClient {
             .register(meterRegistry);
     }
 
-    public NSEStockInsidicesData getStockIndices(String indexSymbol) {
+    public NSEStockIndicesDataV1 getStockIndices(String indexSymbol) {
         return stockIndicesRequestTimer.record(() -> executeApiCall("/api/equity-stockIndices?index=" + indexSymbol, NSEStockInsidicesData.class, this::logStockIndicesResponse));
     }
 
-    public NSEIndicesResponse getAllIndices() {
+    public NSEIndicesResponseV1 getAllIndices() {
         return indicesRequestTimer.record(() -> executeApiCall("/api/allIndices", NSEIndicesResponse.class, this::logIndicesResponse));
     }
 

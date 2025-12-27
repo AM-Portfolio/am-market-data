@@ -1,7 +1,7 @@
 package com.am.marketdata.api.controller;
 
 import com.am.marketdata.api.service.MarketIndexApiService;
-import com.am.marketdata.common.model.NSEIndex;
+import com.am.marketdata.common.model.NSEIndexV1;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +26,14 @@ public class MarketIndexController {
 
     @GetMapping("/all")
     @Operation(summary = "Get all market indices", description = "Returns all available market indices")
-    public ResponseEntity<List<NSEIndex>> getAllIndices() {
+    public ResponseEntity<List<NSEIndexV1>> getAllIndices() {
         return ResponseEntity.ok(marketIndexApiService.getAllIndices());
     }
 
     @GetMapping("/{symbol}")
     @Operation(summary = "Get index by symbol", description = "Returns a specific index by its symbol")
-    public ResponseEntity<NSEIndex> getIndex(@PathVariable String symbol) {
-        NSEIndex index = marketIndexApiService.getIndex(symbol);
+    public ResponseEntity<NSEIndexV1> getIndex(@PathVariable String symbol) {
+        NSEIndexV1 index = marketIndexApiService.getIndex(symbol);
         if (index != null) {
             return ResponseEntity.ok(index);
         }

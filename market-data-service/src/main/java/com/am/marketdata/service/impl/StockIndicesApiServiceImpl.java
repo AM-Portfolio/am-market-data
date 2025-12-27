@@ -22,7 +22,7 @@ import java.util.Map;
 public class StockIndicesApiServiceImpl implements StockIndicesApiService {
 
     @Override
-    public NSEStockInsidicesData getStockIndices(String indexSymbol, boolean forceRefresh) {
+    public NSEStockIndicesDataV1 getStockIndices(String indexSymbol, boolean forceRefresh) {
         log.warn("StockIndicesApiService.getStockIndices({}, {}) is not fully implemented yet",
                 indexSymbol, forceRefresh);
         // TODO: Integrate with scraper module's StockIndicesSchedulerService or create
@@ -31,7 +31,7 @@ public class StockIndicesApiServiceImpl implements StockIndicesApiService {
     }
 
     @Override
-    public List<NSEStockInsidicesData> getStockIndicesBatch(List<String> indexSymbols, boolean forceRefresh) {
+    public List<NSEStockIndicesDataV1> getStockIndicesBatch(List<String> indexSymbols, boolean forceRefresh) {
         log.warn("StockIndicesApiService.getStockIndicesBatch({} symbols, {}) is not fully implemented yet",
                 indexSymbols.size(), forceRefresh);
         // TODO: Integrate with scraper module for batch fetching

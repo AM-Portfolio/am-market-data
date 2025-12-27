@@ -1,6 +1,6 @@
 package com.am.marketdata.api.service;
 
-import com.am.marketdata.common.model.NSEIndex;
+import com.am.marketdata.common.model.NSEIndexV1;
 
 import java.util.List;
 
@@ -11,10 +11,10 @@ public interface MarketIndexApiService {
     /**
      * Get all market indices
      */
-    List<NSEIndex> getAllIndices();
+    List<NSEIndexV1> getAllIndices();
 
     /**
      * Get a specific index by symbol
      */
-    NSEIndex getIndex(String symbol);
+    NSEIndexV1 getIndex(String symbol);
 }

@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Component("etfIndicesMapper")
 public class ETFIndicesMapper {
 
-    public static List<ETFIndies> convertToETFIndices(List<NseETF> data) {
+    public static List<ETFIndies> convertToETFIndices(List<NSEETFDtoV1> data) {
         return data.stream()
             .map(ETFIndicesMapper::convertToMarketIndices)
             .collect(Collectors.toList());

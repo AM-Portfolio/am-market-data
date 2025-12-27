@@ -39,7 +39,7 @@ public class ZerodhaInstrumentService implements InstrumentDataProvider {
     }
 
     public void updateInstrumentsFromFile(String filePath) throws IOException {
-        log.info("Starting instrument update from file: {}", filePath);
+        log.info("Starting InstrumentV1 update from file: {}", filePath);
         File file = new File(filePath);
         if (!file.exists()) {
             throw new IOException("File not found: " + filePath);
@@ -99,7 +99,7 @@ public class ZerodhaInstrumentService implements InstrumentDataProvider {
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
         List<org.springframework.data.mongodb.core.query.Criteria> criteriaList = new ArrayList<>();
 
-        // 1. Apply Filters (Exchange, Instrument Type)
+        // 1. Apply Filters (Exchange, InstrumentV1 Type)
         if (criteria.getExchanges() != null && !criteria.getExchanges().isEmpty()) {
             criteriaList.add(
                     org.springframework.data.mongodb.core.query.Criteria.where("exchange").in(criteria.getExchanges()));

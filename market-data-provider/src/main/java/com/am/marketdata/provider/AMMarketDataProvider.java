@@ -1,7 +1,7 @@
 package com.am.marketdata.provider;
 
-import com.am.marketdata.common.model.Instrument;
-import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.InstrumentV1;
+import com.am.marketdata.common.model.OHLCQuoteV1;
 import com.am.common.investment.model.historical.HistoricalData;
 import java.util.*;
 
@@ -22,7 +22,7 @@ public interface AMMarketDataProvider {
      * @param symbols List of trading symbols
      * @return Map of symbol to OHLC quote
      */
-    Map<String, OHLCQuote> getQuotes(List<String> symbols);
+    Map<String, OHLCQuoteV1> getQuotes(List<String> symbols);
 
     /**
      * Get historical OHLC data
@@ -45,7 +45,7 @@ public interface AMMarketDataProvider {
      * @param exchange Exchange name (NSE, BSE, etc.)
      * @return List of instruments
      */
-    List<Instrument> getInstruments(String exchange);
+    List<InstrumentV1> getInstruments(String exchange);
 
     /**
      * Search instruments by symbol or name
@@ -53,7 +53,7 @@ public interface AMMarketDataProvider {
      * @param query Search query
      * @return List of matching instruments
      */
-    List<Instrument> searchInstruments(String query);
+    List<InstrumentV1> searchInstruments(String query);
 
     /**
      * Login to provider with credentials
@@ -92,12 +92,12 @@ public interface AMMarketDataProvider {
 
     // --- Bridge Methods for Service Compatibility ---
 
-    default Map<String, OHLCQuote> getLTP(String[] symbols) {
+    default Map<String, OHLCQuoteV1> getLTP(String[] symbols) {
         return getQuotes(Arrays.asList(symbols));
     }
 
     default Map<String, HistoricalData> getHistoricalDataEx(List<String> symbols, Date from, Date to,
-            com.am.marketdata.common.model.TimeFrame interval, boolean continuous,
+            com.am.marketdata.common.model.TimeFrameV1 interval, boolean continuous,
             Map<String, Object> additionalParams) {
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
         String fromStr = sdf.format(from);
@@ -119,18 +119,19 @@ public interface AMMarketDataProvider {
         return getHistoricalData(symbols, fromStr, toStr, intervalStr);
     }
 
-    default Map<String, OHLCQuote> getOHLC(List<String> symbols, com.am.marketdata.common.model.TimeFrame timeFrame) {
+    default Map<String, OHLCQuoteV1> getOHLC(List<String> symbols,
+            com.am.marketdata.common.model.TimeFrameV1 timeFrame) {
         // Assuming OHLC request for recent data is same as Quote
         return getQuotes(symbols);
     }
 
-    default List<Instrument> getAllInstruments() {
+    default List<InstrumentV1> getAllInstruments() {
         return getInstruments("NSE");
     }
 
     default List<String> getSymbolsForExchange(String exchange) {
         return getInstruments(exchange).stream()
-                .map(Instrument::getTradingSymbol)
+                .map(InstrumentV1::getTradingSymbol)
                 .toList();
     }
 

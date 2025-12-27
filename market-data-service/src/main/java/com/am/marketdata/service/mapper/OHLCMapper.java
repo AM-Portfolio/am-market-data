@@ -2,7 +2,7 @@ package com.am.marketdata.service.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuoteV1;
 import org.springframework.stereotype.Component;
 
 import java.time.ZonedDateTime;
@@ -12,27 +12,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mapper class to convert between OHLCQuote and EquityPrice objects
+ * Mapper class to convert between OHLCQuoteV1 and EquityPrice objects
  */
 @Component
 public class OHLCMapper {
 
     /**
-     * Convert a Zerodha OHLCQuote to our service OHLCQuote model
+     * Convert a Zerodha OHLCQuoteV1 to our service OHLCQuoteV1 model
      *
-     * @param zerodhaQuote The Zerodha OHLCQuote object
-     * @return Service layer OHLCQuote object
+     * @param zerodhaQuote The Zerodha OHLCQuoteV1 object
+     * @return Service layer OHLCQuoteV1 object
      */
-    public OHLCQuote toServiceOHLCQuote(com.zerodhatech.models.OHLCQuote zerodhaQuote) {
+    public OHLCQuoteV1 toServiceOHLCQuote(com.zerodhatech.models.OHLCQuote zerodhaQuote) {
         if (zerodhaQuote == null) {
             return null;
         }
 
-        OHLCQuote ohlcQuote = new OHLCQuote();
+        OHLCQuoteV1 ohlcQuote = new OHLCQuoteV1();
         ohlcQuote.setLastPrice(zerodhaQuote.lastPrice);
 
         // Create and set the nested OHLC object
-        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        OHLCQuoteV1.OHLC ohlc = new OHLCQuoteV1.OHLC();
         if (zerodhaQuote.ohlc != null) {
             ohlc.setOpen(zerodhaQuote.ohlc.open);
             ohlc.setHigh(zerodhaQuote.ohlc.high);
@@ -50,12 +50,13 @@ public class OHLCMapper {
      * @param zerodhaOhlcMap Map of symbol to Zerodha OHLCQuote
      * @return Map of symbol to service OHLCQuote
      */
-    public Map<String, OHLCQuote> toServiceOHLCQuoteMap(Map<String, com.zerodhatech.models.OHLCQuote> zerodhaOhlcMap) {
+    public Map<String, OHLCQuoteV1> toServiceOHLCQuoteMap(
+            Map<String, com.zerodhatech.models.OHLCQuote> zerodhaOhlcMap) {
         if (zerodhaOhlcMap == null || zerodhaOhlcMap.isEmpty()) {
             return new HashMap<>();
         }
 
-        Map<String, OHLCQuote> result = new HashMap<>(zerodhaOhlcMap.size());
+        Map<String, OHLCQuoteV1> result = new HashMap<>(zerodhaOhlcMap.size());
 
         for (Map.Entry<String, com.zerodhatech.models.OHLCQuote> entry : zerodhaOhlcMap.entrySet()) {
             result.put(entry.getKey(), toServiceOHLCQuote(entry.getValue()));
@@ -65,13 +66,13 @@ public class OHLCMapper {
     }
 
     /**
-     * Convert an OHLCQuote to an EquityPrice object
+     * Convert an OHLCQuoteV1 to an EquityPrice object
      *
-     * @param symbol    The trading symbol
-     * @param ohlcQuote The OHLCQuote object
+     * @param symbol      The trading symbol
+     * @param OHLCQuoteV1 The OHLCQuoteV1 object
      * @return EquityPrice object
      */
-    public EquityPrice toEquityPrice(String symbol, OHLCQuote ohlcQuote) {
+    public EquityPrice toEquityPrice(String symbol, OHLCQuoteV1 ohlcQuote) {
         if (ohlcQuote == null || ohlcQuote.getOhlc() == null) {
             return null;
         }
@@ -95,14 +96,14 @@ public class OHLCMapper {
      * @param ohlcData Map of symbol to OHLCQuote
      * @return List of EquityPrice objects
      */
-    public List<EquityPrice> toEquityPriceList(Map<String, OHLCQuote> ohlcData) {
+    public List<EquityPrice> toEquityPriceList(Map<String, OHLCQuoteV1> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {
             return new ArrayList<>();
         }
 
         List<EquityPrice> prices = new ArrayList<>(ohlcData.size());
 
-        for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
+        for (Map.Entry<String, OHLCQuoteV1> entry : ohlcData.entrySet()) {
             EquityPrice price = toEquityPrice(entry.getKey(), entry.getValue());
             if (price != null) {
                 prices.add(price);

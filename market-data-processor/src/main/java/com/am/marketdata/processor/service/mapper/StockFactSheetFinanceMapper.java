@@ -11,12 +11,12 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
-import com.am.marketdata.common.model.tradeB.financials.dividend.DividendData;
-import com.am.marketdata.common.model.tradeB.financials.dividend.DividendMetrics;
-import com.am.marketdata.common.model.tradeB.financials.dividend.FactSheetDividendResponse;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossData;
-import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
+import com.am.marketdata.common.model.tradeB.financials.dividend.DividendDataV1;
+import com.am.marketdata.common.model.tradeB.financials.dividend.DividendMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.dividend.FactSheetDividendResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossDataV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialDataV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -37,7 +37,7 @@ public class StockFactSheetFinanceMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public FactSheetDividendResponse parse(String jsonData) {
+    public FactSheetDividendResponseV1 parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructType(FactSheetDividendResponse.class));
     }
@@ -45,13 +45,13 @@ public class StockFactSheetFinanceMapper {
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
     /**
-     * Create QuarterlyFinancialMetrics from symbol and QuaterlyFinancialStatementResponse object
+     * Create QuarterlyFinancialMetricsV1 from symbol and QuarterlyFinancialStatementResponseV1 object
      * 
      * @param symbol Stock symbol
-     * @param financials FactSheetDividendResponse object
+     * @param financials FactSheetDividendResponseV1 object
      * @return StockFactSheetDividend object
      */
-    public StockFactSheetDividend toFactSheetDividend(String symbol, FactSheetDividendResponse financials) {
+    public StockFactSheetDividend toFactSheetDividend(String symbol, FactSheetDividendResponseV1 financials) {
         if (financials == null) {
             return null;
         }
@@ -75,15 +75,15 @@ public class StockFactSheetFinanceMapper {
             .collect(Collectors.toList());
     }
 
-    private FactSheetDividend toFactSheetDividend(String quarterKey, DividendMetrics dividendMetrics) {
+    private FactSheetDividend toFactSheetDividend(String quarterKey, DividendMetricsV1 dividendMetrics) {
         if (dividendMetrics == null) {
             return null;
         }
         var FactSheetDividendBuilder = FactSheetDividend.builder()
             .yearEnd(quarterKey)
-            //.growthMetrics(toGrowthMetrics(dividendMetrics))
-            //.financialRatios(toFinancialRatios(dividendMetrics))
-            .dividendMetrics(toDividendMetrics(dividendMetrics))
+            //.growthMetrics(toGrowthMetrics(DividendMetricsV1))
+            //.financialRatios(toFinancialRatios(DividendMetricsV1))
+            .dividendMetrics(toDividendMetrics(DividendMetricsV1))
             .assetTurnoverRatio(dividendMetrics.getAssetTurnoverRatio())
             .workingCapitalDays(dividendMetrics.getWorkingCapitalDays())
             .inventoryTurnoverRatio(dividendMetrics.getInventoryTurnoverRatio())

@@ -40,7 +40,7 @@ public class UpstoxInstrumentService implements InstrumentDataProvider {
     }
 
     public void updateInstrumentsFromFile(String filePath) throws IOException {
-        log.info("Starting instrument update from file: {}", filePath);
+        log.info("Starting InstrumentV1 update from file: {}", filePath);
         File file = new File(filePath);
         if (!file.exists()) {
             throw new IOException("File not found: " + filePath);
@@ -101,33 +101,42 @@ public class UpstoxInstrumentService implements InstrumentDataProvider {
         List<org.springframework.data.mongodb.core.query.Criteria> criteriaList = new ArrayList<>();
 
         if (criteria.getExchanges() != null && !criteria.getExchanges().isEmpty()) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("exchange").in(criteria.getExchanges()));
+            criteriaList.add(
+                    org.springframework.data.mongodb.core.query.Criteria.where("exchange").in(criteria.getExchanges()));
         }
         if (criteria.getInstrumentTypes() != null && !criteria.getInstrumentTypes().isEmpty()) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("instrumentType").in(criteria.getInstrumentTypes()));
+            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("instrumentType")
+                    .in(criteria.getInstrumentTypes()));
         }
         if (criteria.getSegments() != null && !criteria.getSegments().isEmpty()) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("segment").in(criteria.getSegments()));
+            criteriaList.add(
+                    org.springframework.data.mongodb.core.query.Criteria.where("segment").in(criteria.getSegments()));
         }
         if (criteria.getWeekly() != null) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("weekly").is(criteria.getWeekly()));
+            criteriaList
+                    .add(org.springframework.data.mongodb.core.query.Criteria.where("weekly").is(criteria.getWeekly()));
         }
         if (criteria.getIsins() != null && !criteria.getIsins().isEmpty()) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("isin").in(criteria.getIsins()));
+            criteriaList
+                    .add(org.springframework.data.mongodb.core.query.Criteria.where("isin").in(criteria.getIsins()));
         }
         if (criteria.getTradingSymbols() != null && !criteria.getTradingSymbols().isEmpty()) {
-            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("tradingSymbol").in(criteria.getTradingSymbols()));
+            criteriaList.add(org.springframework.data.mongodb.core.query.Criteria.where("tradingSymbol")
+                    .in(criteria.getTradingSymbols()));
         }
 
         if (criteria.getQueries() != null && !criteria.getQueries().isEmpty()) {
             List<org.springframework.data.mongodb.core.query.Criteria> orCriteria = new ArrayList<>();
-            orCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("isin").in(criteria.getQueries()));
-            orCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("assetSymbol").in(criteria.getQueries()));
+            orCriteria
+                    .add(org.springframework.data.mongodb.core.query.Criteria.where("isin").in(criteria.getQueries()));
+            orCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("assetSymbol")
+                    .in(criteria.getQueries()));
 
             for (String text : criteria.getQueries()) {
                 String regex = ".*" + java.util.regex.Pattern.quote(text) + ".*";
                 orCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("name").regex(regex, "i"));
-                orCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("assetSymbol").regex(regex, "i"));
+                orCriteria.add(
+                        org.springframework.data.mongodb.core.query.Criteria.where("assetSymbol").regex(regex, "i"));
             }
 
             if (!orCriteria.isEmpty()) {

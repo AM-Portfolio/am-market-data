@@ -1,7 +1,7 @@
 package com.am.marketdata.service;
 
 import com.am.common.investment.model.historical.HistoricalData;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 
 import java.util.Date;
 
@@ -15,26 +15,26 @@ public interface TimeFrameAggregationService {
      * Aggregate historical data to a higher timeframe
      * 
      * @param sourceData The source historical data in a lower timeframe
-     * @param targetTimeFrame The target timeframe to aggregate to
+     * @param targetTimeFrame The target TimeFrameV1 to aggregate to
      * @return Aggregated historical data
      */
-    HistoricalData aggregateTimeFrame(HistoricalData sourceData, TimeFrame targetTimeFrame);
+    HistoricalData aggregateTimeFrame(HistoricalData sourceData, TimeFrameV1 targetTimeFrame);
     
     /**
-     * Check if a timeframe requires client-side aggregation
+     * Check if a TimeFrameV1 requires client-side aggregation
      * 
-     * @param timeFrame The timeframe to check
-     * @return true if the timeframe requires aggregation
+     * @param TimeFrameV1 The TimeFrameV1 to check
+     * @return true if the TimeFrameV1 requires aggregation
      */
     boolean requiresAggregation(TimeFrame timeFrame);
     
     /**
-     * Get the base timeframe needed to aggregate to the target timeframe
+     * Get the base TimeFrameV1 needed to aggregate to the target timeframe
      * 
      * @param targetTimeFrame The target timeframe
-     * @return The base timeframe needed for aggregation
+     * @return The base TimeFrameV1 needed for aggregation
      */
-    TimeFrame getBaseTimeFrame(TimeFrame targetTimeFrame);
+    TimeFrameV1 getBaseTimeFrame(TimeFrame targetTimeFrame);
     
     /**
      * Calculate the adjusted date range needed to fetch enough data for aggregation
@@ -44,5 +44,5 @@ public interface TimeFrameAggregationService {
      * @param targetTimeFrame Target timeframe
      * @return Adjusted date range as [fromDate, toDate]
      */
-    Date[] calculateAdjustedDateRange(Date fromDate, Date toDate, TimeFrame targetTimeFrame);
+    Date[] calculateAdjustedDateRange(Date fromDate, Date toDate, TimeFrameV1 targetTimeFrame);
 }

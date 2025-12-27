@@ -9,12 +9,14 @@ import java.io.Serializable;
 
 /**
  * Data Transfer Object for Security information
+ * 
+ * @version 1.0
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SecurityDTO implements Serializable {
+public class SecurityDTOV1 implements Serializable {
     private String symbol;
     private String isin;
     private String sector;

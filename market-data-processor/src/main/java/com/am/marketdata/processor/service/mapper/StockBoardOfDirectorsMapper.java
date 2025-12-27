@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 import com.am.common.investment.model.board.BoardOfDirectors;
 import com.am.common.investment.model.board.Director;
 import com.am.common.investment.model.equity.financial.BaseModel;
-import com.am.marketdata.common.model.events.BoardOfDirector;
+import com.am.marketdata.common.model.events.BoardOfDirectorV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -16,7 +16,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j
@@ -26,7 +26,7 @@ public class StockBoardOfDirectorsMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public List<BoardOfDirector> parseDirectors(String jsonData) {
+    public List<BoardOfDirectorV1> parseDirectors(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructCollectionType(List.class, BoardOfDirector.class));
     }
@@ -40,7 +40,7 @@ public class StockBoardOfDirectorsMapper {
      * @param directors List of directors
      * @return BoardOfDirectors object
      */
-    public BoardOfDirectors toBoardOfDirectors(String symbol, List<BoardOfDirector> directors) {
+    public BoardOfDirectors toBoardOfDirectors(String symbol, List<BoardOfDirectorV1> directors) {
         if (directors == null) {
             return null;
         }
@@ -54,7 +54,7 @@ public class StockBoardOfDirectorsMapper {
             .build();
     }
 
-    public List<Director> toDirectors(String symbol,List<BoardOfDirector> directors) {
+    public List<Director> toDirectors(String symbol,List<BoardOfDirectorV1> directors) {
         if (directors == null) {
             return null;
         }

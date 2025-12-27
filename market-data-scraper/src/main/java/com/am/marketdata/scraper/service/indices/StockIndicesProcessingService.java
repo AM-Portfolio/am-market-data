@@ -59,7 +59,7 @@
 //                 .map(indexSymbol -> CompletableFuture.supplyAsync(() -> {
 //                     try {
 //                         long startTime = System.currentTimeMillis();
-//                         NSEStockInsidicesData data = nseApiClient.getStockIndices(indexSymbol);
+//                         NSEStockIndicesDataV1 data = nseApiClient.getStockIndices(indexSymbol);
 //                         if (data != null) {
 //                             processStockIndicesData(data);
 //                             recordMetrics(startTime, true, indexSymbol);

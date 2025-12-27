@@ -1,6 +1,6 @@
 package com.am.marketdata.redis.service;
 
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import static com.am.marketdata.common.constants.TimeIntervalConstants.*;
 import com.am.marketdata.redis.cache.StockRedisCache;
 import com.am.marketdata.redis.model.OHLCV;
@@ -54,7 +54,7 @@ public class StockCacheService {
     /**
      * Cache a historical bar for a symbol and date
      */
-    public boolean cacheHistoricalBar(String symbol, String date, OHLCV bar, TimeFrame timeFrame) {
+    public boolean cacheHistoricalBar(String symbol, String date, OHLCV bar, TimeFrameV1 timeFrame) {
         // Create StockBars object for the historical service
         StockBars stockBars = StockBars.builder()
                 .symbol(symbol)

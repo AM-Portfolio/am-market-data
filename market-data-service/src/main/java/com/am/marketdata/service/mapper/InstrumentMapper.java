@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper class to convert between Zerodha Instrument and AM Common Instrument
+ * Mapper class to convert between Zerodha InstrumentV1 and AM Common InstrumentV1
  * models
  */
 @Slf4j
@@ -21,18 +21,18 @@ import java.util.stream.Collectors;
 public class InstrumentMapper {
 
     /**
-     * Convert a Zerodha instrument to AM common instrument model
+     * Convert a Zerodha InstrumentV1 to AM common InstrumentV1 model
      *
-     * @param zerodhaInstrument Zerodha instrument model
-     * @return AM common instrument model
+     * @param zerodhaInstrument Zerodha InstrumentV1 model
+     * @return AM common InstrumentV1 model
      */
-    public Instrument toCommonInstrument(com.zerodhatech.models.Instrument zerodhaInstrument) {
+    public InstrumentV1 toCommonInstrument(com.zerodhatech.models.Instrument zerodhaInstrument) {
         if (zerodhaInstrument == null) {
             return null;
         }
 
         try {
-            Instrument instrument = new Instrument();
+            InstrumentV1 instrument = new InstrumentV1();
 
             // Map basic properties
             instrument.setTradingSymbol(zerodhaInstrument.tradingsymbol);
@@ -40,7 +40,7 @@ public class InstrumentMapper {
             instrument.setName(zerodhaInstrument.name);
             instrument.setExchangeToken(zerodhaInstrument.exchange_token);
 
-            // Map instrument type
+            // Map InstrumentV1 type
             if (zerodhaInstrument.instrument_type != null) {
                 instrument.setInstrumentType(mapInstrumentType(zerodhaInstrument.instrument_type));
             }
@@ -68,7 +68,7 @@ public class InstrumentMapper {
 
             return instrument;
         } catch (Exception e) {
-            log.error("Error mapping Zerodha instrument to common instrument: {}", e.getMessage(), e);
+            log.error("Error mapping Zerodha InstrumentV1 to common instrument: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -76,34 +76,34 @@ public class InstrumentMapper {
     /**
      * Convert a list of Zerodha instruments to a list of AM common instruments
      *
-     * @param zerodhaInstruments List of Zerodha instrument models
-     * @return List of AM common instrument models
+     * @param zerodhaInstruments List of Zerodha InstrumentV1 models
+     * @return List of AM common InstrumentV1 models
      */
-    public List<Instrument> toCommonInstruments(List<com.zerodhatech.models.Instrument> zerodhaInstruments) {
+    public List<InstrumentV1> toCommonInstruments(List<com.zerodhatech.models.Instrument> zerodhaInstruments) {
         if (zerodhaInstruments == null || zerodhaInstruments.isEmpty()) {
             return new ArrayList<>();
         }
 
         return zerodhaInstruments.stream()
                 .map(this::toCommonInstrument)
-                .filter(instrument -> instrument != null)
+                .filter(instrument -> InstrumentV1 != null)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Convert the new provider common instrument to service's internal instrument
+     * Convert the new provider common InstrumentV1 to service's internal InstrumentV1
      * model
      *
-     * @param providerInstrument Provider's common instrument model
-     * @return Service's internal instrument model
+     * @param providerInstrument Provider's common InstrumentV1 model
+     * @return Service's internal InstrumentV1 model
      */
-    public Instrument fromProviderInstrument(com.am.marketdata.common.model.Instrument providerInstrument) {
+    public InstrumentV1 fromProviderInstrument(com.am.marketdata.common.model.Instrument providerInstrument) {
         if (providerInstrument == null) {
             return null;
         }
 
         try {
-            Instrument instrument = new Instrument();
+            InstrumentV1 instrument = new InstrumentV1();
             instrument.setTradingSymbol(providerInstrument.getTradingSymbol());
 
             // Map token safely
@@ -152,7 +152,7 @@ public class InstrumentMapper {
             }
             return instrument;
         } catch (Exception e) {
-            log.error("Error mapping provider instrument to internal instrument: {}", e.getMessage(), e);
+            log.error("Error mapping provider InstrumentV1 to internal instrument: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -161,10 +161,10 @@ public class InstrumentMapper {
      * Convert a list of provider common instruments to a list of internal
      * instruments
      *
-     * @param providerInstruments List of provider's common instrument models
-     * @return List of internal instrument models
+     * @param providerInstruments List of provider's common InstrumentV1 models
+     * @return List of internal InstrumentV1 models
      */
-    public List<Instrument> fromProviderInstruments(
+    public List<InstrumentV1> fromProviderInstruments(
             List<com.am.marketdata.common.model.Instrument> providerInstruments) {
         if (providerInstruments == null || providerInstruments.isEmpty()) {
             return new ArrayList<>();
@@ -172,15 +172,15 @@ public class InstrumentMapper {
 
         return providerInstruments.stream()
                 .map(this::fromProviderInstrument)
-                .filter(instrument -> instrument != null)
+                .filter(instrument -> InstrumentV1 != null)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Map Zerodha instrument type to AM common instrument type
+     * Map Zerodha InstrumentV1 type to AM common InstrumentV1 type
      *
-     * @param zerodhaType Zerodha instrument type
-     * @return AM common instrument type
+     * @param zerodhaType Zerodha InstrumentV1 type
+     * @return AM common InstrumentV1 type
      */
     private InstrumentType mapInstrumentType(String zerodhaType) {
         if (zerodhaType == null) {

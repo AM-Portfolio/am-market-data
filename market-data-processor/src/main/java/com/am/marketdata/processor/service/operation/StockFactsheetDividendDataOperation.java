@@ -2,8 +2,8 @@ package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.equity.financial.factsheetdividend.StockFactSheetDividend;
 import com.am.common.investment.model.equity.financial.profitandloss.StockProfitAndLoss;
-import com.am.marketdata.common.model.tradeB.financials.dividend.FactSheetDividendResponse;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
+import com.am.marketdata.common.model.tradeB.financials.dividend.FactSheetDividendResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponseV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -76,7 +76,7 @@ public class StockFactsheetDividendDataOperation extends AbstractMarketDataOpera
     protected StockFactSheetDividend fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getDividends(getIndexSymbol());
-            FactSheetDividendResponse factSheetDividend = factSheetFinanceMapper.parse(response.getData());
+            FactSheetDividendResponseV1 factSheetDividend = factSheetFinanceMapper.parse(response.getData());
             if (factSheetDividend == null) {
                 return null;
             }

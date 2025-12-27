@@ -6,8 +6,8 @@ import com.am.common.investment.service.EquityService;
 import com.am.common.investment.service.historical.HistoricalDataService;
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.service.mapper.OHLCMapper;
-import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.OHLCQuoteV1;
+import com.am.marketdata.common.model.TimeFrameV1;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -64,7 +64,7 @@ public class MarketDataPersistenceService {
         return marketDataCacheService;
     }
 
-    public CompletableFuture<Void> saveOHLCData(Map<String, OHLCQuote> ohlcData) {
+    public CompletableFuture<Void> saveOHLCData(Map<String, OHLCQuoteV1> ohlcData) {
         if (ohlcData == null || ohlcData.isEmpty()) {
             log.warn("No OHLC data to save");
             return CompletableFuture.completedFuture(null);
@@ -78,7 +78,7 @@ public class MarketDataPersistenceService {
                 equityService.saveAllPrices(equityPrices);
                 log.debug("Successfully saved {} equity prices to database", equityPrices.size());
 
-                // Then update the cache with default timeframe (1D for current day data)
+                // Then update the cache with default TimeFrameV1 (1D for current day data)
                 marketDataCacheService.cacheOHLCData(ohlcData, TimeFrame.DAY);
                 log.debug("Successfully cached OHLC data for {} symbols", ohlcData.size());
             } catch (Exception e) {
@@ -88,7 +88,7 @@ public class MarketDataPersistenceService {
         }, taskExecutor);
     }
 
-    public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrame interval,
+    public CompletableFuture<Void> saveHistoricalData(String symbol, TimeFrameV1 interval,
             HistoricalData historicalData) {
         if (historicalData == null || historicalData.getDataPoints() == null
                 || historicalData.getDataPoints().isEmpty()) {
@@ -126,7 +126,7 @@ public class MarketDataPersistenceService {
         }
     }
 
-    public Map<String, OHLCQuote> getOHLCData(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh) {
+    public Map<String, OHLCQuoteV1> getOHLCData(List<String> tradingSymbols, TimeFrameV1 timeFrame, boolean forceRefresh) {
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -146,17 +146,17 @@ public class MarketDataPersistenceService {
                 return Collections.emptyMap();
             }
 
-            // Use "LIVE" as the cache key for current/live prices (when timeFrame is null)
-            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "1D";
+            // Use "LIVE" as the cache key for current/live prices (when TimeFrameV1 is null)
+            String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "1D";
 
-            Map<String, OHLCQuote> result = new HashMap<>();
+            Map<String, OHLCQuoteV1> result = new HashMap<>();
             Set<String> remainingSymbols = new HashSet<>(filteredSymbols);
 
             if (!forceRefresh) {
                 // Try cache first
-                Map<String, OHLCQuote> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols, timeFrame);
+                Map<String, OHLCQuoteV1> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols, timeFrame);
                 if (cachedData != null && !cachedData.isEmpty()) {
-                    log.debug("Retrieved {} OHLC data from cache with timeFrame {}",
+                    log.debug("Retrieved {} OHLC data from cache with TimeFrameV1 {}",
                             cachedData.size(), tfValue);
                     result.putAll(cachedData);
 
@@ -166,7 +166,7 @@ public class MarketDataPersistenceService {
                         remainingSymbols.remove(symbol);
                     });
 
-                    log.debug("{} symbols remaining after cache lookup for timeFrame {}",
+                    log.debug("{} symbols remaining after cache lookup for TimeFrameV1 {}",
                             remainingSymbols.size(), tfValue);
 
                     if (remainingSymbols.isEmpty()) {
@@ -177,7 +177,7 @@ public class MarketDataPersistenceService {
 
             // If we have remaining symbols or forceRefresh is true, try database
             if (!remainingSymbols.isEmpty() || forceRefresh) {
-                log.debug("{} OHLC data from database for {} symbols with timeFrame {}",
+                log.debug("{} OHLC data from database for {} symbols with TimeFrameV1 {}",
                         forceRefresh ? "Forcing refresh of" : "Fetching missing",
                         remainingSymbols.size(), tfValue);
 
@@ -190,12 +190,12 @@ public class MarketDataPersistenceService {
                 List<EquityPrice> equityPrices = equityService.getPricesByTradingSymbols(cleanSymbols);
 
                 if (!equityPrices.isEmpty()) {
-                    // Convert equity prices to OHLCQuote format
+                    // Convert equity prices to OHLCQuoteV1 format
                     for (EquityPrice price : equityPrices) {
                         if (price.getLastPrice() == null) {
                             continue;
                         }
-                        OHLCQuote quote = createOHLCQuoteFromEquityPrice(price);
+                        OHLCQuoteV1 quote = createOHLCQuoteFromEquityPrice(price);
                         // String symbol = "NSE:" + price.getSymbol();
                         result.put(price.getSymbol(), quote);
 
@@ -203,15 +203,15 @@ public class MarketDataPersistenceService {
                         remainingSymbols.remove(price.getSymbol());
                     }
 
-                    log.debug("Retrieved OHLC data from database for {} symbols with timeFrame {}",
+                    log.debug("Retrieved OHLC data from database for {} symbols with TimeFrameV1 {}",
                             equityPrices.size(), tfValue);
                 }
             }
 
             return result;
         } catch (Exception e) {
-            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "LIVE";
-            log.error("Error retrieving OHLC data with timeFrame {}: {}",
+            String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "LIVE";
+            log.error("Error retrieving OHLC data with TimeFrameV1 {}: {}",
                     tfValue, e.getMessage(), e);
             return Collections.emptyMap();
         }
@@ -255,13 +255,13 @@ public class MarketDataPersistenceService {
     }
 
     /**
-     * Creates an OHLCQuote object from an EquityPrice object
+     * Creates an OHLCQuoteV1 object from an EquityPrice object
      * 
      * @param price EquityPrice object
-     * @return OHLCQuote object
+     * @return OHLCQuoteV1 object
      */
-    private OHLCQuote createOHLCQuoteFromEquityPrice(EquityPrice price) {
-        OHLCQuote quote = new OHLCQuote();
+    private OHLCQuoteV1 createOHLCQuoteFromEquityPrice(EquityPrice price) {
+        OHLCQuoteV1 quote = new OHLCQuote();
         quote.setLastPrice(price.getLastPrice());
 
         OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
@@ -280,7 +280,7 @@ public class MarketDataPersistenceService {
         return quote;
     }
 
-    public HistoricalData getHistoricalData(String symbol, TimeFrame interval, String fromDate, String toDate) {
+    public HistoricalData getHistoricalData(String symbol, TimeFrameV1 interval, String fromDate, String toDate) {
         if (symbol == null || symbol.isEmpty() || interval == null) {
             return null;
         }

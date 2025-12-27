@@ -1,7 +1,7 @@
 package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.board.BoardOfDirectors;
-import com.am.marketdata.common.model.events.BoardOfDirector;
+import com.am.marketdata.common.model.events.BoardOfDirectorV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -72,7 +72,7 @@ public class StockOverviewDataOperation extends AbstractMarketDataOperation<Boar
     protected BoardOfDirectors fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getBoardOfDirectors(getIndexSymbol());
-            List<BoardOfDirector> directors = boardOfDirectorsMapper.parseDirectors(response.getData());
+            List<BoardOfDirectorV1> directors = boardOfDirectorsMapper.parseDirectors(response.getData());
             if (directors == null) {
                 return null;
             }

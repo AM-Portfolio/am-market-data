@@ -1,7 +1,7 @@
 package com.am.marketdata.api.service;
 
-import com.am.marketdata.common.model.SecurityDTO;
-import com.am.marketdata.common.model.SecuritySearchRequest;
+import com.am.marketdata.common.model.SecurityDTOV1;
+import com.am.marketdata.common.model.SecuritySearchRequestV1;
 
 import java.util.List;
 import java.util.Map;
@@ -13,7 +13,7 @@ public interface SecurityApiService {
     /**
      * Find securities by symbols
      */
-    List<SecurityDTO> findBySymbols(List<String> symbols);
+    List<SecurityDTOV1> findBySymbols(List<String> symbols);
 
     /**
      * Get symbol to sector mapping
@@ -23,10 +23,10 @@ public interface SecurityApiService {
     /**
      * Search for securities based on criteria
      */
-    List<SecurityDTO> search(SecuritySearchRequest request);
+    List<SecurityDTOV1> search(SecuritySearchRequestV1 request);
 
     /**
      * Get all securities
      */
-    List<SecurityDTO> getAllSecurities();
+    List<SecurityDTOV1> getAllSecurities();
 }

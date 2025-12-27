@@ -22,7 +22,7 @@ public class NSEMarketIndexIndicesMapper {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
 
-    public static List<MarketIndexIndices> convertToMarketIndexIndices(List<NSEIndex> data) {
+    public static List<MarketIndexIndices> convertToMarketIndexIndices(List<NSEIndexV1> data) {
         return data.stream()
             .map(NSEMarketIndexIndicesMapper::convertToMarketIndices)
             .collect(Collectors.toList());

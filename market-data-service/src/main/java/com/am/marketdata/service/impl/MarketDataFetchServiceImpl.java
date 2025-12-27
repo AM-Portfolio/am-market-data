@@ -1,8 +1,8 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.api.service.MarketDataFetchService;
-import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.OHLCQuoteV1;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.service.MarketDataService;
 import com.marketdata.common.dto.HistoricalDataRequest;
 import com.marketdata.common.model.HistoricalDataResponseV1;
@@ -51,8 +51,8 @@ public class MarketDataFetchServiceImpl implements MarketDataFetchService {
     }
 
     @Override
-    public Map<String, OHLCQuote> getOHLC(OHLCRequest request) {
-        TimeFrame tf = TimeFrame.fromApiValue(request.getTimeFrame());
+    public Map<String, OHLCQuoteV1> getOHLC(OHLCRequest request) {
+        TimeFrameV1 tf = TimeFrameV1.fromApiValue(request.getTimeFrame());
         List<String> symbolList = request.getSymbols() != null ? Arrays.asList(request.getSymbols().split(","))
                 : List.of();
         return marketDataService.getOHLC(symbolList, tf, request.isForceRefresh(), null);

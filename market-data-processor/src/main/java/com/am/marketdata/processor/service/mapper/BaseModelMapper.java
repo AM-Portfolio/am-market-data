@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j

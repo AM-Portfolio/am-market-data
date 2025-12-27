@@ -13,11 +13,11 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
-import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowData;
-import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowMetrics;
-import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
+import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowDataV1;
+import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialDataV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -30,7 +30,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j
@@ -40,7 +40,7 @@ public class StockCashFlowFinanceMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public CashFlowResponse parse(String jsonData) {
+    public CashFlowResponseV1 parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructType(CashFlowResponse.class));
     }
@@ -48,13 +48,13 @@ public class StockCashFlowFinanceMapper {
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
     /**
-     * Create CashFlowResponse from symbol and CashFlowResponse object
+     * Create CashFlowResponseV1 from symbol and CashFlowResponseV1 object
      * 
      * @param symbol Stock symbol
-     * @param financials CashFlowResponse object
+     * @param financials CashFlowResponseV1 object
      * @return StockCashFlow object
      */
-    public StockCashFlow toCashFlow(String symbol, CashFlowResponse cashFlowResponse) {
+    public StockCashFlow toCashFlow(String symbol, CashFlowResponseV1 cashFlowResponse) {
         if (cashFlowResponse == null) {
             return null;
         }

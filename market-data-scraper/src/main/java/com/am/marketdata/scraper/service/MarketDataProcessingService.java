@@ -189,7 +189,7 @@ public class MarketDataProcessingService {
             List<CompletableFuture<Boolean>> futures = allIndices.stream()
                     .map(indexSymbol -> CompletableFuture.supplyAsync(() -> {
                         try {
-                            NSEStockInsidicesData data = nseApiClient.getStockIndices(indexSymbol);
+                            NSEStockIndicesDataV1 data = nseApiClient.getStockIndices(indexSymbol);
                             if (data != null) {
                                 processStockIndicesData(data);
                                 return true;
@@ -257,7 +257,7 @@ public class MarketDataProcessingService {
     private CompletableFuture<Boolean> fetchAndProcessIndices() {
         return CompletableFuture.supplyAsync(() -> {
             Timer.Sample fetchSample = Timer.start();
-            NSEIndicesResponse response = fetchIndicesWithRetry();
+            NSEIndicesResponseV1 response = fetchIndicesWithRetry();
             fetchSample.stop(indicesFetchTimer);
 
             if (response != null) {
@@ -291,7 +291,7 @@ public class MarketDataProcessingService {
     public CompletableFuture<Boolean> fetchAndProcessStockIndices(String indexSymbol) {
         return CompletableFuture.supplyAsync(() -> {
             Timer.Sample fetchSample = Timer.start();
-            NSEStockInsidicesData response = fetchStockIndicesWithRetry(indexSymbol);
+            NSEStockIndicesDataV1 response = fetchStockIndicesWithRetry(indexSymbol);
             fetchSample.stop(stockIndicesFetchTimer);
 
             if (response != null) {
@@ -320,7 +320,7 @@ public class MarketDataProcessingService {
         }, executor);
     }
 
-    private NSEIndicesResponse fetchIndicesWithRetry() {
+    private NSEIndicesResponseV1 fetchIndicesWithRetry() {
         return retryOnFailure(() -> {
             try {
                 log.info("Fetching NSE indices data...");
@@ -331,7 +331,7 @@ public class MarketDataProcessingService {
         }, maxRetries, retryDelayMs);
     }
 
-    private NSEStockInsidicesData fetchStockIndicesWithRetry(String indexSymbol) {
+    private NSEStockIndicesDataV1 fetchStockIndicesWithRetry(String indexSymbol) {
         return retryOnFailure(() -> {
             try {
                 log.info("Fetching NSE stock indices data...");

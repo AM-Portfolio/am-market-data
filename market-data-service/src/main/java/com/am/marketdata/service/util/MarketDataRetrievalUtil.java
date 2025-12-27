@@ -1,7 +1,7 @@
 package com.am.marketdata.service.util;
 
-import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.OHLCQuoteV1;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.provider.AMMarketDataProvider;
 
 import com.am.marketdata.service.MarketDataPersistenceService;
@@ -45,15 +45,15 @@ public class MarketDataRetrievalUtil {
      *                           (will be modified)
      * @return Map of symbol to OHLC quote
      */
-    public Map<String, OHLCQuote> retrieveFromCache(
+    public Map<String, OHLCQuoteV1> retrieveFromCache(
             MarketDataPersistenceService persistenceService,
             List<String> tradingSymbols,
-            Set<String> remainingSymbols, TimeFrame timeFrame) {
+            Set<String> remainingSymbols, TimeFrameV1 timeFrame) {
 
         log.info("[DATA_SOURCE] Attempting to fetch OHLC data from cache for {} symbols",
                 remainingSymbols.size());
 
-        Map<String, OHLCQuote> cachedData = persistenceService.getOHLCData(tradingSymbols, timeFrame, false);
+        Map<String, OHLCQuoteV1> cachedData = persistenceService.getOHLCData(tradingSymbols, timeFrame, false);
 
         if (cachedData != null && !cachedData.isEmpty()) {
             log.info("[DATA_SOURCE] Found {} OHLC quotes in cache", cachedData.size());
@@ -77,10 +77,10 @@ public class MarketDataRetrievalUtil {
      *                           (will be modified)
      * @return Map of symbol to OHLC quote
      */
-    public Map<String, OHLCQuote> retrieveFromDatabase(
+    public Map<String, OHLCQuoteV1> retrieveFromDatabase(
             MarketDataPersistenceService persistenceService,
             Set<String> remainingSymbols,
-            TimeFrame timeFrame) {
+            TimeFrameV1 timeFrame) {
 
         if (remainingSymbols.isEmpty()) {
             return Collections.emptyMap();
@@ -93,7 +93,7 @@ public class MarketDataRetrievalUtil {
 
         // Force refresh is true here because we want to bypass cache and go directly to
         // database
-        Map<String, OHLCQuote> dbData = persistenceService.getOHLCData(remainingSymbolsList, timeFrame, true);
+        Map<String, OHLCQuoteV1> dbData = persistenceService.getOHLCData(remainingSymbolsList, timeFrame, true);
 
         if (dbData != null && !dbData.isEmpty()) {
             log.info("[DATA_SOURCE] Found {} OHLC quotes in database", dbData.size());
@@ -114,14 +114,14 @@ public class MarketDataRetrievalUtil {
      *
      * @param provider  The market data provider
      * @param symbols   List of symbols to retrieve
-     * @param timeFrame TimeFrame for the data
+     * @param TimeFrameV1 TimeFrame for the data
      * @return Map of symbol to OHLC quote
      */
     @SneakyThrows
-    public Map<String, OHLCQuote> retrieveFromProvider(
+    public Map<String, OHLCQuoteV1> retrieveFromProvider(
             AMMarketDataProvider provider,
             List<String> symbols,
-            TimeFrame timeFrame) {
+            TimeFrameV1 timeFrame) {
 
         if (symbols.isEmpty()) {
             return Collections.emptyMap();
@@ -129,7 +129,7 @@ public class MarketDataRetrievalUtil {
 
         log.info("[DATA_SOURCE] Fetching OHLC data from provider for {} symbols", symbols.size());
 
-        Map<String, OHLCQuote> providerData = retryOnFailure(() -> provider.getOHLC(symbols, timeFrame), "getOHLC");
+        Map<String, OHLCQuoteV1> providerData = retryOnFailure(() -> provider.getOHLC(symbols, timeFrame), "getOHLC");
 
         if (providerData != null && !providerData.isEmpty()) {
             log.info("[DATA_SOURCE] Successfully fetched {} OHLC quotes from provider", providerData.size());
@@ -146,7 +146,7 @@ public class MarketDataRetrievalUtil {
      * @param persistenceService The persistence service to use
      * @param data               The data to save
      */
-    public void saveDataAsync(MarketDataPersistenceService persistenceService, Map<String, OHLCQuote> data) {
+    public void saveDataAsync(MarketDataPersistenceService persistenceService, Map<String, OHLCQuoteV1> data) {
         if (data == null || data.isEmpty()) {
             return;
         }

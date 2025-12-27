@@ -2,7 +2,7 @@ package com.am.marketdata.service.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuoteV1;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,10 +22,10 @@ public class MarketDataGenericMapper {
      * Convert LTP data to EquityPrice objects
      *
      * @param ohlcData      Map of trading symbol to OHLC quote
-     * @param instrumentMap Map of trading symbol to Instrument
+     * @param instrumentMap Map of trading symbol to InstrumentV1
      * @return List of EquityPrice objects
      */
-    public List<EquityPrice> mapLTPquoteToEquityPrices(Map<String, OHLCQuote> ltpData) {
+    public List<EquityPrice> mapLTPquoteToEquityPrices(Map<String, OHLCQuoteV1> ltpData) {
         List<EquityPrice> equityPrices = new ArrayList<>();
 
         if (ltpData == null || ltpData.isEmpty()) {
@@ -35,7 +35,7 @@ public class MarketDataGenericMapper {
 
         for (Map.Entry<String, OHLCQuote> entry : ltpData.entrySet()) {
             String key = entry.getKey();
-            OHLCQuote quote = entry.getValue();
+            OHLCQuoteV1 quote = entry.getValue();
 
             try {
                 // Parse the key to extract exchange and symbol
@@ -68,10 +68,10 @@ public class MarketDataGenericMapper {
      * Convert LTP data to EquityPrice objects
      *
      * @param ohlcData      Map of trading symbol to OHLC quote
-     * @param instrumentMap Map of trading symbol to Instrument
+     * @param instrumentMap Map of trading symbol to InstrumentV1
      * @return List of EquityPrice objects
      */
-    public List<EquityPrice> mapOHLCquoteToEquityPrices(Map<String, OHLCQuote> ohlcData) {
+    public List<EquityPrice> mapOHLCquoteToEquityPrices(Map<String, OHLCQuoteV1> ohlcData) {
         List<EquityPrice> equityPrices = new ArrayList<>();
 
         if (ohlcData == null || ohlcData.isEmpty()) {
@@ -81,7 +81,7 @@ public class MarketDataGenericMapper {
 
         for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
             String key = entry.getKey();
-            OHLCQuote quote = entry.getValue();
+            OHLCQuoteV1 quote = entry.getValue();
 
             try {
                 // Parse the key to extract exchange and symbol

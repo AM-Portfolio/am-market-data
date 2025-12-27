@@ -1,7 +1,7 @@
 package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.equity.financial.balancesheet.StockBalanceSheet;
-import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponse;
+import com.am.marketdata.common.model.tradeB.financials.balancesheet.BalanceSheetResponseV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -71,7 +71,7 @@ public class StockBalanceSheetDataOperation extends AbstractMarketDataOperation<
     protected StockBalanceSheet fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getBalanceSheet(getIndexSymbol());
-            BalanceSheetResponse balanceSheetResponse = balanceSheetMapper.parse(response.getData());
+            BalanceSheetResponseV1 balanceSheetResponse = balanceSheetMapper.parse(response.getData());
             if (balanceSheetResponse == null) {
                 return null;
             }

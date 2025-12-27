@@ -6,7 +6,7 @@ package com.am.marketdata.common.model;
  * For timeframes not directly supported, client-side aggregation is assumed or
  * fallback is used.
  */
-public enum TimeFrame {
+public enum TimeFrameV1 {
     MINUTE("1m", "minute", "I1"),
     THREE_MINUTE("3m", "3minute", "I1"),
     FIVE_MINUTE("5m", "5minute", "I1"),
@@ -26,11 +26,11 @@ public enum TimeFrame {
     private final boolean requiresAggregation;
     private final int aggregationFactor;
 
-    TimeFrame(String userValue, String zerodhaValue, String upStockValue) {
+    TimeFrameV1(String userValue, String zerodhaValue, String upStockValue) {
         this(userValue, zerodhaValue, upStockValue, false, 1);
     }
 
-    TimeFrame(String userValue, String zerodhaValue, String upStockValue, boolean requiresAggregation,
+    TimeFrameV1(String userValue, String zerodhaValue, String upStockValue, boolean requiresAggregation,
             int aggregationFactor) {
         this.userValue = userValue;
         this.zerodhaValue = zerodhaValue;
@@ -67,7 +67,7 @@ public enum TimeFrame {
     }
 
     /**
-     * Check if this timeframe requires client-side aggregation
+     * Check if this TimeFrameV1 requires client-side aggregation
      * 
      * @return true if aggregation is required
      */
@@ -76,7 +76,7 @@ public enum TimeFrame {
     }
 
     /**
-     * Get the factor by which to aggregate base timeframe data
+     * Get the factor by which to aggregate base TimeFrameV1 data
      * For example, FOUR_HOUR aggregates 4 hourly candles
      * 
      * @return aggregation factor
@@ -86,11 +86,11 @@ public enum TimeFrame {
     }
 
     /**
-     * Get the base timeframe used for fetching data when aggregation is required
+     * Get the base TimeFrameV1 used for fetching data when aggregation is required
      * 
-     * @return base TimeFrame for aggregation
+     * @return base TimeFrameV1 for aggregation
      */
-    public TimeFrame getBaseTimeFrame() {
+    public TimeFrameV1 getBaseTimeFrame() {
         if (!requiresAggregation) {
             return this;
         }
@@ -108,19 +108,20 @@ public enum TimeFrame {
     }
 
     /**
-     * Find TimeFrame by API value
+     * Find TimeFrameV1 by API value
      * 
      * @param value API value to search for
-     * @return Matching TimeFrame or null if not found
-     * @throws IllegalArgumentException if value is null or no matching TimeFrame is
+     * @return Matching TimeFrameV1 or null if not found
+     * @throws IllegalArgumentException if value is null or no matching TimeFrameV1
+     *                                  is
      *                                  found
      */
-    public static TimeFrame fromApiValue(String value) {
+    public static TimeFrameV1 fromApiValue(String value) {
         if (value == null) {
             throw new IllegalArgumentException("API value cannot be null");
         }
 
-        for (TimeFrame timeFrame : TimeFrame.values()) {
+        for (TimeFrameV1 timeFrame : TimeFrameV1.values()) {
             if (timeFrame.getApiValue().equalsIgnoreCase(value)) {
                 return timeFrame;
             }
@@ -132,7 +133,7 @@ public enum TimeFrame {
         if ("I30".equalsIgnoreCase(value))
             return THIRTY_MINUTE;
 
-        throw new IllegalArgumentException("No TimeFrame found for API value: " + value);
+        throw new IllegalArgumentException("No TimeFrameV1 found for API value: " + value);
     }
 
     /**
@@ -143,17 +144,18 @@ public enum TimeFrame {
      * 
      * @param value Either enum name or API value
      * @return Matching TimeFrame
-     * @throws IllegalArgumentException if value is null or no matching TimeFrame is
+     * @throws IllegalArgumentException if value is null or no matching TimeFrameV1
+     *                                  is
      *                                  found
      */
-    public static TimeFrame fromString(String value) {
+    public static TimeFrameV1 fromString(String value) {
         if (value == null) {
             throw new IllegalArgumentException("TimeFrame value cannot be null");
         }
 
         // First, try to match as enum name (DAY, HOUR, MINUTE, etc.)
         try {
-            return TimeFrame.valueOf(value.toUpperCase());
+            return TimeFrameV1.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException e) {
             // Not an enum name, try API value (1D, 1H, 5m, etc.)
             return fromApiValue(value);

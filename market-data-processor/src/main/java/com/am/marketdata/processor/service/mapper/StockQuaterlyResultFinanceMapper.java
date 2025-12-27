@@ -8,9 +8,9 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialStatementResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialDataV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -23,7 +23,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j
@@ -33,7 +33,7 @@ public class StockQuaterlyResultFinanceMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public QuaterlyFinancialStatementResponse parseQuaterlyFinancials(String jsonData) {
+    public QuarterlyFinancialStatementResponseV1 parseQuaterlyFinancials(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructType(QuaterlyFinancialStatementResponse.class));
     }
@@ -41,13 +41,13 @@ public class StockQuaterlyResultFinanceMapper {
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
     /**
-     * Create QuarterlyFinancialMetrics from symbol and QuaterlyFinancialStatementResponse object
+     * Create QuarterlyFinancialMetricsV1 from symbol and QuarterlyFinancialStatementResponseV1 object
      * 
      * @param symbol Stock symbol
-     * @param financials QuaterlyFinancialStatementResponse object
+     * @param financials QuarterlyFinancialStatementResponseV1 object
      * @return FinancialResult object
      */
-    public QuaterlyResult toQuarterlyFinancialMetrics(String symbol, QuaterlyFinancialStatementResponse financials) {
+    public QuaterlyResult toQuarterlyFinancialMetrics(String symbol, QuarterlyFinancialStatementResponseV1 financials) {
         if (financials == null) {
             return null;
         }
@@ -76,15 +76,15 @@ public class StockQuaterlyResultFinanceMapper {
             return null;
         }
         var FinancialResultBuilder = FinancialResult.builder()
-            .costMetrics(toCostMetrics(quarterlyFinancialMetrics))
+            .costMetrics(toCostMetrics(QuarterlyFinancialMetricsV1))
             .totalRevenue(quarterlyFinancialMetrics.getTotalRevenue())
             .otherIncome(quarterlyFinancialMetrics.getOtherIncome())
             .operatingRevenue(quarterlyFinancialMetrics.getOperatingRevenue())
             .yearEnd(quarterlyFinancialMetrics.getYearEnd())
-            .growthMetrics(toGrowthMetrics(quarterlyFinancialMetrics))
-            .profitMetrics(toProfitMetrics(quarterlyFinancialMetrics))
-            .taxMetrics(toTaxMetrics(quarterlyFinancialMetrics))
-            .epsMetrics(toEpsMetrics(quarterlyFinancialMetrics));
+            .growthMetrics(toGrowthMetrics(QuarterlyFinancialMetricsV1))
+            .profitMetrics(toProfitMetrics(QuarterlyFinancialMetricsV1))
+            .taxMetrics(toTaxMetrics(QuarterlyFinancialMetricsV1))
+            .epsMetrics(toEpsMetrics(QuarterlyFinancialMetricsV1));
 
         return FinancialResultBuilder.build();
     }

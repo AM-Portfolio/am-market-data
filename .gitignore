@@ -95,6 +95,41 @@ market_data_web/.pub/
 market_data_web/.pub-cache/
 market_data_web/.metadata
 
+# ==================== SDK Generated Files ====================
+# These are auto-generated from OpenAPI spec - do not commit
+
+# Java SDK - Generated files
+market-data-sdk/market-data-sdk-java/src/
+market-data-sdk/market-data-sdk-java/build/
+market-data-sdk/market-data-sdk-java/.gradle/
+market-data-sdk/market-data-sdk-java/gradle/
+market-data-sdk/market-data-sdk-java/*.gradle
+market-data-sdk/market-data-sdk-java/gradlew
+market-data-sdk/market-data-sdk-java/gradlew.bat
+market-data-sdk/market-data-sdk-java/pom.xml
+market-data-sdk/market-data-sdk-java/.openapi-generator/
+market-data-sdk/market-data-sdk-java/.openapi-generator-ignore
+market-data-sdk/market-data-sdk-java/README.md
+market-data-sdk/market-data-sdk-java/api/
+market-data-sdk/market-data-sdk-java/docs/
+market-data-sdk/market-data-sdk-java/.travis.yml
+market-data-sdk/market-data-sdk-java/git_push.sh
+
+# Python SDK - Generated files
+market-data-sdk/market-data-sdk-python/
+# Keep only the tests directory if you add custom tests
+!market-data-sdk/market-data-sdk-python/tests/
+
+# Dart/Flutter SDK - Generated files
+market-data-sdk/market-data-sdk-flutter/
+# Keep only custom test files if added
+!market-data-sdk/market-data-sdk-flutter/test/
+
+# SDK - Keep these files (they are NOT generated)
+!market-data-sdk/generate_sdks.ps1
+!market-data-sdk/docs/
+!market-data-sdk/docs/**/*.md
+
 # Agent Configuration (ALWAYS TRACK)
 !.agent/
 !.agent/rules/

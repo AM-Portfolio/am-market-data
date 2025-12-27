@@ -1,7 +1,7 @@
 package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.equity.financial.cashflow.StockCashFlow;
-import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponse;
+import com.am.marketdata.common.model.tradeB.financials.cashflow.CashFlowResponseV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -69,7 +69,7 @@ public class StockCashFlowDataOperation extends AbstractMarketDataOperation<Stoc
     protected StockCashFlow fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getCashFlow(getIndexSymbol());
-            CashFlowResponse cashFlow = cashFlowMapper.parse(response.getData());
+            CashFlowResponseV1 cashFlow = cashFlowMapper.parse(response.getData());
             if (cashFlow == null) {
                 return null;
             }

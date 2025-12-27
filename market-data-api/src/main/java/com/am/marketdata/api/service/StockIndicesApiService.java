@@ -1,6 +1,6 @@
 package com.am.marketdata.api.service;
 
-import com.am.marketdata.common.model.NSEStockInsidicesData;
+import com.am.marketdata.common.model.NSEStockIndicesDataV1;
 
 import java.util.List;
 
@@ -15,7 +15,7 @@ public interface StockIndicesApiService {
      * @param forceRefresh Whether to force refresh from source
      * @return Stock indices data
      */
-    NSEStockInsidicesData getStockIndices(String indexSymbol, boolean forceRefresh);
+    NSEStockIndicesDataV1 getStockIndices(String indexSymbol, boolean forceRefresh);
 
     /**
      * Get stock indices data for multiple indices
@@ -24,7 +24,7 @@ public interface StockIndicesApiService {
      * @param forceRefresh Whether to force refresh from source
      * @return List of stock indices data
      */
-    List<NSEStockInsidicesData> getStockIndicesBatch(List<String> indexSymbols, boolean forceRefresh);
+    List<NSEStockIndicesDataV1> getStockIndicesBatch(List<String> indexSymbols, boolean forceRefresh);
 
     /**
      * Get available index symbols

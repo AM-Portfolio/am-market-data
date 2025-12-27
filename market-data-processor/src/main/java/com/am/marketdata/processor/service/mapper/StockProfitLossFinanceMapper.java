@@ -11,12 +11,12 @@ import com.am.common.investment.model.equity.metrics.EpsMetrics;
 import com.am.common.investment.model.equity.metrics.GrowthMetrics;
 import com.am.common.investment.model.equity.metrics.ProfitMetrics;
 import com.am.common.investment.model.equity.metrics.TaxMetrics;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossData;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossMetrics;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetrics;
-import com.am.marketdata.common.model.tradeB.financials.results.QuaterlyFinancialStatementResponse;
-import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialData;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossDataV1;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialMetricsV1;
+import com.am.marketdata.common.model.tradeB.financials.results.QuarterlyFinancialStatementResponseV1;
+import com.am.marketdata.common.model.tradeB.financials.results.StockFinancialDataV1;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -29,7 +29,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mapper for converting between BoardOfDirectors and BoardOfDirector
+ * Mapper for converting between BoardOfDirectors and BoardOfDirectorV1
  */
 @Component
 @Slf4j
@@ -39,14 +39,14 @@ public class StockProfitLossFinanceMapper {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @SneakyThrows
-    public ProfitLossStatementResponse parse(String jsonData) {
+    public ProfitLossStatementResponseV1 parse(String jsonData) {
         return objectMapper.readValue(jsonData, 
             TypeFactory.defaultInstance().constructType(ProfitLossStatementResponse.class));
     }
 
     private final BaseModelMapper baseModelMapper = new BaseModelMapper();
     
-    public StockProfitAndLoss toStockProfitAndLoss(String symbol, ProfitLossStatementResponse financials) {
+    public StockProfitAndLoss toStockProfitAndLoss(String symbol, ProfitLossStatementResponseV1 financials) {
         if (financials == null) {
             return null;
         }
@@ -70,7 +70,7 @@ public class StockProfitLossFinanceMapper {
             .collect(Collectors.toList());
     }
 
-    private ProfitAndLoss toProfitAndLoss(String quarterKey, ProfitLossMetrics profitLoss) {
+    private ProfitAndLoss toProfitAndLoss(String quarterKey, ProfitLossMetricsV1 profitLoss) {
         if (profitLoss == null) {
             return null;
         }

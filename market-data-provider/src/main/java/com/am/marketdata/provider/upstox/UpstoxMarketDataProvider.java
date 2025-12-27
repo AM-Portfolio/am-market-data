@@ -2,8 +2,8 @@ package com.am.marketdata.provider.upstox;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.am.marketdata.common.model.Instrument;
-import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.InstrumentV1;
+import com.am.marketdata.common.model.OHLCQuoteV1;
 import com.am.marketdata.provider.AMMarketDataProvider;
 import com.am.marketdata.provider.dto.InstrumentSearchCriteria;
 import com.am.marketdata.provider.upstox.model.UpstoxInstrument;
@@ -38,7 +38,7 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public Map<String, OHLCQuote> getQuotes(List<String> symbols) {
+    public Map<String, OHLCQuoteV1> getQuotes(List<String> symbols) {
         // Resolve symbols to keys
         Map<String, String> symbolToKeyMap = resolveInstruments(symbols);
         List<String> validKeys = new ArrayList<>(symbolToKeyMap.values());
@@ -47,7 +47,7 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
             return Collections.emptyMap();
         }
 
-        Map<String, OHLCQuote> resultMap = new HashMap<>();
+        Map<String, OHLCQuoteV1> resultMap = new HashMap<>();
 
         try {
             // Try SDK First
@@ -128,7 +128,7 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public List<Instrument> getInstruments(String exchange) {
+    public List<InstrumentV1> getInstruments(String exchange) {
         // Use InstrumentService to search
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setExchanges(Collections.singletonList(exchange));
@@ -138,7 +138,7 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
     }
 
     @Override
-    public List<Instrument> searchInstruments(String query) {
+    public List<InstrumentV1> searchInstruments(String query) {
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setQueries(Collections.singletonList(query));
 
@@ -200,12 +200,12 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
         return map;
     }
 
-    private OHLCQuote mapToCommonOHLC(com.am.marketdata.provider.upstox.model.OHLCResponse.OHLCData data) {
-        OHLCQuote quote = new OHLCQuote();
+    private OHLCQuoteV1 mapToCommonOHLC(com.am.marketdata.provider.upstox.model.OHLCResponse.OHLCData data) {
+        OHLCQuoteV1 quote = new OHLCQuoteV1();
         quote.setLastPrice(data.getLast_price());
 
         if (data.getOhlc() != null) {
-            OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+            OHLCQuoteV1.OHLC ohlc = new OHLCQuoteV1.OHLC();
             ohlc.setOpen(data.getOhlc().getOpen());
             ohlc.setHigh(data.getOhlc().getHigh());
             ohlc.setLow(data.getOhlc().getLow());
@@ -247,8 +247,8 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
         return data;
     }
 
-    private Instrument mapToCommonInstrument(UpstoxInstrument uInst) {
-        return Instrument.builder()
+    private InstrumentV1 mapToCommonInstrument(UpstoxInstrument uInst) {
+        return InstrumentV1.builder()
                 .instrumentToken(uInst.getInstrumentKey())
                 .tradingSymbol(uInst.getTradingSymbol())
                 .name(uInst.getName())
@@ -256,7 +256,7 @@ public class UpstoxMarketDataProvider implements AMMarketDataProvider {
                 .exchangeToken(uInst.getExchangeToken())
                 .expiry(uInst.getExpiry() != null ? uInst.getExpiry().toString() : null)
                 .instrumentType(uInst.getInstrumentType())
-                // .isin(uInst.getIsin()) // ISIN not in common Instrument builder yet? Check
+                // .isin(uInst.getIsin()) // ISIN not in common InstrumentV1 builder yet? Check
                 // Common.
                 .lotSize(uInst.getLotSize())
                 .tickSize(uInst.getTickSize())

@@ -1,8 +1,8 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.api.service.SecurityApiService;
-import com.am.marketdata.common.model.SecurityDTO;
-import com.am.marketdata.common.model.SecuritySearchRequest;
+import com.am.marketdata.common.model.SecurityDTOV1;
+import com.am.marketdata.common.model.SecuritySearchRequestV1;
 import com.am.marketdata.service.SecurityService;
 import com.am.marketdata.service.model.security.SecurityDocument;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class SecurityApiServiceImpl implements SecurityApiService {
     private final SecurityService securityService;
 
     @Override
-    public List<SecurityDTO> findBySymbols(List<String> symbols) {
+    public List<SecurityDTOV1> findBySymbols(List<String> symbols) {
         return securityService.findBySymbols(symbols).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -34,7 +34,7 @@ public class SecurityApiServiceImpl implements SecurityApiService {
     }
 
     @Override
-    public List<SecurityDTO> search(SecuritySearchRequest request) {
+    public List<SecurityDTOV1> search(SecuritySearchRequestV1 request) {
         // We need to map common DTO search request to service search request if they
         // differ
         // For now, they are identical in structure
@@ -54,13 +54,13 @@ public class SecurityApiServiceImpl implements SecurityApiService {
     }
 
     @Override
-    public List<SecurityDTO> getAllSecurities() {
+    public List<SecurityDTOV1> getAllSecurities() {
         return securityService.getAllSecurities().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    private SecurityDTO mapToDTO(SecurityDocument doc) {
+    private SecurityDTOV1 mapToDTO(SecurityDocument doc) {
         if (doc == null)
             return null;
         return SecurityDTO.builder()

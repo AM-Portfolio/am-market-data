@@ -21,7 +21,7 @@ import java.util.List;
 public class MarketIndexApiServiceImpl implements MarketIndexApiService {
 
     @Override
-    public List<NSEIndex> getAllIndices() {
+    public List<NSEIndexV1> getAllIndices() {
         log.warn("MarketIndexApiService.getAllIndices() is not fully implemented yet");
         // TODO: Integrate with scraper module or create a dedicated index data
         // repository
@@ -29,7 +29,7 @@ public class MarketIndexApiServiceImpl implements MarketIndexApiService {
     }
 
     @Override
-    public NSEIndex getIndex(String symbol) {
+    public NSEIndexV1 getIndex(String symbol) {
         log.warn("MarketIndexApiService.getIndex({}) is not fully implemented yet", symbol);
         // TODO: Integrate with scraper module or create a dedicated index data
         // repository

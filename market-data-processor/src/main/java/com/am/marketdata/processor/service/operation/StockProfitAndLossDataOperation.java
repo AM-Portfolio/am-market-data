@@ -1,7 +1,7 @@
 package com.am.marketdata.processor.service.operation;
 
 import com.am.common.investment.model.equity.financial.profitandloss.StockProfitAndLoss;
-import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponse;
+import com.am.marketdata.common.model.tradeB.financials.profitloss.ProfitLossStatementResponseV1;
 import com.am.marketdata.external.api.client.TradeBrainClient;
 import com.am.marketdata.external.api.model.ApiResponse;
 import com.am.marketdata.processor.exception.DataValidationException;
@@ -70,7 +70,7 @@ public class StockProfitAndLossDataOperation extends AbstractMarketDataOperation
     protected StockProfitAndLoss fetchData() {
         try {
             ApiResponse response = tradeBrainClient.getProfitAndLoss(getIndexSymbol());
-            ProfitLossStatementResponse profitAndLoss = profitAndLossMapper.parse(response.getData());
+            ProfitLossStatementResponseV1 profitAndLoss = profitAndLossMapper.parse(response.getData());
             if (profitAndLoss == null) {
                 return null;
             }

@@ -1,6 +1,6 @@
 package com.am.marketdata.api.service;
 
-import com.am.marketdata.common.model.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuoteV1;
 import com.marketdata.common.dto.HistoricalDataRequest;
 import com.marketdata.common.model.HistoricalDataResponseV1;
 import com.marketdata.common.model.OHLCRequest;
@@ -23,7 +23,7 @@ public interface MarketDataFetchService {
 
     Map<String, Object> getQuotesPost(QuotesRequest request);
 
-    Map<String, OHLCQuote> getOHLC(OHLCRequest request);
+    Map<String, OHLCQuoteV1> getOHLC(OHLCRequest request);
 
     HistoricalDataResponseV1 getHistoricalData(HistoricalDataRequest request);
 

@@ -4,8 +4,8 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.instrument.InstrumentService;
-import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.OHLCQuoteV1;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.service.mapper.InstrumentMapper;
 import com.am.marketdata.service.mapper.MarketDataGenericMapper;
 import com.am.marketdata.service.util.DataSourceType;
@@ -149,7 +149,7 @@ public class MarketDataService {
             // Must use final variable in lambda
             final AMMarketDataProvider finalProvider = provider;
             // Convert String[] to List<String> for the new provider interface
-            Map<String, OHLCQuote> quotes = retryOnFailure(() -> finalProvider.getQuotes(Arrays.asList(symbols)),
+            Map<String, OHLCQuoteV1> quotes = retryOnFailure(() -> finalProvider.getQuotes(Arrays.asList(symbols)),
                     "getQuotes");
             return new HashMap<>(quotes);
         } catch (Exception e) {
@@ -161,13 +161,13 @@ public class MarketDataService {
         }
     }
 
-    public Map<String, OHLCQuote> getOHLC(List<String> tradingSymbols, TimeFrame timeFrame, boolean forceRefresh,
+    public Map<String, OHLCQuoteV1> getOHLC(List<String> tradingSymbols, TimeFrameV1 timeFrame, boolean forceRefresh,
             String providerName) {
-        String tfValue = timeFrame != null ? timeFrame.getApiValue() : "default";
+        String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "default";
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
                 "[INTERVAL_TRACE] MarketDataService.getOHLC: Getting OHLC for {} symbols with timeFrame: {} (enum: {}, apiValue: {}), forceRefresh: {}",
-                tradingSymbols.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null", tfValue, forceRefresh);
+                tradingSymbols.size(), timeFrame, TimeFrameV1 != null ? timeFrame.name() : "null", tfValue, forceRefresh);
 
         try {
 
@@ -177,7 +177,7 @@ public class MarketDataService {
                     timeFrame, tfValue);
 
             OHLCDataRetriever retriever = createOHLCDataRetriever(providerName, forceRefresh);
-            Map<String, OHLCQuote> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
+            Map<String, OHLCQuoteV1> result = retriever.retrieveData(tradingSymbols, timeFrame, forceRefresh);
 
             log.info("[INTERVAL_TRACE] MarketDataService.getOHLC: Retrieved {} OHLC quotes for timeFrame: {}",
                     result != null ? result.size() : 0, tfValue);
@@ -187,17 +187,17 @@ public class MarketDataService {
                     .increment();
             return result;
         } catch (Exception e) {
-            log.error("[INTERVAL_TRACE] Error getting OHLC data for timeFrame {}: {}", tfValue, e.getMessage(), e);
+            log.error("[INTERVAL_TRACE] Error getting OHLC data for TimeFrameV1 {}: {}", tfValue, e.getMessage(), e);
             meterRegistry
                     .counter("market.data.failure.count", "operation", "getOHLC", "timeFrame", tfValue)
                     .increment();
-            throw new RuntimeException("Failed to get OHLC data for timeFrame " + tfValue, e);
+            throw new RuntimeException("Failed to get OHLC data for TimeFrameV1 " + tfValue, e);
         } finally {
             timer.stop(meterRegistry.timer("market.data.operation.time", "operation", "getOHLC", "timeFrame", tfValue));
         }
     }
 
-    public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, TimeFrame interval,
+    public HistoricalData getHistoricalData(String symbol, Date fromDate, Date toDate, TimeFrameV1 interval,
             boolean continuous, Map<String, Object> additionalParams, String providerName) {
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
@@ -271,7 +271,7 @@ public class MarketDataService {
      * @return Map of symbol to HistoricalData
      */
     public Map<String, HistoricalData> getHistoricalDataBatch(List<String> symbols, Date fromDate, Date toDate,
-            TimeFrame interval, boolean continuous, Map<String, Object> additionalParams, String providerName,
+            TimeFrameV1 interval, boolean continuous, Map<String, Object> additionalParams, String providerName,
             boolean isIndexSymbol, boolean forceRefresh) {
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
@@ -323,7 +323,7 @@ public class MarketDataService {
         }
     }
 
-    public List<Instrument> getAllSymbols(String providerName) {
+    public List<InstrumentV1> getAllSymbols(String providerName) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             providerName = resolveProviderName(providerName);
@@ -338,7 +338,7 @@ public class MarketDataService {
             if (providerInstruments != null && !providerInstruments.isEmpty()) {
                 log.info("Fetched {} symbols from provider, converting to internal model", providerInstruments.size());
 
-                List<Instrument> internalInstruments = instrumentMapper.fromProviderInstruments(providerInstruments);
+                List<InstrumentV1> internalInstruments = instrumentMapper.fromProviderInstruments(providerInstruments);
 
                 log.info("Converted {} instruments, saving to database", internalInstruments.size());
 
@@ -360,16 +360,16 @@ public class MarketDataService {
         }
     }
 
-    public List<Instrument> getSymbolPagination(int page, int size, String symbol, String type, String exchange,
+    public List<InstrumentV1> getSymbolPagination(int page, int size, String symbol, String type, String exchange,
             String providerName) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             providerName = resolveProviderName(providerName);
             // Get all instruments first
-            List<Instrument> allInstruments = getAllSymbols(providerName);
+            List<InstrumentV1> allInstruments = getAllSymbols(providerName);
 
             // Apply filters if provided
-            List<Instrument> filteredInstruments = allInstruments.stream()
+            List<InstrumentV1> filteredInstruments = allInstruments.stream()
                     .filter(instrument -> symbol == null || symbol.isEmpty() ||
                             instrument.getTradingSymbol().toLowerCase().contains(symbol.toLowerCase()))
                     .filter(instrument -> type == null || type.isEmpty() ||
@@ -467,29 +467,29 @@ public class MarketDataService {
     }
 
     /**
-     * Fetch live prices directly from the provider using instrument IDs
+     * Fetch live prices directly from the provider using InstrumentV1 IDs
      * 
-     * @param instrumentIds List of instrument IDs
+     * @param instrumentIds List of InstrumentV1 IDs
      * @return List of equity prices
      */
     private List<EquityPrice> fetchLivePricesFromProvider(List<String> tradingSymbols, String providerName) {
         providerName = resolveProviderName(providerName);
-        log.info("[DATA_SOURCE] Fetching live prices directly from PROVIDER: {} with {} instrument IDs", providerName,
+        log.info("[DATA_SOURCE] Fetching live prices directly from PROVIDER: {} with {} InstrumentV1 IDs", providerName,
                 tradingSymbols.size());
 
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
-            log.warn("No valid instrument IDs provided");
+            log.warn("No valid InstrumentV1 IDs provided");
             return Collections.emptyList();
         }
 
         log.info("Fetching live prices for {} instruments", tradingSymbols.size());
 
-        // Convert instrument IDs to string array for provider API
+        // Convert InstrumentV1 IDs to string array for provider API
         String[] symbols = tradingSymbols.toArray(String[]::new);
 
         // Get OHLC data from provider with retry mechanism
-        log.debug("[DATA_SOURCE] Calling provider.getLTP with instrument IDs: {}", (Object) symbols);
-        Map<String, OHLCQuote> ltpData;
+        log.debug("[DATA_SOURCE] Calling provider.getLTP with InstrumentV1 IDs: {}", (Object) symbols);
+        Map<String, OHLCQuoteV1> ltpData;
         try {
             AMMarketDataProvider provider = providerFactory.getProvider(providerName);
             final AMMarketDataProvider finalProvider = provider;
@@ -528,7 +528,7 @@ public class MarketDataService {
 
             Set<String> remainingSymbols = new HashSet<>(tradingSymbols);
             List<EquityPrice> result = new ArrayList<>();
-            Map<String, OHLCQuote> cachedData = null;
+            Map<String, OHLCQuoteV1> cachedData = null;
 
             // Step 1: Try to get data from cache first if not forced refresh
             if (!forceRefresh) {

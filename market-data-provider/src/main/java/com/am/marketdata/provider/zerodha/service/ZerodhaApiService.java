@@ -1,6 +1,6 @@
 package com.am.marketdata.provider.zerodha.service;
 
-import com.am.marketdata.common.model.TimeFrame;
+import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.provider.zerodha.exception.ZerodhaApiException;
 import com.am.marketdata.provider.zerodha.model.ZerodhaInstrument;
 import com.am.marketdata.provider.zerodha.repo.ZerodhaInstrumentRepository;
@@ -162,7 +162,7 @@ public class ZerodhaApiService {
         }
     }
 
-    public Map<String, OHLCQuote> getOHLC(String[] symbols) {
+    public Map<String, com.zerodhatech.models.OHLCQuote> getOHLC(String[] symbols) {
         try {
             String[] prefixedSymbols = prefixSymbolsWithNSE(symbols);
             return kiteConnect.getOHLC(prefixedSymbols);
@@ -184,11 +184,11 @@ public class ZerodhaApiService {
         }
     }
 
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous,
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrameV1 interval, boolean continuous,
             boolean oi) {
         try {
             String zerodhaInterval = mapTimeFrameToZerodha(interval);
-            // Need instrument token for historical data
+            // Need InstrumentV1 token for historical data
             String token = resolveToToken(symbol);
             if (token == null)
                 throw new ZerodhaApiException("Instrument token not found for symbol: " + symbol);
@@ -201,7 +201,7 @@ public class ZerodhaApiService {
         }
     }
 
-    public List<Instrument> getAllInstruments() {
+    public List<com.zerodhatech.models.Instrument> getAllInstruments() {
         try {
             return kiteConnect.getInstruments();
         } catch (KiteException e) {
@@ -277,12 +277,12 @@ public class ZerodhaApiService {
         return instrumentMap;
     }
 
-    private String mapTimeFrameToZerodha(TimeFrame tf) {
-        // Map common timeFrame to Zerodha string "minute", "day", "5minute", etc.
-        // Assuming TimeFrame has utility or switch
+    private String mapTimeFrameToZerodha(TimeFrameV1 tf) {
+        // Map common TimeFrameV1 to Zerodha string "minute", "day", "5minute", etc.
+        // Assuming TimeFrameV1 has utility or switch
         if (tf == null)
             return "day";
-        // Need to check TimeFrame values. Or use string logic.
+        // Need to check TimeFrameV1 values. Or use string logic.
         switch (tf.toString().toUpperCase()) {
             case "MINUTE":
                 return "minute";
