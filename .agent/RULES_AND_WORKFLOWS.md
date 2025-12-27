@@ -178,12 +178,170 @@ if ($remaining.Count -eq 1 -and $remaining[0].Name -eq "README.md") {
 }
 ```
 
-### 3. Documentation Location
+## 3. Documentation Location
 
 - Module docs → `{module}/docs/`
 - Project docs → `{project}-docs/`
 - Images → Same folder as markdown in `images/` subfolder
 - Use relative paths: `![Image](images/diagram.png)`
+
+## 4. Implementation Plan Image Embedding ⚠️
+
+**Rule**: When creating implementation plans based on architecture diagrams, ALWAYS embed the referenced image.
+
+**Requirements**:
+- ✅ **Include diagram**: Add `![Architecture](images/diagram_name.png)` at top of plan
+- ✅ **Reference version**: Use specific version (e.g., `diagram_v2.png`)
+- ✅ **Relative path**: Use relative path from plan's location
+- ✅ **Context**: Diagram provides visual context for implementation
+
+**Example**:
+```markdown
+# Implementation Plan - Provider Module Creation
+
+**Based on**: Architecture Diagram v2
+
+![Architecture](images/final_architecture_diagram_v2.png)
+
+## Overview
+This plan implements the provider isolation layer shown in the diagram above...
+```
+
+**Benefits**:
+- ✅ Visual context immediately available
+- ✅ Plan is self-contained
+- ✅ Easy to verify implementation matches design
+- ✅ Diagram and plan stay synchronized
+
+## 5. Intelligent Implementation (CRITICAL) ⚠️
+
+**Rule**: NEVER blindly follow code snippets in implementation plans. ALWAYS analyze the actual codebase first.
+
+### Implementation Philosophy:
+
+1. **Analyze First, Code Later**
+   - ✅ grep_search to find existing code
+   - ✅ view_file to understand current structure
+   - ✅ Make informed decisions based on ACTUAL code
+   - ❌ DO NOT copy-paste code snippets blindly
+
+2. **Discovery Over Prescription**
+   Plans should provide:
+   - ✅ **Goals**: What needs to be achieved
+   - ✅ **Search patterns**: What to look for (`grep`, `find`)
+   - ✅ **Decision criteria**: How to evaluate options
+   - ❌ **NOT code snippets**: Let LLM analyze and decide
+
+3. **Implementation Plan Format**
+
+**BAD** (Code-heavy):
+```markdown
+## Phase 1: Move Files
+Create this exact class:
+```java
+public class UpstoxProvider implements Provider {
+    // 50 lines of code...
+}
+```
+```
+
+**GOOD** (Intelligence-driven):
+```markdown
+## Phase 1: Extract Provider Code
+
+**Objective**: Move all Upstox-specific code to provider module
+
+**Discovery Steps**:
+1. Find all Upstox classes:
+   ```
+   find_by_name -Pattern "*Upstox*" -Extensions ["java"]
+   grep_search "class.*Upstox" 
+   ```
+
+2. Analyze what exists:
+   - Review each file with view_file
+   - Identify: Models, Services, Config, Repositories
+   - Determine dependencies
+
+3. Make informed decisions:
+   - Which files are pure provider code? → Move
+   - Which have business logic? → Refactor first
+   - Which are shared? → Keep in common
+
+**Execution**:
+- Move identified provider files
+- Update package declarations
+- Fix imports
+- Verify compilation
+```
+
+4. **Code Snippets - When Allowed**
+
+Only include code when:
+- ✅ Showing **interface contracts** (must match exactly)
+- ✅ **Configuration patterns** (Spring Boot setup)
+- ✅ **Small utilities** (<10 lines)
+- ❌ NEVER for full class implementations
+
+5. **Verification Instructions**
+
+Instead of:
+```
+Run: mvn test
+```
+
+Provide:
+```
+**Verify**:
+1. Compilation: `mvn compile -pl market-data-provider`
+2. Dependencies: Check no service/api deps leaked
+3. Interface match: Provider implements MarketDataProvider
+4. Tests: Find and run existing provider tests
+```
+
+6. **External JAR Dependencies** ⚠️
+
+**CRITICAL**: Do NOT try to recreate code from external JARs
+
+**Recognition Pattern**:
+```java
+// External JAR (DO NOT RECREATE)
+import io.swagger.v3.oas.annotations.*;
+import com.upstox.api.*;
+import com.zerodhatech.kiteconnect.*;
+import org.springframework.boot.*;
+```
+
+**How to Handle**:
+1. **Identify**: Check if import is from external library
+   ```powershell
+   # Check if package is in project source
+   find_by_name -Pattern "*swagger*" -SearchDirectory "src"
+   # No results = External JAR
+   ```
+
+2. **Reference, Don't Recreate**:
+   - ✅ Add JAR as Maven dependency in pom.xml
+   - ✅ Reference classes from JAR
+   - ❌ DO NOT try to create these classes in project
+
+3. **When in Doubt**:
+   ```powershell
+   # Search in project source
+   grep_search "package io.swagger" -SearchPath "src"
+   # No results = It's from a JAR, not project code
+   ```
+
+**Common External Packages**:
+- `io.swagger.*` → Swagger/OpenAPI (JAR)
+- `com.upstox.api.*` → Upstox SDK (JAR)
+- `com.zerodhatech.*` → Zerodha SDK (JAR)
+- `org.springframework.*` → Spring Framework (JAR)
+- `lombok.*` → Lombok (JAR)
+
+**Project Packages** (Our code):
+- `com.am.marketdata.*` → OUR code
+- `com.marketdata.*` → OUR code (legacy package)
 
 ## Generic PowerShell Scripts
 
