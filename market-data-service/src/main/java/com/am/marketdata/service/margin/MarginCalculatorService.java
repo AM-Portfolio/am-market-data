@@ -22,9 +22,10 @@ import java.util.concurrent.ThreadPoolExecutor;
  * Service for calculating margin requirements for various positions
  * Implements resilient patterns including retry, metrics, and async processing
  */
-@Slf4j
 @Service
 public class MarginCalculatorService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarginCalculatorService.class);
 
     private final MeterRegistry meterRegistry;
     private final ThreadPoolExecutor threadPoolExecutor;

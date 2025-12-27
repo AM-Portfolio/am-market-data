@@ -12,7 +12,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SecuritySearchRequestV1 implements Serializable {
+public class SecuritySearchRequest implements Serializable {
     private List<String> symbols;
     private String isin;
     private String sector;

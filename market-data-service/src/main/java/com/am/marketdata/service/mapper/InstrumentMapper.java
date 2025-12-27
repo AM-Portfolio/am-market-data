@@ -3,6 +3,7 @@ package com.am.marketdata.service.mapper;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.equity.Instrument.InstrumentType;
 import com.am.common.investment.model.equity.Instrument.Segment;
+import com.am.marketdata.common.model.InstrumentV1;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,12 +14,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper class to convert between Zerodha InstrumentV1 and AM Common InstrumentV1
+ * Mapper class to convert between Zerodha InstrumentV1 and AM Common
+ * InstrumentV1
  * models
  */
-@Slf4j
 @Component
 public class InstrumentMapper {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InstrumentMapper.class);
 
     /**
      * Convert a Zerodha InstrumentV1 to AM common InstrumentV1 model
@@ -26,13 +29,13 @@ public class InstrumentMapper {
      * @param zerodhaInstrument Zerodha InstrumentV1 model
      * @return AM common InstrumentV1 model
      */
-    public InstrumentV1 toCommonInstrument(com.zerodhatech.models.Instrument zerodhaInstrument) {
+    public Instrument toCommonInstrument(com.zerodhatech.models.Instrument zerodhaInstrument) {
         if (zerodhaInstrument == null) {
             return null;
         }
 
         try {
-            InstrumentV1 instrument = new InstrumentV1();
+            Instrument instrument = new Instrument();
 
             // Map basic properties
             instrument.setTradingSymbol(zerodhaInstrument.tradingsymbol);
@@ -40,7 +43,7 @@ public class InstrumentMapper {
             instrument.setName(zerodhaInstrument.name);
             instrument.setExchangeToken(zerodhaInstrument.exchange_token);
 
-            // Map InstrumentV1 type
+            // Map Instrument type
             if (zerodhaInstrument.instrument_type != null) {
                 instrument.setInstrumentType(mapInstrumentType(zerodhaInstrument.instrument_type));
             }
@@ -61,14 +64,9 @@ public class InstrumentMapper {
                 instrument.setExpiry(zerodhaInstrument.expiry);
             }
 
-            // // Map strike if available
-            // if (zerodhaInstrument.strike > 0) {
-            // instrument.setStrike(BigDecimal.valueOf(zerodhaInstrument.strike));
-            // }
-
             return instrument;
         } catch (Exception e) {
-            log.error("Error mapping Zerodha InstrumentV1 to common instrument: {}", e.getMessage(), e);
+            log.error("Error mapping Zerodha Instrument to common instrument: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -76,34 +74,34 @@ public class InstrumentMapper {
     /**
      * Convert a list of Zerodha instruments to a list of AM common instruments
      *
-     * @param zerodhaInstruments List of Zerodha InstrumentV1 models
-     * @return List of AM common InstrumentV1 models
+     * @param zerodhaInstruments List of Zerodha Instrument models
+     * @return List of AM common Instrument models
      */
-    public List<InstrumentV1> toCommonInstruments(List<com.zerodhatech.models.Instrument> zerodhaInstruments) {
+    public List<Instrument> toCommonInstruments(List<com.zerodhatech.models.Instrument> zerodhaInstruments) {
         if (zerodhaInstruments == null || zerodhaInstruments.isEmpty()) {
             return new ArrayList<>();
         }
 
         return zerodhaInstruments.stream()
                 .map(this::toCommonInstrument)
-                .filter(instrument -> InstrumentV1 != null)
+                .filter(instrument -> instrument != null)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Convert the new provider common InstrumentV1 to service's internal InstrumentV1
+     * Convert the new provider common InstrumentV1 to service's internal Instrument
      * model
      *
      * @param providerInstrument Provider's common InstrumentV1 model
-     * @return Service's internal InstrumentV1 model
+     * @return Service's internal Instrument model
      */
-    public InstrumentV1 fromProviderInstrument(com.am.marketdata.common.model.Instrument providerInstrument) {
+    public Instrument fromProviderInstrument(InstrumentV1 providerInstrument) {
         if (providerInstrument == null) {
             return null;
         }
 
         try {
-            InstrumentV1 instrument = new InstrumentV1();
+            Instrument instrument = new Instrument();
             instrument.setTradingSymbol(providerInstrument.getTradingSymbol());
 
             // Map token safely
@@ -112,8 +110,6 @@ public class InstrumentMapper {
                 try {
                     instrument.setInstrumentToken(Long.parseLong(token));
                 } catch (NumberFormatException e) {
-                    // If not numeric, we might have a problem or need to store it differently
-                    // For now, default to 0 to avoid crash
                     instrument.setInstrumentToken(0L);
                 }
             }
@@ -152,7 +148,7 @@ public class InstrumentMapper {
             }
             return instrument;
         } catch (Exception e) {
-            log.error("Error mapping provider InstrumentV1 to internal instrument: {}", e.getMessage(), e);
+            log.error("Error mapping provider Instrument to internal instrument: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -162,17 +158,17 @@ public class InstrumentMapper {
      * instruments
      *
      * @param providerInstruments List of provider's common InstrumentV1 models
-     * @return List of internal InstrumentV1 models
+     * @return List of internal Instrument models
      */
-    public List<InstrumentV1> fromProviderInstruments(
-            List<com.am.marketdata.common.model.Instrument> providerInstruments) {
+    public List<Instrument> fromProviderInstruments(
+            List<InstrumentV1> providerInstruments) {
         if (providerInstruments == null || providerInstruments.isEmpty()) {
             return new ArrayList<>();
         }
 
         return providerInstruments.stream()
                 .map(this::fromProviderInstrument)
-                .filter(instrument -> InstrumentV1 != null)
+                .filter(instrument -> instrument != null)
                 .collect(Collectors.toList());
     }
 

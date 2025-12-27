@@ -45,16 +45,16 @@ public class MarketDataCacheService {
 
     public void cacheOHLCData(Map<String, OHLCQuoteV1> ohlcData, TimeFrameV1 timeFrame) {
         try {
-            String interval = TimeFrameV1 != null ? timeFrame.getApiValue() : "1D";
+            String interval = timeFrame != null ? timeFrame.getApiValue() : "1D";
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
             log.info("[INTERVAL_TRACE]", String.format(
                     "MarketDataCacheService.cacheOHLCData: Caching %d symbols with timeFrame: %s (enum: %s, apiValue: %s) for date: %s",
-                    ohlcData.size(), timeFrame, TimeFrameV1 != null ? timeFrame.name() : "null", interval, today));
+                    ohlcData.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null", interval, today));
 
             // Convert OHLC quotes to OHLCV objects and cache per symbol with timeframe
             List<String> cachedKeys = new ArrayList<>();
-            for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
+            for (Map.Entry<String, OHLCQuoteV1> entry : ohlcData.entrySet()) {
                 String fullSymbol = entry.getKey();
                 // Remove all exchange prefixes (NSE_EQ:, NSE:, etc.)
                 String symbol = fullSymbol.contains(":") ? fullSymbol.substring(fullSymbol.indexOf(":") + 1)
@@ -126,8 +126,8 @@ public class MarketDataCacheService {
                 CacheLoggingUtil.logHistoricalDataCaching(log, symbol, timeFrame.getApiValue(), points);
 
                 // For daily data, use the historical bar caching
-                if (timeFrame == TimeFrame.DAY || TimeFrameV1 == TimeFrame.WEEK ||
-                        TimeFrameV1 == TimeFrame.MONTH || TimeFrameV1 == TimeFrame.YEAR) {
+                if (timeFrame == TimeFrameV1.DAY || timeFrame == TimeFrameV1.WEEK ||
+                        timeFrame == TimeFrameV1.MONTH || timeFrame == TimeFrameV1.YEAR) {
 
                     // Cache each day's data point individually
                     for (OHLCVTPoint point : points) {
@@ -176,7 +176,7 @@ public class MarketDataCacheService {
 
             log.info("[INTERVAL_TRACE]", String.format(
                     "MarketDataCacheService.getOHLCFromCache: Attempting to retrieve OHLC data from cache for %d symbols with timeFrame: %s (enum: %s, apiValue: %s) on date: %s",
-                    cleanSymbols.size(), timeFrame, TimeFrameV1 != null ? timeFrame.name() : "null",
+                    cleanSymbols.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null",
                     timeFrame.getApiValue(), today));
 
             log.debug("getOHLCFromCache", "Expected Redis keys: {}", expectedKeys);
@@ -237,7 +237,7 @@ public class MarketDataCacheService {
      * Batch retrieval of historical data from cache for multiple symbols
      * 
      * @param symbols       List of symbols to retrieve
-     * @param TimeFrameV1     The TimeFrameV1 for the data
+     * @param TimeFrameV1   The TimeFrameV1 for the data
      * @param fromDate      Start date in ISO format (yyyy-MM-dd)
      * @param toDate        End date in ISO format (yyyy-MM-dd)
      * @param isIndexSymbol Whether the symbols are index symbols (for index cache
@@ -253,14 +253,14 @@ public class MarketDataCacheService {
 
             log.info("[BATCH_CACHE]", String.format(
                     "Attempting to retrieve historical data from cache for %d symbols with timeFrame: %s (apiValue: %s), from: %s, to: %s",
-                    symbols.size(), timeFrame, TimeFrameV1 != null ? timeFrame.getApiValue() : "null", fromDate,
+                    symbols.size(), timeFrame, timeFrame != null ? timeFrame.getApiValue() : "null", fromDate,
                     toDate));
 
             Map<String, HistoricalData> result = new HashMap<>();
 
             // For daily/weekly/monthly/yearly data
-            if (timeFrame == TimeFrame.DAY || TimeFrameV1 == TimeFrame.WEEK || TimeFrameV1 == TimeFrame.MONTH
-                    || TimeFrameV1 == TimeFrame.YEAR) {
+            if (timeFrame == TimeFrameV1.DAY || timeFrame == TimeFrameV1.WEEK || timeFrame == TimeFrameV1.MONTH
+                    || timeFrame == TimeFrameV1.YEAR) {
 
                 // Use the date range method to get all data in a single call
                 Map<String, List<StockBars>> batchBars = stockCacheService.getHistoricalBarsWithStats(symbols,
@@ -342,7 +342,7 @@ public class MarketDataCacheService {
      * Cache aggregated historical data at index level
      * 
      * @param indexSymbol     The index symbol (e.g., "NIFTY 50")
-     * @param TimeFrameV1       The TimeFrameV1 for the data
+     * @param TimeFrameV1     The TimeFrameV1 for the data
      * @param fromDate        Start date in ISO format (yyyy-MM-dd)
      * @param toDate          End date in ISO format (yyyy-MM-dd)
      * @param constituentData Map of constituent symbol to HistoricalData
@@ -390,7 +390,7 @@ public class MarketDataCacheService {
      * Retrieve cached index-level historical data
      * 
      * @param indexSymbol The index symbol (e.g., "NIFTY 50")
-     * @param TimeFrameV1   The TimeFrameV1 for the data
+     * @param TimeFrameV1 The TimeFrameV1 for the data
      * @param fromDate    Start date in ISO format (yyyy-MM-dd)
      * @param toDate      End date in ISO format (yyyy-MM-dd)
      * @return Map of constituent symbol to HistoricalData if found, null otherwise
@@ -460,16 +460,16 @@ public class MarketDataCacheService {
             // Log the cache retrieval attempt
             log.debug("[INTERVAL_TRACE]", String.format(
                     "MarketDataCacheService.getHistoricalDataFromCache: Attempting to retrieve historical data from cache for symbol: %s, timeFrame: %s (enum: %s, apiValue: %s), from: %s, to: %s",
-                    symbol, timeFrame, TimeFrameV1 != null ? timeFrame.name() : "null",
-                    TimeFrameV1 != null ? timeFrame.getApiValue() : "null", fromDate, toDate));
+                    symbol, timeFrame, timeFrame != null ? timeFrame.name() : "null",
+                    timeFrame != null ? timeFrame.getApiValue() : "null", fromDate, toDate));
 
             // Parse dates
             LocalDate from = LocalDate.parse(fromDate, DateTimeFormatter.ISO_LOCAL_DATE);
             LocalDate to = LocalDate.parse(toDate, DateTimeFormatter.ISO_LOCAL_DATE);
 
             // For daily data
-            if (timeFrame == TimeFrame.DAY || TimeFrameV1 == TimeFrame.WEEK || TimeFrameV1 == TimeFrame.MONTH
-                    || TimeFrameV1 == TimeFrame.YEAR) {
+            if (timeFrame == TimeFrameV1.DAY || timeFrame == TimeFrameV1.WEEK || timeFrame == TimeFrameV1.MONTH
+                    || timeFrame == TimeFrameV1.YEAR) {
                 // Get historical bars for each day in the range
                 List<OHLCV> points = new ArrayList<>();
                 Map<String, String> cacheHits = new HashMap<>();
@@ -601,10 +601,10 @@ public class MarketDataCacheService {
      */
     private OHLCQuoteV1 createOHLCQuoteFromBar(OHLCV bar) {
         // Create a new OHLCQuoteV1 object
-        OHLCQuoteV1 quote = new OHLCQuote();
+        OHLCQuoteV1 quote = new OHLCQuoteV1();
 
         // Create and set the OHLC object
-        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        OHLCQuoteV1.OHLC ohlc = new OHLCQuoteV1.OHLC();
         ohlc.setOpen(bar.getOpen());
         ohlc.setHigh(bar.getHigh());
         ohlc.setLow(bar.getLow());
@@ -627,7 +627,7 @@ public class MarketDataCacheService {
      * 
      * @param symbols       List of trading symbols
      * @param isIndexSymbol Whether the symbols are index symbols
-     * @param TimeFrameV1     The TimeFrameV1 for the quotes
+     * @param TimeFrameV1   The TimeFrameV1 for the quotes
      * @param forceRefresh  Whether to force refresh from provider
      * @return Map containing quotes or error information
      */

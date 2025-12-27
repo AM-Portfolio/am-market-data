@@ -22,9 +22,9 @@ import java.util.stream.Collectors;
  * Service for calculating brokerage, taxes, and other charges for stock trades
  * Implements resilient patterns including metrics and async processing
  */
-@Slf4j
 @Service
 public class BrokerageCalculatorService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BrokerageCalculatorService.class);
 
     private final MeterRegistry meterRegistry;
     private final ThreadPoolExecutor threadPoolExecutor;

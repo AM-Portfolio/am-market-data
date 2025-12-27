@@ -13,9 +13,10 @@ import java.util.stream.Collectors;
 /**
  * Factory for managing and retrieving market data providers
  */
-@Slf4j
 @Component
 public class MarketDataProviderFactory {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataProviderFactory.class);
 
     private final Map<String, AMMarketDataProvider> providers;
 

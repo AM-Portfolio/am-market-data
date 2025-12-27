@@ -63,7 +63,7 @@ public class SecurityApiServiceImpl implements SecurityApiService {
     private SecurityDTOV1 mapToDTO(SecurityDocument doc) {
         if (doc == null)
             return null;
-        return SecurityDTO.builder()
+        return SecurityDTOV1.builder()
                 .symbol(doc.getKey() != null ? doc.getKey().getSymbol() : null)
                 .isin(doc.getKey() != null ? doc.getKey().getIsin() : null)
                 .sector(doc.getMetadata() != null ? doc.getMetadata().getSector() : null)

@@ -19,9 +19,10 @@ import java.util.concurrent.TimeUnit;
 /**
  * Utility class for retrieving market data from different sources
  */
-@Slf4j
 @Service
 public class MarketDataRetrievalUtil {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataRetrievalUtil.class);
 
     // Static constants for retry parameters
     private static final int DEFAULT_MAX_RETRIES = 3;
@@ -112,8 +113,8 @@ public class MarketDataRetrievalUtil {
     /**
      * Retrieve OHLC data from provider
      *
-     * @param provider  The market data provider
-     * @param symbols   List of symbols to retrieve
+     * @param provider    The market data provider
+     * @param symbols     List of symbols to retrieve
      * @param TimeFrameV1 TimeFrame for the data
      * @return Map of symbol to OHLC quote
      */

@@ -16,9 +16,10 @@ import java.util.List;
  * Mapper class to convert between Zerodha HistoricalData and AM Common
  * HistoricalData models
  */
-@Slf4j
 @Component
 public class HistoryDataMapper {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HistoryDataMapper.class);
 
     /**
      * Convert a Zerodha historical data to AM common historical data model

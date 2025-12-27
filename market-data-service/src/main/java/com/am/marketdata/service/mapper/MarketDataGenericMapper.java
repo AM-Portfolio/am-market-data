@@ -14,9 +14,10 @@ import java.util.Map;
 /**
  * Mapper for converting OHLC data to EquityPrice objects
  */
-@Slf4j
 @Component
 public class MarketDataGenericMapper {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataGenericMapper.class);
 
     /**
      * Convert LTP data to EquityPrice objects
@@ -33,7 +34,7 @@ public class MarketDataGenericMapper {
             return equityPrices;
         }
 
-        for (Map.Entry<String, OHLCQuote> entry : ltpData.entrySet()) {
+        for (Map.Entry<String, OHLCQuoteV1> entry : ltpData.entrySet()) {
             String key = entry.getKey();
             OHLCQuoteV1 quote = entry.getValue();
 
@@ -79,7 +80,7 @@ public class MarketDataGenericMapper {
             return equityPrices;
         }
 
-        for (Map.Entry<String, OHLCQuote> entry : ohlcData.entrySet()) {
+        for (Map.Entry<String, OHLCQuoteV1> entry : ohlcData.entrySet()) {
             String key = entry.getKey();
             OHLCQuoteV1 quote = entry.getValue();
 

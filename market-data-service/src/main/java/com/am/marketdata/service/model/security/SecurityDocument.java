@@ -30,11 +30,26 @@ public class SecurityDocument implements Serializable {
 
     @Data
     @Builder
-    @NoArgsConstructor
     @AllArgsConstructor
     public static class SecurityKey implements Serializable {
         private String symbol;
         private String isin;
+
+        public String getSymbol() {
+            return symbol;
+        }
+
+        public void setSymbol(String symbol) {
+            this.symbol = symbol;
+        }
+
+        public String getIsin() {
+            return isin;
+        }
+
+        public void setIsin(String isin) {
+            this.isin = isin;
+        }
     }
 
     @Data
@@ -50,6 +65,38 @@ public class SecurityDocument implements Serializable {
 
         @Field("market_cap_type")
         private String marketCapType;
+
+        public String getSector() {
+            return sector;
+        }
+
+        public void setSector(String sector) {
+            this.sector = sector;
+        }
+
+        public String getIndustry() {
+            return industry;
+        }
+
+        public void setIndustry(String industry) {
+            this.industry = industry;
+        }
+
+        public Long getMarketCapValue() {
+            return marketCapValue;
+        }
+
+        public void setMarketCapValue(Long marketCapValue) {
+            this.marketCapValue = marketCapValue;
+        }
+
+        public String getMarketCapType() {
+            return marketCapType;
+        }
+
+        public void setMarketCapType(String marketCapType) {
+            this.marketCapType = marketCapType;
+        }
     }
 
     @Data
@@ -61,5 +108,46 @@ public class SecurityDocument implements Serializable {
         private Instant createdAt;
 
         private Long version;
+
+        public Instant getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(Instant createdAt) {
+            this.createdAt = createdAt;
+        }
+
+        public Long getVersion() {
+            return version;
+        }
+
+        public void setVersion(Long version) {
+            this.version = version;
+        }
+    }
+
+    public SecurityKey getKey() {
+        return key;
+    }
+
+    public void setKey(SecurityKey key) {
+        this.key = key;
+    }
+    // metadata and audit already added
+
+    public SecurityMetadata getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(SecurityMetadata metadata) {
+        this.metadata = metadata;
+    }
+
+    public Audit getAudit() {
+        return audit;
+    }
+
+    public void setAudit(Audit audit) {
+        this.audit = audit;
     }
 }

@@ -1,7 +1,7 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.api.service.StockIndicesApiService;
-import com.am.marketdata.common.model.NSEStockInsidicesData;
+import com.am.marketdata.common.model.NSEStockIndicesDataV1;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,10 +16,11 @@ import java.util.Map;
  * Note: This is a placeholder implementation. Full implementation requires
  * integration with the scraper module's stock indices processing service.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockIndicesApiServiceImpl implements StockIndicesApiService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(StockIndicesApiServiceImpl.class);
 
     @Override
     public NSEStockIndicesDataV1 getStockIndices(String indexSymbol, boolean forceRefresh) {

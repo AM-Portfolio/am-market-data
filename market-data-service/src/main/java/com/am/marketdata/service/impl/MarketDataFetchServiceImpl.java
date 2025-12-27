@@ -20,10 +20,11 @@ import java.util.stream.Collectors;
 /**
  * Implementation of MarketDataFetchService that delegates to MarketDataService
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketDataFetchServiceImpl implements MarketDataFetchService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataFetchServiceImpl.class);
 
     private final MarketDataService marketDataService;
 

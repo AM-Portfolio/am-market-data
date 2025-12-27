@@ -15,10 +15,11 @@ import java.util.Map;
  * Note: This is a placeholder implementation. Full implementation requires
  * aggregation logic and data from various sources.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketAnalyticsApiServiceImpl implements MarketAnalyticsApiService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketAnalyticsApiServiceImpl.class);
 
     @Override
     public Map<String, Object> getMarketSummary() {

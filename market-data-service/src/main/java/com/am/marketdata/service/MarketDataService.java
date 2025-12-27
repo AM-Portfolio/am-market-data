@@ -4,6 +4,7 @@ import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.service.instrument.InstrumentService;
+import com.am.marketdata.common.model.InstrumentV1;
 import com.am.marketdata.common.model.OHLCQuoteV1;
 import com.am.marketdata.common.model.TimeFrameV1;
 import com.am.marketdata.service.mapper.InstrumentMapper;
@@ -39,9 +40,10 @@ import java.util.stream.Collectors;
  * Handles all market data processing logic including fetching, validation, and
  * processing
  */
-@Slf4j
 @Service
 public class MarketDataService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataService.class);
 
     private final MarketDataProviderFactory providerFactory;
     private final InstrumentService instrumentService;
@@ -163,11 +165,11 @@ public class MarketDataService {
 
     public Map<String, OHLCQuoteV1> getOHLC(List<String> tradingSymbols, TimeFrameV1 timeFrame, boolean forceRefresh,
             String providerName) {
-        String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "default";
+        String tfValue = timeFrame != null ? timeFrame.getApiValue() : "default";
         Timer.Sample timer = Timer.start(meterRegistry);
         log.info(
                 "[INTERVAL_TRACE] MarketDataService.getOHLC: Getting OHLC for {} symbols with timeFrame: {} (enum: {}, apiValue: {}), forceRefresh: {}",
-                tradingSymbols.size(), timeFrame, TimeFrameV1 != null ? timeFrame.name() : "null", tfValue, forceRefresh);
+                tradingSymbols.size(), timeFrame, timeFrame != null ? timeFrame.name() : "null", tfValue, forceRefresh);
 
         try {
 
@@ -331,14 +333,14 @@ public class MarketDataService {
 
             AMMarketDataProvider provider = providerFactory.getProvider(providerName);
             final AMMarketDataProvider finalProvider = provider;
-            List<com.am.marketdata.common.model.Instrument> providerInstruments = retryOnFailure(
+            List<InstrumentV1> providerInstruments = retryOnFailure(
                     () -> finalProvider.getAllInstruments(),
                     "getAllInstruments");
 
             if (providerInstruments != null && !providerInstruments.isEmpty()) {
                 log.info("Fetched {} symbols from provider, converting to internal model", providerInstruments.size());
 
-                List<InstrumentV1> internalInstruments = instrumentMapper.fromProviderInstruments(providerInstruments);
+                List<Instrument> internalInstruments = instrumentMapper.fromProviderInstruments(providerInstruments);
 
                 log.info("Converted {} instruments, saving to database", internalInstruments.size());
 
@@ -346,7 +348,7 @@ public class MarketDataService {
 
                 log.info("Successfully saved {} instruments to database", internalInstruments.size());
 
-                return internalInstruments;
+                return providerInstruments;
             } else {
                 log.warn("No instruments returned from provider");
                 return new ArrayList<>();
@@ -533,7 +535,7 @@ public class MarketDataService {
             // Step 1: Try to get data from cache first if not forced refresh
             if (!forceRefresh) {
                 log.info("[CACHE] Attempting to fetch live prices from cache for {} symbols", tradingSymbols.size());
-                cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrame.DAY, false);
+                cachedData = persistenceService.getOHLCData(tradingSymbols, TimeFrameV1.DAY, false);
             } else {
                 log.info("[CACHE] Skipping cache lookup due to forceRefresh=true");
             }

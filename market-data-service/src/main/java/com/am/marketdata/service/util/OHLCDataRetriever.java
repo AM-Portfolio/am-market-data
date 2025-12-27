@@ -15,12 +15,13 @@ import java.util.*;
  * Concrete implementation of AbstractMarketDataRetriever for OHLC data.
  * Handles retrieval of OHLC quotes from cache, database, and provider.
  */
-@Slf4j
 public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQuoteV1> {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OHLCDataRetriever.class);
 
     @Getter
     @Setter
-    private TimeFrameV1 timeFrame = TimeFrame.DAY; // Default to 5-minute timeframe
+    private TimeFrameV1 timeFrame = TimeFrameV1.DAY; // Default to 5-minute timeframe
 
     private OHLCDataRetriever(
             MarketDataPersistenceService persistenceService,

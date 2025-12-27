@@ -1,7 +1,7 @@
 package com.am.marketdata.service.impl;
 
 import com.am.marketdata.api.service.MarketIndexApiService;
-import com.am.marketdata.common.model.NSEIndex;
+import com.am.marketdata.common.model.NSEIndexV1;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,10 +15,11 @@ import java.util.List;
  * Note: This is a placeholder implementation. Full implementation requires
  * integration with the scraper module or a dedicated index data service.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketIndexApiServiceImpl implements MarketIndexApiService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketIndexApiServiceImpl.class);
 
     @Override
     public List<NSEIndexV1> getAllIndices() {

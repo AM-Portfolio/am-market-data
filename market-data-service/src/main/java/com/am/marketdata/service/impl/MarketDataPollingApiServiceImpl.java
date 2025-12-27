@@ -14,10 +14,12 @@ import java.util.Map;
  * Note: This is a placeholder implementation. Full implementation requires
  * WebSocket or SSE streaming infrastructure.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketDataPollingApiServiceImpl implements MarketDataPollingApiService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory
+            .getLogger(MarketDataPollingApiServiceImpl.class);
 
     @Override
     public Map<String, Object> pollMarketData(String symbols, String timeFrame, boolean indexSymbol) {

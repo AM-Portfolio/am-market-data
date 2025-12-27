@@ -14,12 +14,15 @@ import java.util.*;
  * Concrete implementation of AbstractMarketDataRetriever for Historical data.
  * Handles retrieval of historical data from cache, database, and provider.
  */
-@Slf4j
 public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String, HistoricalData> {
+
+    // Manual logger to bypass Lombok processing issues
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HistoricalDataRetriever.class);
 
     private final Date fromDate;
     private final Date toDate;
     private final TimeFrameV1 interval;
+
     private final boolean continuous;
     private final Map<String, Object> additionalParams;
     private final boolean isIndexSymbol;

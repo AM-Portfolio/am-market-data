@@ -16,10 +16,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EquityPriceProcessingService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EquityPriceProcessingService.class);
+
     private final MarketDataService marketDataService;
     private final EquityService equityService;
     private final KafkaProducerService kafkaProducerService;

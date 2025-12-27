@@ -32,9 +32,10 @@ import java.util.stream.Collectors;
  * Implementation of MarketDataPersistenceService
  * Handles saving and retrieving market data from both database and cache
  */
-@Slf4j
 @Service
 public class MarketDataPersistenceService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataPersistenceService.class);
 
     private final HistoricalDataService historicalDataService;
     private final MarketDataCacheService marketDataCacheService;
@@ -79,7 +80,7 @@ public class MarketDataPersistenceService {
                 log.debug("Successfully saved {} equity prices to database", equityPrices.size());
 
                 // Then update the cache with default TimeFrameV1 (1D for current day data)
-                marketDataCacheService.cacheOHLCData(ohlcData, TimeFrame.DAY);
+                marketDataCacheService.cacheOHLCData(ohlcData, TimeFrameV1.DAY);
                 log.debug("Successfully cached OHLC data for {} symbols", ohlcData.size());
             } catch (Exception e) {
                 log.error("Error saving OHLC data: {}", e.getMessage(), e);
@@ -126,7 +127,8 @@ public class MarketDataPersistenceService {
         }
     }
 
-    public Map<String, OHLCQuoteV1> getOHLCData(List<String> tradingSymbols, TimeFrameV1 timeFrame, boolean forceRefresh) {
+    public Map<String, OHLCQuoteV1> getOHLCData(List<String> tradingSymbols, TimeFrameV1 timeFrame,
+            boolean forceRefresh) {
         if (tradingSymbols == null || tradingSymbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -146,15 +148,17 @@ public class MarketDataPersistenceService {
                 return Collections.emptyMap();
             }
 
-            // Use "LIVE" as the cache key for current/live prices (when TimeFrameV1 is null)
-            String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "1D";
+            // Use "LIVE" as the cache key for current/live prices (when TimeFrameV1 is
+            // null)
+            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "1D";
 
             Map<String, OHLCQuoteV1> result = new HashMap<>();
             Set<String> remainingSymbols = new HashSet<>(filteredSymbols);
 
             if (!forceRefresh) {
                 // Try cache first
-                Map<String, OHLCQuoteV1> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols, timeFrame);
+                Map<String, OHLCQuoteV1> cachedData = marketDataCacheService.getOHLCFromCache(tradingSymbols,
+                        timeFrame);
                 if (cachedData != null && !cachedData.isEmpty()) {
                     log.debug("Retrieved {} OHLC data from cache with TimeFrameV1 {}",
                             cachedData.size(), tfValue);
@@ -210,7 +214,7 @@ public class MarketDataPersistenceService {
 
             return result;
         } catch (Exception e) {
-            String tfValue = TimeFrameV1 != null ? timeFrame.getApiValue() : "LIVE";
+            String tfValue = timeFrame != null ? timeFrame.getApiValue() : "LIVE";
             log.error("Error retrieving OHLC data with TimeFrameV1 {}: {}",
                     tfValue, e.getMessage(), e);
             return Collections.emptyMap();
@@ -261,10 +265,10 @@ public class MarketDataPersistenceService {
      * @return OHLCQuoteV1 object
      */
     private OHLCQuoteV1 createOHLCQuoteFromEquityPrice(EquityPrice price) {
-        OHLCQuoteV1 quote = new OHLCQuote();
+        OHLCQuoteV1 quote = new OHLCQuoteV1();
         quote.setLastPrice(price.getLastPrice());
 
-        OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
+        OHLCQuoteV1.OHLC ohlc = new OHLCQuoteV1.OHLC();
         ohlc.setOpen(price.getOhlcv().getOpen());
         ohlc.setHigh(price.getOhlcv().getHigh());
         ohlc.setLow(price.getOhlcv().getLow());

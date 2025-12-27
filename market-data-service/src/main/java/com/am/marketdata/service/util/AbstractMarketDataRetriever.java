@@ -20,8 +20,9 @@ import java.util.*;
  * @param <K> The key type (usually String for symbol)
  * @param <T> The data type to retrieve (e.g., OHLCQuote, HistoricalData)
  */
-@Slf4j
 public abstract class AbstractMarketDataRetriever<K, T> {
+
+    protected final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(getClass());
 
     protected final MarketDataPersistenceService persistenceService;
     protected final MarketDataProviderFactory providerFactory;
@@ -86,7 +87,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * exhausted.
      *
      * @param keys         The keys (e.g., symbols) to retrieve data for
-     * @param TimeFrameV1    The time frame for the OHLC data
+     * @param TimeFrameV1  The time frame for the OHLC data
      * @param forceRefresh Whether to force a refresh from the provider
      * @return Map of keys to retrieved data
      */
@@ -207,7 +208,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * Used when forceRefresh is true to ensure we have the most up-to-date data
      * but still leverage existing database records
      * 
-     * @param keys      The keys to retrieve data for
+     * @param keys        The keys to retrieve data for
      * @param TimeFrameV1 The time frame for the OHLC data
      * @return Map of keys to retrieved data
      */
@@ -255,7 +256,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * @param allKeys       All keys being requested
      * @param remainingKeys Set of keys that still need to be retrieved (will be
      *                      modified)
-     * @param TimeFrameV1     The time frame for the OHLC data
+     * @param TimeFrameV1   The time frame for the OHLC data
      * @return Map of key to data
      */
     protected abstract Map<K, T> retrieveFromCache(List<K> allKeys, Set<K> remainingKeys, TimeFrameV1 timeFrame);
@@ -264,7 +265,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * Retrieve data from database
      *
      * @param remainingKeys Set of keys that still need to be retrieved
-     * @param TimeFrameV1     The time frame for the OHLC data
+     * @param TimeFrameV1   The time frame for the OHLC data
      * @return Map of key to data
      */
     protected abstract Map<K, T> retrieveFromDatabase(Set<K> remainingKeys, TimeFrameV1 timeFrame);
@@ -272,7 +273,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
     /**
      * Retrieve data from database for a list of keys
      *
-     * @param keys      List of keys to retrieve
+     * @param keys        List of keys to retrieve
      * @param TimeFrameV1 The time frame for the OHLC data
      * @return Map of key to data
      */
