@@ -1,4 +1,4 @@
-package com.am.marketdata.api.model;
+package com.marketdata.common.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

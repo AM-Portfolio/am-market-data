@@ -1,4 +1,4 @@
-package com.am.marketdata.api.model;
+package com.marketdata.common.model;
 
 import com.am.marketdata.common.model.TimeFrame;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

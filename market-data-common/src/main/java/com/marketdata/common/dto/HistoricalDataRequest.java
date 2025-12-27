@@ -1,4 +1,4 @@
-package com.am.marketdata.api.dto;
+package com.marketdata.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

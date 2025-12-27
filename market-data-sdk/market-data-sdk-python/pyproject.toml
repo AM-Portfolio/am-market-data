@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-data-sdk"
+version = "0.1.0"
+description = "Python client for Market Data API"
+authors = [
+  { name="Market Data Team", email="team@marketdata.com" },
+]
+dependencies = [
+    "requests>=2.25.0",
+]
+requires-python = ">=3.7"

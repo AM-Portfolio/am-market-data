@@ -1,6 +1,6 @@
 package com.am.marketdata.internal.service;
 
-import com.am.marketdata.api.model.HistoricalDataResponseV1;
+import com.marketdata.common.model.HistoricalDataResponseV1;
 import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.marketdata.api.util.InstrumentUtils;
 import com.am.marketdata.common.model.TimeFrame;

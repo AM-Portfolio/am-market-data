@@ -1,4 +1,4 @@
-package com.am.marketdata.api.model;
+package com.marketdata.common.model;
 
 import com.am.common.investment.model.historical.HistoricalData;
 import lombok.Builder;

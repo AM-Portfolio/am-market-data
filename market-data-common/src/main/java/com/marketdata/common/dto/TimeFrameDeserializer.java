@@ -1,4 +1,4 @@
-package com.am.marketdata.api.dto;
+package com.marketdata.common.dto;
 
 import com.am.marketdata.common.model.TimeFrame;
 import com.fasterxml.jackson.core.JsonParser;
