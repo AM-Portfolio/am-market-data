@@ -16,6 +16,9 @@ dependencies:
   intl: ^0.19.0
   fl_chart: ^0.66.0
   web_socket_channel: ^3.0.0
+  # Generated Market Data SDK
+  market_data_client:
+    path: ../market-data-sdk/market-data-sdk-flutter
 
 dev_dependencies:
   flutter_test:
