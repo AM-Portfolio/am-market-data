@@ -18,29 +18,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ComponentScan(basePackages = "com.am.marketdata.provider")
 @EnableConfigurationProperties(ProviderProperties.class)
+@ComponentScan(basePackages = "com.am.marketdata.provider")
+@org.springframework.data.mongodb.repository.config.EnableMongoRepositories(basePackages = "com.am.marketdata.provider")
 public class ProviderAutoConfiguration {
     
-    /**
-     * Create Upstox provider bean when provider.type=upstox
-     */
-    @Bean
-    @ConditionalOnProperty(name = "provider.type", havingValue = "upstox", matchIfMissing = true)
-    public MarketDataProvider upstoxProvider(ProviderProperties properties) {
-        log.info("Configuring Upstox Market Data Provider");
-        // Implementation will be added in next step
-        // return new UpstoxMarketDataProvider(properties.getUpstox());
-        throw new UnsupportedOperationException("Upstox provider implementation pending");
-    }
-    
-    /**
-     * Create Zerodha provider bean when provider.type=zerodha
-     */
-    @Bean
-    @ConditionalOnProperty(name = "provider.type", havingValue = "zerodha")
-    public MarketDataProvider zerodhaProvider(ProviderProperties properties) {
-        log.info("Configuring Zerodha Market Data Provider");
-        // Implementation will be added in next step
-        // return new ZerodhaMarketDataProvider(properties.getZerodha());
-        throw new UnsupportedOperation("Zerodha provider implementation pending");
-    }
+    // Providers are loaded via ComponentScan
+    // Selection logic will be handled via @ConditionalOnProperty on the provider classes themselves
+    // or via Primary configuration.
 }

@@ -26,6 +26,11 @@ logs/
 
 # virtual machine crash logs
 hs_err_pid*
+hs_err_*.log
+
+# Build Outputs
+build_output*.txt
+build_log.txt
 replay_pid*
 
 # Maven

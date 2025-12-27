@@ -1,7 +1,8 @@
 package com.am.marketdata.provider;
 
-import com.marketdata.common.dto.*;
-import com.marketdata.common.model.*;
+import com.am.marketdata.common.model.Instrument;
+import com.am.marketdata.common.model.OHLCQuote;
+import com.am.common.investment.model.historical.HistoricalData;
 import java.util.*;
 
 /**
@@ -26,9 +27,9 @@ public interface MarketDataProvider {
      * @param from Start date (YYYY-MM-DD)
      * @param to End date (YYYY-MM-DD)
      * @param interval Time interval (1d, 1h, 5m, etc.)
-     * @return Map of symbol to list of OHLC data
+     * @return Map of symbol to HistoricalData
      */
-    Map<String, List<OHLCData>> getHistoricalData(
+    Map<String, HistoricalData> getHistoricalData(
         List<String> symbols, 
         String from, 
         String to, 
