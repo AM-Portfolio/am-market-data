@@ -25,8 +25,9 @@
         <module>market-data-service</module>
         <!-- <module>market-data-scraper</module> TEMPORARILY DISABLED - HAS COMPILATION ISSUES -->
         
-        <!-- Layer 4: Messaging -->
+        <!-- Layer 4: Messaging & Streaming -->
         <module>market-data-kafka</module>
+        <module>market-data-stream</module>
         
         <!-- Layer 5: Infrastructure -->
         <module>market-data-redis</module>

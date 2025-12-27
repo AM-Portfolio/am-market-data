@@ -28,20 +28,22 @@ The `MarketDataSdkService` is the single source of truth for communication.
 ## 3. Implementation Roadmap
 
 ### Phase 0: SDK Module WebSocket Integration (STAGING)
-The foundation of a robust platform is a powerful SDK. We must first integrate WebSocket capabilities directly into the `market_data_client` module.
+The core of our platform. We integrate WebSocket capabilities directly into the `market_data_client`.
 
-- **Objective:** The SDK must handle its own real-time communication.
-- **Tasks:**
-  - Implement `MarketDataWebSocketClient` in the SDK.
-  - Handle connection lifecycle (Connect, Disconnect, Reconnect).
-  - Define Event Models within the SDK package.
-  - Export unified streaming API.
+- **Objective:** Encapsulate real-time logic.
++ **Verification:** Perform raw socket tests in SDK environment before app usage.
 
 ### Phase 1: Domain Definition (Stable Models)
-Once the SDK is capable, we define our **Domain Layer** in the Flutter app. These models are optimized for the user experience, not for the database or API.
+Define the **Domain Layer** in the Flutter app to isolate the UI from the SDK.
 
-### Phase 2: The Infrastructure Core
-Implement the `MarketDataSdkService` (HTTP + WS consolidated). This layer handles retries, backoffs, and connection health.
+- **Objective:** Pure UI-facing entities.
++ **Verification:** Unit test mappers to ensure 100% data fidelity.
+
+### Phase 2: Infrastructure Core (The Bridge)
+Implement `MarketDataRepository` and `MarketDataSdkService`.
+
+- **Objective:** Reactive stream orchestration.
++ **Verification:** Mock SDK service to verify repository stream logic.
 
 ### Phase 3: The Mapper Implementation
 Develop the high-performance mappers that convert SDK DTOs into Domain Entities.

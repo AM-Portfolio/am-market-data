@@ -130,6 +130,16 @@ market-data-sdk/market-data-sdk-flutter/
 !market-data-sdk/docs/
 !market-data-sdk/docs/**/*.md
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+.env
+
 # Agent Configuration (ALWAYS TRACK)
 !.agent/
 !.agent/rules/

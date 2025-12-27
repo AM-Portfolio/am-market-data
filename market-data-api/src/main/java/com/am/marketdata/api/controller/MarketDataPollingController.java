@@ -47,4 +47,10 @@ public class MarketDataPollingController {
     public ResponseEntity<Map<String, Object>> unsubscribe(@RequestBody List<String> symbols) {
         return ResponseEntity.ok(marketDataPollingApiService.unsubscribe(symbols));
     }
+
+    @GetMapping("/schema/update")
+    @Operation(summary = "Internal use for SDK generation")
+    public com.am.marketdata.common.model.MarketDataUpdateV1 getUpdateSchema() {
+        return null;
+    }
 }
