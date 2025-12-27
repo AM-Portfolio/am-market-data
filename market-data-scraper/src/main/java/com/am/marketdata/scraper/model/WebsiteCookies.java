@@ -21,4 +21,12 @@ public class WebsiteCookies {
                 .map(cookie -> cookie.getName() + "=" + cookie.getValue())
                 .collect(Collectors.joining("; "));
     }
+
+    public String getCookiesString() {
+        return cookiesString;
+    }
+
+    public void setCookiesString(String cookiesString) {
+        this.cookiesString = cookiesString;
+    }
 }

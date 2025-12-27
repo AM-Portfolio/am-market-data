@@ -14,9 +14,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 
 /**
- * Service responsible for cookie management and regular indices data processing.
+ * Service responsible for cookie management and regular indices data
+ * processing.
  * Runs every 2 minutes during trading hours to fetch indices data.
- * Stock indices data is handled by a separate scheduler (StockIndicesSchedulerService).
+ * Stock indices data is handled by a separate scheduler
+ * (StockIndicesSchedulerService).
  */
 @Service
 @RequiredArgsConstructor
@@ -31,11 +33,11 @@ public class CookieSchedulerService {
         try {
             log.info("Initializing CookieSchedulerService");
             refreshCookies();
-            
+
             // If within trading hours, start market data processing
             if (isWithinTradingHours()) {
                 log.info("Within trading hours, starting initial market data processing");
-                //marketDataProcessingService.fetchAndProcessMarketData();
+                // marketDataProcessingService.fetchAndProcessMarketData();
                 marketDataProcessingService.fetchAndProcessStockIndicesOnly();
             } else {
                 log.info("Outside trading hours, skipping initial market data processing");
@@ -64,7 +66,7 @@ public class CookieSchedulerService {
             if (isWithinTradingHours()) {
                 // Refresh cookies if needed before processing
                 cookieManager.refreshIfNeeded();
-                
+
                 log.info("Starting scheduled indices data processing");
                 marketDataProcessingService.fetchAndProcessMarketData();
             } else {
@@ -89,8 +91,8 @@ public class CookieSchedulerService {
         LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
         LocalTime marketStart = LocalTime.of(9, 15);
         LocalTime marketEnd = LocalTime.of(15, 35);
-        
-        //return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
+
+        // return !now.isBefore(marketStart) && !now.isAfter(marketEnd);
         return true;
     }
 }

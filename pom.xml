@@ -23,7 +23,7 @@
         <!-- Layer 3: Service -->
         <module>market-data-provider</module>
         <module>market-data-service</module>
-        <module>market-data-scraper</module>
+        <!-- <module>market-data-scraper</module> TEMPORARILY DISABLED - HAS COMPILATION ISSUES -->
         
         <!-- Layer 4: Messaging -->
         <module>market-data-kafka</module>
