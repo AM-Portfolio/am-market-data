@@ -61,13 +61,69 @@ $files | Where-Object {
 ### 1. Duplicate Handling ⚠️
 
 **Markdown**: DELETE duplicates (single source of truth)  
-**Images**: VERSION duplicates (keep history as filename_v1.png)
+**Images**: VERSION all iterations (keep complete history)
 
 **Priority for MD files**:
 1. `{project}-docs/` → **KEEP**
 2. `{project}-{module}/docs/` → **KEEP**  
 3. **Root level** → **MOVE to appropriate location** (see below)
 4. Anywhere else → **DELETE**
+
+**Image Versioning Strategy** (MANDATORY):
+
+When generating or updating images:
+- ✅ **ALWAYS version**: Never overwrite existing images
+- ✅ **Keep history**: All versions preserved for reference
+- ✅ **Naming**: `image_name_v1.png`, `image_name_v2.png`, `image_name_v3.png`
+- ✅ **Latest**: Update markdown to reference latest version
+- ❌ **NEVER delete**: Previous versions remain in `images/` folder
+
+**Image Versioning Workflow**:
+```powershell
+# When generating a new version of an image
+$imageName = "architecture_diagram"
+$imageDir = "market-data-docs\architecture\images"
+
+# Find existing versions
+$existingVersions = Get-ChildItem -Path $imageDir -Filter "${imageName}*.png" | 
+    Where-Object { $_.Name -match "_v(\d+)\.png$" }
+
+# Determine next version number
+if ($existingVersions.Count -eq 0) {
+    # First version
+    $newName = "${imageName}_v1.png"
+} else {
+    # Get highest version number
+    $maxVersion = ($existingVersions | ForEach-Object {
+        if ($_.Name -match "_v(\d+)\.png$") { [int]$matches[1] }
+    } | Measure-Object -Maximum).Maximum
+    
+    $newVersion = $maxVersion + 1
+    $newName = "${imageName}_v${newVersion}.png"
+}
+
+# Save new version
+Copy-Item $sourceImage -Destination "$imageDir\$newName"
+
+# Update markdown to reference latest
+$mdFile = "market-data-docs\architecture\ARCHITECTURE.md"
+$content = Get-Content $mdFile -Raw
+$content = $content -replace "!\[([^\]]*)\]\(images/${imageName}[^)]*\)", "![`$1](images/$newName)"
+Set-Content -Path $mdFile -Value $content
+
+Write-Host "✅ Saved as version $newVersion"
+Write-Host "✅ Previous versions preserved"
+```
+
+**Example**:
+```
+images/
+├── architecture_diagram_v1.png    ← Initial version (kept)
+├── architecture_diagram_v2.png    ← Second iteration (kept)
+├── architecture_diagram_v3.png    ← Latest version (referenced in .md)
+├── complete_flow_v1.png           ← Initial (kept)
+└── complete_flow_v2.png           ← Latest (referenced in .md)
+```
 
 ### 2. Root-Level Document Handling ⚠️
 

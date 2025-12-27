@@ -1,6 +1,6 @@
 # Final Architecture - Service and Provider Separation
 
-![Final Architecture Diagram](images/final_architecture_diagram.png)
+![Final Architecture Diagram](images/final_architecture_diagram_v2.png)
 
 ## Architecture Diagram (Complete with Scheduler + Provider Isolation)
 
