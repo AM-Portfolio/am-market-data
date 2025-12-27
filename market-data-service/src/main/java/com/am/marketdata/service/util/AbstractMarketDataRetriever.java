@@ -2,7 +2,7 @@ package com.am.marketdata.service.util;
 
 import com.am.marketdata.service.MarketDataPersistenceService;
 import com.am.marketdata.provider.AMMarketDataProvider;
-import com.marketdata.common.MarketDataProviderFactory;
+import com.am.marketdata.service.provider.MarketDataProviderFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.support.RetryTemplate;

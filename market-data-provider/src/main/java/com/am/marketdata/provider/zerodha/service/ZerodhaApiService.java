@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -61,8 +62,8 @@ public class ZerodhaApiService {
     private String refreshToken;
 
     public ZerodhaApiService(ZerodhaInstrumentRepository instrumentRepository,
-                             MeterRegistry meterRegistry,
-                             Executor executor) {
+            MeterRegistry meterRegistry,
+            @Qualifier("zerodhaThreadPoolExecutor") Executor executor) {
         this.instrumentRepository = instrumentRepository;
         this.meterRegistry = meterRegistry;
         this.executor = executor;
@@ -100,24 +101,26 @@ public class ZerodhaApiService {
     public User generateSession(String requestToken) {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            if (kiteConnect == null) initialize();
-            
+            if (kiteConnect == null)
+                initialize();
+
             User user = kiteConnect.generateSession(requestToken, apiSecret);
-            
+
             sample.stop(meterRegistry.timer("market-data.zerodha.api.session.time"));
             meterRegistry.counter("market-data.zerodha.api.session.success").increment();
 
             if (user != null && user.accessToken != null) {
                 setAccessToken(user.accessToken);
-                if (user.refreshToken != null) this.refreshToken = user.refreshToken;
+                if (user.refreshToken != null)
+                    this.refreshToken = user.refreshToken;
             }
             return user;
         } catch (KiteException e) {
-             meterRegistry.counter("market-data.zerodha.api.session.error").increment();
-             throw new ZerodhaApiException("Failed to generate session", e);
+            meterRegistry.counter("market-data.zerodha.api.session.error").increment();
+            throw new ZerodhaApiException("Failed to generate session", e);
         } catch (Exception e) {
-             meterRegistry.counter("market-data.zerodha.api.session.error").increment();
-             throw new ZerodhaApiException("Failed to generate session", e);
+            meterRegistry.counter("market-data.zerodha.api.session.error").increment();
+            throw new ZerodhaApiException("Failed to generate session", e);
         }
     }
 
@@ -160,7 +163,7 @@ public class ZerodhaApiService {
     }
 
     public Map<String, OHLCQuote> getOHLC(String[] symbols) {
-         try {
+        try {
             String[] prefixedSymbols = prefixSymbolsWithNSE(symbols);
             return kiteConnect.getOHLC(prefixedSymbols);
         } catch (KiteException e) {
@@ -181,18 +184,20 @@ public class ZerodhaApiService {
         }
     }
 
-    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous, boolean oi) {
+    public HistoricalData getHistoricalData(String symbol, Date from, Date to, TimeFrame interval, boolean continuous,
+            boolean oi) {
         try {
             String zerodhaInterval = mapTimeFrameToZerodha(interval);
             // Need instrument token for historical data
             String token = resolveToToken(symbol);
-            if (token == null) throw new ZerodhaApiException("Instrument token not found for symbol: " + symbol);
-            
+            if (token == null)
+                throw new ZerodhaApiException("Instrument token not found for symbol: " + symbol);
+
             return kiteConnect.getHistoricalData(from, to, token, zerodhaInterval, continuous, oi);
         } catch (KiteException e) {
-             throw new ZerodhaApiException("Failed to get historical data for " + symbol, e);
+            throw new ZerodhaApiException("Failed to get historical data for " + symbol, e);
         } catch (Exception e) {
-             throw new ZerodhaApiException("Failed to get historical data for " + symbol, e);
+            throw new ZerodhaApiException("Failed to get historical data for " + symbol, e);
         }
     }
 
@@ -213,7 +218,7 @@ public class ZerodhaApiService {
             if (tickerProvider != null && tickerProvider.isConnectionOpen()) {
                 tickerProvider.disconnect();
             }
-            
+
             tickerProvider = new KiteTicker(kiteConnect.getAccessToken(), kiteConnect.getApiKey());
             tickerProvider.setOnConnectedListener(new OnConnect() {
                 @Override
@@ -224,20 +229,20 @@ public class ZerodhaApiService {
                     tickerProvider.setMode(tokenList, KiteTicker.modeFull);
                 }
             });
-            
+
             tickerProvider.setOnDisconnectedListener(new OnDisconnect() {
                 @Override
                 public void onDisconnected() {
                     log.warn("Ticker disconnected");
                 }
             });
-            
+
             tickerProvider.setOnTickerArrivalListener(onTickListener);
             tickerProvider.setTryReconnection(true);
             tickerProvider.connect();
             return tickerProvider;
         } catch (Exception e) {
-             throw new ZerodhaApiException("Failed to initialize ticker", e);
+            throw new ZerodhaApiException("Failed to initialize ticker", e);
         }
     }
 
@@ -247,21 +252,22 @@ public class ZerodhaApiService {
         // symbol: "NSE:INFY" or "INFY"
         String tradingSymbol = symbol.contains(":") ? symbol.split(":")[1] : symbol;
         List<ZerodhaInstrument> instruments = instrumentRepository.findByTradingSymbolIn(List.of(tradingSymbol));
-        if (instruments.isEmpty()) return null;
+        if (instruments.isEmpty())
+            return null;
         // Prefer NSE
         return instruments.stream()
-            .filter(i -> "NSE".equalsIgnoreCase(i.getExchange()))
-            .findFirst()
-            .map(ZerodhaInstrument::getInstrumentToken)
-            .orElse(instruments.get(0).getInstrumentToken());
+                .filter(i -> "NSE".equalsIgnoreCase(i.getExchange()))
+                .findFirst()
+                .map(ZerodhaInstrument::getInstrumentToken)
+                .orElse(instruments.get(0).getInstrumentToken());
     }
 
     private String[] prefixSymbolsWithNSE(String[] symbols) {
-         return Arrays.stream(symbols)
+        return Arrays.stream(symbols)
                 .map(symbol -> (symbol != null && !symbol.contains(":")) ? "NSE:" + symbol : symbol)
                 .toArray(String[]::new);
     }
-    
+
     private <T> Map<String, T> convertInstrumentMaptoSymbolMap(Map<String, T> instrumentMap) {
         // Kite often returns keys as "NSE:INFY" if requested as such.
         // Or Token if requested as Token.
@@ -270,20 +276,28 @@ public class ZerodhaApiService {
         // I will keep map unmodified for now, as getQuote usually respects input keys.
         return instrumentMap;
     }
-    
+
     private String mapTimeFrameToZerodha(TimeFrame tf) {
         // Map common timeFrame to Zerodha string "minute", "day", "5minute", etc.
         // Assuming TimeFrame has utility or switch
-        if (tf == null) return "day";
+        if (tf == null)
+            return "day";
         // Need to check TimeFrame values. Or use string logic.
-        switch(tf.toString().toUpperCase()) {
-            case "MINUTE": return "minute";
-            case "DAY": return "day";
-            case "MINUTE_5": return "5minute";
-            case "MINUTE_15": return "15minute";
-            case "MINUTE_30": return "30minute";
-            case "MINUTE_60": return "60minute";
-            default: return "day"; 
+        switch (tf.toString().toUpperCase()) {
+            case "MINUTE":
+                return "minute";
+            case "DAY":
+                return "day";
+            case "MINUTE_5":
+                return "5minute";
+            case "MINUTE_15":
+                return "15minute";
+            case "MINUTE_30":
+                return "30minute";
+            case "MINUTE_60":
+                return "60minute";
+            default:
+                return "day";
         }
     }
 }

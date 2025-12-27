@@ -14,7 +14,10 @@ import java.nio.file.Paths;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "security.enabled=false",
+        "jwt.secret=70682b6e5163473132646c646330346b386b6a3771343834316a34723136"
+})
 @AutoConfigureMockMvc
 public class OpenApiGeneratorTest {
 

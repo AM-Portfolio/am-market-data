@@ -5,6 +5,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,6 +16,19 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class MetricsConfig {
+
+    /**
+     * Creates a simple meter registry when no other registry is available
+     * This ensures that services requiring a MeterRegistry bean can be autowired
+     * properly
+     * 
+     * @return A simple meter registry instance
+     */
+    @Bean
+    @ConditionalOnMissingBean(MeterRegistry.class)
+    public MeterRegistry meterRegistry() {
+        return new SimpleMeterRegistry();
+    }
 
     /**
      * Configure TimedAspect for Micrometer metrics

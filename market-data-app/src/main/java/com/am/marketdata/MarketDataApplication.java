@@ -21,7 +21,6 @@ import com.am.common.investment.persistence.config.InfluxDBConfig;
 //import com.am.marketdata.processor.config.ProcessorModuleConfig;
 //import com.am.marketdata.scheduler.config.SchedulerAutoConfiguration;
 import com.am.marketdata.api.config.SecurityConfig;
-import com.am.marketdata.config.MetricsConfig;
 import com.am.marketdata.internal.config.MarketDataInternalConfig;
 import com.am.marketdata.scheduler.config.MarketDataSchedulerConfig;
 
@@ -29,7 +28,7 @@ import com.am.marketdata.scheduler.config.MarketDataSchedulerConfig;
                 DataSourceAutoConfiguration.class
 })
 @EnableConfigurationProperties
-@Import({ MetricsConfig.class, InfluxDBConfig.class, SecurityConfig.class,
+@Import({ InfluxDBConfig.class, SecurityConfig.class,
                 MarketDataInternalConfig.class, MarketDataSchedulerConfig.class })
 @ComponentScans({
                 @ComponentScan("com.am.marketdata"),

@@ -1,6 +1,6 @@
 package com.am.marketdata.internal.service;
 
-import com.marketdata.common.MarketDataProviderFactory;
+import com.am.marketdata.service.provider.MarketDataProviderFactory;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.marketdata.common.model.MarketDataUpdate;
