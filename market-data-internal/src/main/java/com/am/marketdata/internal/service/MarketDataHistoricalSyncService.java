@@ -298,7 +298,7 @@ public class MarketDataHistoricalSyncService {
                             new ArrayList<>(batch),
                             from,
                             to,
-                            TimeFrame.DAY,
+                            TimeFrameV1.DAY,
                             false, // continuous
                             new HashMap<>(), // Additional Params
                             null, // providerName (auto-resolve)

@@ -26,15 +26,16 @@ import java.util.stream.Collectors;
  */
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class CookieScraper {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CookieScraper.class);
     private final ScraperConfig scraperConfig;
-    
+
     private static final Duration PAGE_LOAD_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration WAIT_TIMEOUT = Duration.ofSeconds(10);
 
     /**
      * Scrapes cookies from NSE website
+     * 
      * @return WebsiteCookies object containing all scraped cookies
      */
     public WebsiteCookies scrapeCookies() {
@@ -43,6 +44,7 @@ public class CookieScraper {
 
     /**
      * Scrapes cookies from specified URL
+     * 
      * @param url URL to scrape cookies from
      * @return WebsiteCookies object containing all scraped cookies
      */
@@ -51,10 +53,10 @@ public class CookieScraper {
         ChromeDriver webDriver = null;
         try {
             webDriver = scraperConfig.webDriver();
-            
+
             // Set page load timeout
             webDriver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT);
-            
+
             // Clear existing cookies before navigating
             webDriver.manage().deleteAllCookies();
             log.debug("Cleared existing cookies");
@@ -91,13 +93,13 @@ public class CookieScraper {
                     .websiteName(webDriver.getTitle())
                     .cookies(cookies)
                     .build();
-            
+
             // Generate and set the formatted cookie string
             websiteCookies.setCookiesString(websiteCookies.generateCookiesString());
-            
+
             log.info("Successfully scraped cookies for URL: {}", url);
             return websiteCookies;
-                    
+
         } catch (TimeoutException e) {
             log.error("Timeout while loading URL: {}", url, e);
             throw new RuntimeException("Page load timeout for URL: " + url, e);
@@ -109,8 +111,8 @@ public class CookieScraper {
 
     private void waitForPageLoad(ChromeDriver driver) {
         new WebDriverWait(driver, WAIT_TIMEOUT)
-                .until((ExpectedCondition<Boolean>) wd -> 
-                        ((ChromeDriver) wd).executeScript("return document.readyState").equals("complete"));
+                .until((ExpectedCondition<Boolean>) wd -> ((ChromeDriver) wd)
+                        .executeScript("return document.readyState").equals("complete"));
     }
 
     private CookieInfo mapToCookieInfo(Cookie cookie) {

@@ -5,8 +5,8 @@ import com.am.common.investment.model.events.StockInsidicesEventData;
 import com.am.common.investment.model.events.mapper.StockIndicesEventDataMapper;
 import com.am.common.investment.service.MarketIndexIndicesService;
 import com.am.common.investment.service.StockIndicesMarketDataService;
-import com.am.marketdata.common.model.NSEIndicesResponse;
-import com.am.marketdata.common.model.NSEStockInsidicesData;
+import com.am.marketdata.common.model.NSEIndicesResponseV1;
+import com.am.marketdata.common.model.NSEStockIndicesDataV1;
 import com.am.marketdata.kafka.producer.KafkaProducerService;
 import com.am.marketdata.scraper.client.NSEApiClient;
 import com.am.marketdata.scraper.config.NSEIndicesConfig;
@@ -44,8 +44,8 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class MarketDataProcessingService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MarketDataProcessingService.class);
     private static final String CONFIG_THREAD_POOL_SIZE = "${market.data.thread.pool.size:5}";
     private static final String CONFIG_THREAD_QUEUE_CAPACITY = "${market.data.thread.queue.capacity:10}";
     private static final String CONFIG_MAX_RETRIES = "${market.data.max.retries:3}";
@@ -246,7 +246,7 @@ public class MarketDataProcessingService {
      * @param data The stock indices data to process
      */
     @Async
-    private void processStockIndicesData(NSEStockInsidicesData data) {
+    private void processStockIndicesData(NSEStockIndicesDataV1 data) {
         try {
             processAndSendStockIndicesData(data);
         } catch (Exception e) {
@@ -368,7 +368,7 @@ public class MarketDataProcessingService {
         throw new MarketDataException("Operation failed after " + maxRetries + " retries", lastException);
     }
 
-    private boolean validateIndicesData(NSEIndicesResponse response) {
+    private boolean validateIndicesData(NSEIndicesResponseV1 response) {
         if (response == null || response.getData() == null || response.getData().isEmpty()) {
             log.warn("Received empty indices response");
             return false;
@@ -376,7 +376,7 @@ public class MarketDataProcessingService {
         return true;
     }
 
-    private boolean validateStockIndicesData(NSEStockInsidicesData response) {
+    private boolean validateStockIndicesData(NSEStockIndicesDataV1 response) {
         if (response == null || response.getData() == null || response.getData().isEmpty()) {
             log.warn("Received empty stock indices response");
             return false;
@@ -411,13 +411,13 @@ public class MarketDataProcessingService {
         return true;
     }
 
-    private void processAndSendStockIndicesData(NSEStockInsidicesData stockIndicesResponse) {
+    private void processAndSendStockIndicesData(NSEStockIndicesDataV1 stockIndicesResponse) {
         if (stockIndicesResponse == null || stockIndicesResponse.getData() == null) {
             log.warn("Received null or empty stock indices response");
             return;
         }
 
-        List<NSEStockInsidicesData.StockData> stocks = stockIndicesResponse.getData();
+        List<NSEStockIndicesDataV1.StockData> stocks = stockIndicesResponse.getData();
         log.info("Processing {} stocks", stocks.size());
 
         try {
@@ -449,7 +449,7 @@ public class MarketDataProcessingService {
         }
     }
 
-    private List<MarketIndexIndices> saveIndicesAndGetData(NSEIndicesResponse indicesResponse) {
+    private List<MarketIndexIndices> saveIndicesAndGetData(NSEIndicesResponseV1 indicesResponse) {
         log.info("Saving indices data to database...");
         try {
             List<MarketIndexIndices> indices = NSEMarketIndexIndicesMapper

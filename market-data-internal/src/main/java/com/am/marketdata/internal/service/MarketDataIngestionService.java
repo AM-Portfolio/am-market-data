@@ -60,7 +60,7 @@ public class MarketDataIngestionService {
                 resolvedSymbols.size(), provider, timeFrame);
 
         String providerKey = provider != null ? provider.toUpperCase() : "UNKNOWN";
-        final String finalTimeFrame = TimeFrameV1 != null ? TimeFrameV1 : "1D";
+        final String finalTimeFrame = timeFrame != null ? timeFrame : "1D";
 
         // Cancel existing stream if any for this provider
         stopIngestion(providerKey);
@@ -115,7 +115,7 @@ public class MarketDataIngestionService {
             // Task 1: Fetch Live OHLC Data (Populates Cache)
             CompletableFuture<Map<String, OHLCQuoteV1>> liveDataFuture = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return marketDataService.getOHLC(new ArrayList<>(keys), TimeFrame.DAY, forceRefresh, null);
+                    return marketDataService.getOHLC(new ArrayList<>(keys), TimeFrameV1.DAY, forceRefresh, null);
                 } catch (Exception e) {
                     log.error("Error fetching live OHLC data", e);
                     return new HashMap<>();
@@ -124,8 +124,8 @@ public class MarketDataIngestionService {
 
             // Task 2: Fetch Historical Data (if applicable)
             CompletableFuture<Map<String, HistoricalData>> historicalDataFuture;
-            if ("1D".equalsIgnoreCase(TimeFrameV1) || "1W".equalsIgnoreCase(TimeFrameV1)
-                    || "1M".equalsIgnoreCase(TimeFrameV1)) {
+            if ("1D".equalsIgnoreCase(timeFrame) || "1W".equalsIgnoreCase(timeFrame)
+                    || "1M".equalsIgnoreCase(timeFrame)) {
                 historicalDataFuture = CompletableFuture.supplyAsync(() -> {
                     try {
                         return fetchHistoricalData(keys, timeFrame, isIndexSymbol, forceRefresh);
@@ -205,7 +205,7 @@ public class MarketDataIngestionService {
                 new ArrayList<>(symbols),
                 fromDate,
                 toDate,
-                TimeFrame.DAY,
+                TimeFrameV1.DAY,
                 false, // continuous
                 additionalParams,
                 null,
@@ -221,7 +221,7 @@ public class MarketDataIngestionService {
             return enrichedData;
         }
 
-        for (Map.Entry<String, OHLCQuote> entry : liveData.entrySet()) {
+        for (Map.Entry<String, OHLCQuoteV1> entry : liveData.entrySet()) {
             String symbol = entry.getKey();
             OHLCQuoteV1 liveQuote = entry.getValue();
 
@@ -243,7 +243,7 @@ public class MarketDataIngestionService {
                 }
             }
 
-            OHLCQuoteV1 enrichedQuote = OHLCQuote.builder()
+            OHLCQuoteV1 enrichedQuote = OHLCQuoteV1.builder()
                     .lastPrice(liveQuote.getLastPrice())
                     .previousClose(previousClose)
                     .ohlc(liveQuote.getOhlc())
@@ -259,7 +259,7 @@ public class MarketDataIngestionService {
 
         Map<String, MarketDataUpdate.QuoteChange> quoteUpdates = new HashMap<>();
 
-        for (Map.Entry<String, OHLCQuote> entry : ohlcQuotes.entrySet()) {
+        for (Map.Entry<String, OHLCQuoteV1> entry : ohlcQuotes.entrySet()) {
             String symbol = entry.getKey();
             OHLCQuoteV1 quote = entry.getValue();
 
