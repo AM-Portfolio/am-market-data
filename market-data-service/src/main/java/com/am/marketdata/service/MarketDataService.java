@@ -412,7 +412,8 @@ public class MarketDataService {
             providerName = resolveProviderName(providerName);
             AMMarketDataProvider provider = providerFactory.getProvider(providerName);
             final AMMarketDataProvider finalProvider = provider;
-            return retryOnFailure(() -> finalProvider.getSymbolsForExchange(exchange), "getSymbolsForExchange");
+            return this.<List<Object>>retryOnFailure(() -> (List) finalProvider.getSymbolsForExchange(exchange),
+                    "getSymbolsForExchange");
         } catch (Exception e) {
             log.error("Error getting symbols for exchange {}: {}", exchange, e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getSymbolsForExchange").increment();
