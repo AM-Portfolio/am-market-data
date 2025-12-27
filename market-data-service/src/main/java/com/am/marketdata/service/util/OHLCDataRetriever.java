@@ -3,7 +3,7 @@ package com.am.marketdata.service.util;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataPersistenceService;
-import com.marketdata.common.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import lombok.Getter;
 import lombok.Setter;
@@ -112,7 +112,7 @@ public class OHLCDataRetriever extends AbstractMarketDataRetriever<String, OHLCQ
      * @return Map of symbol to OHLC quote
      */
     @Override
-    protected Map<String, OHLCQuote> retrieveFromProvider(MarketDataProvider provider, List<String> symbols) {
+    protected Map<String, OHLCQuote> retrieveFromProvider(AMMarketDataProvider provider, List<String> symbols) {
         if (symbols.isEmpty()) {
             return Collections.emptyMap();
         }

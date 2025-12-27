@@ -2,8 +2,7 @@ package com.am.marketdata.mapper;
 
 import com.am.common.investment.model.equity.EquityPrice;
 import com.am.common.investment.model.historical.OHLCVTPoint;
-import com.zerodhatech.models.LTPQuote;
-import com.zerodhatech.models.OHLCQuote;
+import com.am.marketdata.common.model.OHLCQuote;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,7 +25,7 @@ public class MarketDataGenericMapper {
      * @param instrumentMap Map of trading symbol to Instrument
      * @return List of EquityPrice objects
      */
-    public List<EquityPrice> mapLTPquoteToEquityPrices(Map<String, LTPQuote> ltpData) {
+    public List<EquityPrice> mapLTPquoteToEquityPrices(Map<String, OHLCQuote> ltpData) {
         List<EquityPrice> equityPrices = new ArrayList<>();
 
         if (ltpData == null || ltpData.isEmpty()) {
@@ -34,9 +33,9 @@ public class MarketDataGenericMapper {
             return equityPrices;
         }
 
-        for (Map.Entry<String, LTPQuote> entry : ltpData.entrySet()) {
+        for (Map.Entry<String, OHLCQuote> entry : ltpData.entrySet()) {
             String key = entry.getKey();
-            LTPQuote quote = entry.getValue();
+            OHLCQuote quote = entry.getValue();
 
             try {
                 // Parse the key to extract exchange and symbol
@@ -53,7 +52,7 @@ public class MarketDataGenericMapper {
                 // Create and populate EquityPrice object
                 EquityPrice price = new EquityPrice();
                 price.setSymbol(symbol);
-                price.setLastPrice(quote.lastPrice);
+                price.setLastPrice(quote.getLastPrice());
                 price.setExchange(exchange);
                 equityPrices.add(price);
             } catch (Exception e) {
@@ -99,8 +98,11 @@ public class MarketDataGenericMapper {
                 // Create and populate EquityPrice object
                 EquityPrice price = new EquityPrice();
                 price.setSymbol(symbol);
-                price.setOhlcv(OHLCVTPoint.builder().open(quote.ohlc.open).high(quote.ohlc.high).low(quote.ohlc.low)
-                        .close(quote.ohlc.close).build());
+                if (quote.getOhlc() != null) {
+                    price.setOhlcv(OHLCVTPoint.builder().open(quote.getOhlc().getOpen()).high(quote.getOhlc().getHigh())
+                            .low(quote.getOhlc().getLow())
+                            .close(quote.getOhlc().getClose()).build());
+                }
                 price.setExchange(exchange);
                 equityPrices.add(price);
             } catch (Exception e) {

@@ -4,9 +4,10 @@ import com.marketdata.common.MarketDataProviderFactory;
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
 import com.marketdata.common.model.MarketDataUpdate;
-import com.am.marketdata.api.util.InstrumentUtils;
+import com.am.marketdata.service.MarketDataService;
+// import com.am.marketdata.api.util.InstrumentUtils;
 import com.marketdata.common.model.HistoricalDataResponseV1;
-import com.am.marketdata.api.service.MarketDataFetchService;
+// import com.am.marketdata.api.service.MarketDataFetchService;
 import com.am.common.investment.model.historical.HistoricalData;
 
 import lombok.RequiredArgsConstructor;
@@ -29,8 +30,8 @@ import java.util.concurrent.*;
 @RequiredArgsConstructor
 public class MarketDataIngestionService {
 
-    private final MarketDataFetchService marketDataFetchService;
-    private final InstrumentUtils instrumentUtils;
+    private final MarketDataService marketDataService;
+    // private final InstrumentUtils instrumentUtils;
     private final MarketDataProviderFactory marketDataProviderFactory;
 
     // Scheduler for polling
@@ -51,7 +52,9 @@ public class MarketDataIngestionService {
             boolean forceRefresh) {
 
         // Resolve Symbols
-        Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(instrumentKeys, false);
+        // Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(instrumentKeys,
+        // false);
+        Set<String> resolvedSymbols = new HashSet<>(instrumentKeys);
         log.info(
                 "Starting data ingestion for {} instruments. Provider: {}, TimeFrame: {}",
                 resolvedSymbols.size(), provider, timeFrame);
@@ -112,7 +115,7 @@ public class MarketDataIngestionService {
             // Task 1: Fetch Live OHLC Data (Populates Cache)
             CompletableFuture<Map<String, OHLCQuote>> liveDataFuture = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return marketDataFetchService.getOHLC(keys, false, TimeFrame.DAY, forceRefresh);
+                    return marketDataService.getOHLC(new ArrayList<>(keys), TimeFrame.DAY, forceRefresh, null);
                 } catch (Exception e) {
                     log.error("Error fetching live OHLC data", e);
                     return new HashMap<>();
@@ -120,7 +123,7 @@ public class MarketDataIngestionService {
             });
 
             // Task 2: Fetch Historical Data (if applicable)
-            CompletableFuture<HistoricalDataResponseV1> historicalDataFuture;
+            CompletableFuture<Map<String, HistoricalData>> historicalDataFuture;
             if ("1D".equalsIgnoreCase(timeFrame) || "1W".equalsIgnoreCase(timeFrame)
                     || "1M".equalsIgnoreCase(timeFrame)) {
                 historicalDataFuture = CompletableFuture.supplyAsync(() -> {
@@ -128,11 +131,11 @@ public class MarketDataIngestionService {
                         return fetchHistoricalData(keys, timeFrame, isIndexSymbol, forceRefresh);
                     } catch (Exception e) {
                         log.error("Error fetching historical data", e);
-                        return HistoricalDataResponseV1.builder().build();
+                        return new HashMap<>();
                     }
                 });
             } else {
-                historicalDataFuture = CompletableFuture.completedFuture(HistoricalDataResponseV1.builder().build());
+                historicalDataFuture = CompletableFuture.completedFuture(new HashMap<>());
             }
 
             // Wait for both tasks to complete
@@ -140,7 +143,7 @@ public class MarketDataIngestionService {
 
             // Get results
             Map<String, OHLCQuote> liveOhlcData = liveDataFuture.get();
-            HistoricalDataResponseV1 historicalResponse = historicalDataFuture.get();
+            Map<String, HistoricalData> historicalResponse = historicalDataFuture.get();
 
             // Merge Data
             Map<String, OHLCQuote> enrichedData = mergeData(liveOhlcData, historicalResponse);
@@ -160,7 +163,7 @@ public class MarketDataIngestionService {
         return null;
     }
 
-    private HistoricalDataResponseV1 fetchHistoricalData(Set<String> symbols,
+    private Map<String, HistoricalData> fetchHistoricalData(Set<String> symbols,
             String timeFrame, Boolean isIndexSymbol, boolean forceRefresh) {
         // Calculate historical date range based on timeFrame
         java.time.LocalDate today = java.time.LocalDate.now();
@@ -198,19 +201,20 @@ public class MarketDataIngestionService {
             additionalParams.put("isIndexSymbol", true);
         }
 
-        return marketDataFetchService.getHistoricalDataMultipleSymbols(
-                symbols,
+        return marketDataService.getHistoricalDataBatch(
+                new ArrayList<>(symbols),
                 fromDate,
                 toDate,
                 TimeFrame.DAY,
-                "STOCK",
+                false, // continuous
                 additionalParams,
-                forceRefresh,
-                false); // fetchIndexStocks = false (symbols already resolved)
+                null,
+                isIndexSymbol != null ? isIndexSymbol : false,
+                forceRefresh);
     }
 
     private Map<String, OHLCQuote> mergeData(Map<String, OHLCQuote> liveData,
-            HistoricalDataResponseV1 historicalResponse) {
+            Map<String, HistoricalData> historicalResponse) {
         Map<String, OHLCQuote> enrichedData = new HashMap<>();
 
         if (liveData == null || liveData.isEmpty()) {
@@ -223,8 +227,8 @@ public class MarketDataIngestionService {
 
             double previousClose = liveQuote.getPreviousClose();
 
-            if (historicalResponse != null && historicalResponse.getData() != null) {
-                Map<String, HistoricalData> symbolsData = historicalResponse.getData();
+            if (historicalResponse != null) {
+                Map<String, HistoricalData> symbolsData = historicalResponse;
 
                 if (symbolsData != null && symbolsData.containsKey(symbol)) {
                     HistoricalData historicalData = symbolsData.get(symbol);

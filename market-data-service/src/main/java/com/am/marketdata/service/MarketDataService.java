@@ -13,9 +13,9 @@ import com.am.marketdata.service.util.DataRetrievalStrategyUtil;
 import com.am.marketdata.service.util.HistoricalDataRetriever;
 import com.am.marketdata.service.util.MarketDataRetrievalUtil;
 import com.am.marketdata.service.util.OHLCDataRetriever;
-import com.marketdata.common.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
-import com.zerodhatech.models.LTPQuote;
+// import com.zerodhatech.models.LTPQuote;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -94,7 +94,7 @@ public class MarketDataService {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             providerName = resolveProviderName(providerName);
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
             String loginUrl = provider.getLoginUrl();
 
             Map<String, String> response = new HashMap<>();
@@ -122,7 +122,7 @@ public class MarketDataService {
             String finalProviderName = providerName;
             finalProviderName = "upstox"; // For lambda
 
-            MarketDataProvider provider = providerFactory.getProvider(finalProviderName);
+            AMMarketDataProvider provider = providerFactory.getProvider(finalProviderName);
             Object session = marketDataRetrievalUtil.retryOnFailure(() -> provider.generateSession(requestToken),
                     "generateSession");
 
@@ -145,10 +145,13 @@ public class MarketDataService {
             providerName = resolveProviderName(providerName);
             // validateSymbols(symbols);
 
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
             // Must use final variable in lambda
-            final MarketDataProvider finalProvider = provider;
-            return retryOnFailure(() -> finalProvider.getQuotes(symbols), "getQuotes");
+            final AMMarketDataProvider finalProvider = provider;
+            // Convert String[] to List<String> for the new provider interface
+            Map<String, OHLCQuote> quotes = retryOnFailure(() -> finalProvider.getQuotes(Arrays.asList(symbols)),
+                    "getQuotes");
+            return new HashMap<>(quotes);
         } catch (Exception e) {
             log.error("Error getting quotes: {}", e.getMessage(), e);
             meterRegistry.counter("market.data.failure.count", "operation", "getQuotes").increment();
@@ -326,29 +329,24 @@ public class MarketDataService {
             providerName = resolveProviderName(providerName);
             log.info("Fetching instruments from provider: {}", providerName);
 
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
-            final MarketDataProvider finalProvider = provider;
-            List<com.zerodhatech.models.Instrument> instruments = retryOnFailure(
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
+            final AMMarketDataProvider finalProvider = provider;
+            List<com.am.marketdata.common.model.Instrument> providerInstruments = retryOnFailure(
                     () -> finalProvider.getAllInstruments(),
                     "getAllInstruments");
 
-            List<com.zerodhatech.models.Instrument> zerodhaInstruments = instruments.stream()
-                    .filter(obj -> obj instanceof com.zerodhatech.models.Instrument)
-                    .map(obj -> (com.zerodhatech.models.Instrument) obj)
-                    .collect(Collectors.toList());
+            if (providerInstruments != null && !providerInstruments.isEmpty()) {
+                log.info("Fetched {} symbols from provider, converting to internal model", providerInstruments.size());
 
-            if (zerodhaInstruments != null && !zerodhaInstruments.isEmpty()) {
-                log.info("Fetched {} symbols from provider, converting to common model", zerodhaInstruments.size());
+                List<Instrument> internalInstruments = instrumentMapper.fromProviderInstruments(providerInstruments);
 
-                List<Instrument> commonInstruments = instrumentMapper.toCommonInstruments(zerodhaInstruments);
+                log.info("Converted {} instruments, saving to database", internalInstruments.size());
 
-                log.info("Converted {} instruments, saving to database", commonInstruments.size());
+                instrumentService.saveAll(internalInstruments);
 
-                instrumentService.saveAll(commonInstruments);
+                log.info("Successfully saved {} instruments to database", internalInstruments.size());
 
-                log.info("Successfully saved {} instruments to database", commonInstruments.size());
-
-                return commonInstruments;
+                return internalInstruments;
             } else {
                 log.warn("No instruments returned from provider");
                 return new ArrayList<>();
@@ -412,8 +410,8 @@ public class MarketDataService {
             }
 
             providerName = resolveProviderName(providerName);
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
-            final MarketDataProvider finalProvider = provider;
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
+            final AMMarketDataProvider finalProvider = provider;
             return retryOnFailure(() -> finalProvider.getSymbolsForExchange(exchange), "getSymbolsForExchange");
         } catch (Exception e) {
             log.error("Error getting symbols for exchange {}: {}", exchange, e.getMessage(), e);
@@ -428,9 +426,12 @@ public class MarketDataService {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
             providerName = resolveProviderName(providerName);
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
-            final MarketDataProvider finalProvider = provider;
-            boolean success = retryOnFailure(() -> finalProvider.logout(), "logout");
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
+            final AMMarketDataProvider finalProvider = provider;
+            boolean success = retryOnFailure(() -> {
+                finalProvider.logout();
+                return true;
+            }, "logout");
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", success);
@@ -483,17 +484,16 @@ public class MarketDataService {
         log.info("Fetching live prices for {} instruments", tradingSymbols.size());
 
         // Convert instrument IDs to string array for provider API
-        String[] symbols = tradingSymbols.stream()
-                .map(id -> "NSE:" + id.toString())
-                .toArray(String[]::new);
+        String[] symbols = tradingSymbols.toArray(String[]::new);
 
         // Get OHLC data from provider with retry mechanism
         log.debug("[DATA_SOURCE] Calling provider.getLTP with instrument IDs: {}", (Object) symbols);
-        Map<String, LTPQuote> ltpData;
+        Map<String, OHLCQuote> ltpData;
         try {
-            MarketDataProvider provider = providerFactory.getProvider(providerName);
-            final MarketDataProvider finalProvider = provider;
+            AMMarketDataProvider provider = providerFactory.getProvider(providerName);
+            final AMMarketDataProvider finalProvider = provider;
             ltpData = retryOnFailure(() -> finalProvider.getLTP(symbols), "getLTP");
+
         } catch (Exception e) {
             log.error("Error fetching OHLC data from provider: {}", e.getMessage(), e);
             return Collections.emptyList();
@@ -541,15 +541,8 @@ public class MarketDataService {
                 log.info("[CACHE] Found {} live prices in cache", cachedData.size());
 
                 // Convert cached OHLC data to EquityPrice
-                Map<String, LTPQuote> ltpMap = new HashMap<>();
-                for (Map.Entry<String, OHLCQuote> entry : cachedData.entrySet()) {
-                    LTPQuote ltp = new LTPQuote();
-                    ltp.lastPrice = entry.getValue().getLastPrice();
-                    ltp.instrumentToken = 0;
-                    ltpMap.put(entry.getKey(), ltp);
-                }
+                List<EquityPrice> cachedPrices = genericMapper.mapOHLCquoteToEquityPrices(cachedData);
 
-                List<EquityPrice> cachedPrices = genericMapper.mapLTPquoteToEquityPrices(ltpMap);
                 result.addAll(cachedPrices);
 
                 // Remove symbols found in cache from remaining

@@ -1,7 +1,7 @@
 package com.am.marketdata.service.util;
 
 import com.am.marketdata.service.MarketDataPersistenceService;
-import com.marketdata.common.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -151,7 +151,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
         log.info("[FORCE_REFRESH] Bypassing cache and database, going directly to provider. Target: {}",
                 targetProviderName);
 
-        MarketDataProvider provider = providerFactory.getProvider(targetProviderName);
+        AMMarketDataProvider provider = providerFactory.getProvider(targetProviderName);
         Map<K, T> providerData = retrieveFromProvider(provider, keys);
 
         // Save to cache if configured to do so
@@ -169,7 +169,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * @return Map of keys to retrieved data
      */
     private Map<K, T> retrieveFromProviderWithSave(List<K> keys) {
-        MarketDataProvider provider = providerFactory.getProvider(targetProviderName);
+        AMMarketDataProvider provider = providerFactory.getProvider(targetProviderName);
         Map<K, T> providerData = retrieveFromProvider(provider, keys);
 
         // Save to cache if configured to do so
@@ -187,7 +187,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      * @param keys     The keys to retrieve data for
      * @return Map of key to data
      */
-    protected abstract Map<K, T> retrieveFromProvider(MarketDataProvider provider, List<K> keys);
+    protected abstract Map<K, T> retrieveFromProvider(AMMarketDataProvider provider, List<K> keys);
 
     /**
      * Retrieves data directly from the provider for all keys
@@ -197,7 +197,7 @@ public abstract class AbstractMarketDataRetriever<K, T> {
      */
     protected Map<K, T> retrieveFromProvider(List<K> keys) {
         log.info("Retrieving data directly from provider for {} keys (Target: {})", keys.size(), targetProviderName);
-        MarketDataProvider provider = providerFactory.getProvider(targetProviderName);
+        AMMarketDataProvider provider = providerFactory.getProvider(targetProviderName);
         return retrieveFromProvider(provider, keys);
     }
 

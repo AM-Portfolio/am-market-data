@@ -4,7 +4,7 @@ import com.am.common.investment.model.historical.HistoricalData;
 import com.am.common.investment.model.historical.OHLCVTPoint;
 import com.am.marketdata.common.model.Instrument;
 import com.am.marketdata.common.model.OHLCQuote;
-import com.am.marketdata.provider.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 import com.am.marketdata.provider.dto.InstrumentSearchCriteria;
 import com.am.marketdata.provider.upstox.model.UpstoxInstrument;
 import com.am.marketdata.provider.upstox.service.UpstoxApiService;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Service("upstoxMarketDataProvider") // Bean name for selection
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "market-data.provider.type", havingValue = "upstox")
 @RequiredArgsConstructor
-public class UpstoxMarketDataProvider implements MarketDataProvider {
+public class UpstoxMarketDataProvider implements AMMarketDataProvider {
 
     private final UpstoxApiService upstoxApiService;
     private final UpstoxSdkService upstoxSdkService;
@@ -51,19 +51,33 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
         try {
             // Try SDK First
-            com.am.marketdata.provider.upstox.model.OHLCResponse response = upstoxSdkService.getOhlc(validKeys, "I1"); // "I1" usually means 1 minute or daily? Check API docs. Usually "I30" or similar.
+            com.am.marketdata.provider.upstox.model.OHLCResponse response = upstoxSdkService.getOhlc(validKeys, "I1"); // "I1"
+                                                                                                                       // usually
+                                                                                                                       // means
+                                                                                                                       // 1
+                                                                                                                       // minute
+                                                                                                                       // or
+                                                                                                                       // daily?
+                                                                                                                       // Check
+                                                                                                                       // API
+                                                                                                                       // docs.
+                                                                                                                       // Usually
+                                                                                                                       // "I30"
+                                                                                                                       // or
+                                                                                                                       // similar.
             // Wait, getQuotes typically means "LTP" or "Live Quote".
             // Interface says getQuotes returns OHLCQuote.
             // Upstox API "full" quote gives OHLC.
-            
+
             // If SDK fails or returns empty, logic:
             if (response != null && "success".equalsIgnoreCase(response.getStatus()) && response.getData() != null) {
                 for (Map.Entry<String, String> entry : symbolToKeyMap.entrySet()) {
                     String symbol = entry.getKey();
                     String key = entry.getValue();
-                    
+
                     if (response.getData().containsKey(key)) {
-                        com.am.marketdata.provider.upstox.model.OHLCResponse.OHLCData data = response.getData().get(key);
+                        com.am.marketdata.provider.upstox.model.OHLCResponse.OHLCData data = response.getData()
+                                .get(key);
                         resultMap.put(symbol, mapToCommonOHLC(data));
                     }
                 }
@@ -72,12 +86,13 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             log.error("Error fetching quotes from Upstox SDK", e);
             // Fallback to API Service?
         }
-        
+
         return resultMap;
     }
 
     @Override
-    public Map<String, HistoricalData> getHistoricalData(List<String> symbols, String from, String to, String interval) {
+    public Map<String, HistoricalData> getHistoricalData(List<String> symbols, String from, String to,
+            String interval) {
         Map<String, HistoricalData> resultMap = new HashMap<>();
         Map<String, String> symbolToKeyMap = resolveInstruments(symbols);
 
@@ -91,10 +106,11 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     // Fetch data
-                    com.am.marketdata.provider.upstox.model.HistoricalDataResponse response = 
-                        upstoxSdkService.getHistoricalCandleData(key, interval, 1, to, from); // interval logic check needed
-                        
-                    if (response != null && "success".equalsIgnoreCase(response.getStatus()) && response.getData() != null) {
+                    com.am.marketdata.provider.upstox.model.HistoricalDataResponse response = upstoxSdkService
+                            .getHistoricalCandleData(key, interval, 1, to, from); // interval logic check needed
+
+                    if (response != null && "success".equalsIgnoreCase(response.getStatus())
+                            && response.getData() != null) {
                         HistoricalData data = mapToHistoricalData(response.getData().getCandles(), symbol);
                         synchronized (resultMap) {
                             resultMap.put(symbol, data);
@@ -116,7 +132,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         // Use InstrumentService to search
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setExchanges(Collections.singletonList(exchange));
-        
+
         List<UpstoxInstrument> instruments = upstoxInstrumentService.searchInstruments(criteria);
         return instruments.stream().map(this::mapToCommonInstrument).collect(Collectors.toList());
     }
@@ -125,7 +141,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     public List<Instrument> searchInstruments(String query) {
         InstrumentSearchCriteria criteria = new InstrumentSearchCriteria();
         criteria.setQueries(Collections.singletonList(query));
-        
+
         List<UpstoxInstrument> instruments = upstoxInstrumentService.searchInstruments(criteria);
         return instruments.stream().map(this::mapToCommonInstrument).collect(Collectors.toList());
     }
@@ -153,41 +169,41 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         // upstoxApiService handles caching
         return upstoxApiService.getAccessToken();
     }
-    
+
     // --- Private Helpers ---
 
     private Map<String, String> resolveInstruments(List<String> symbols) {
         Map<String, String> map = new HashMap<>();
-        
+
         // 1. Resolve Indices first
         Map<String, String> indicesMap = indexIdentifier.resolveIndices(symbols);
         map.putAll(indicesMap);
-        
+
         // 2. Resolve Stocks/Others from DB
         List<String> remainingSymbols = new ArrayList<>(symbols);
         remainingSymbols.removeAll(indicesMap.keySet());
-        
+
         if (!remainingSymbols.isEmpty()) {
             List<UpstoxInstrument> instruments = upstoxInstrumentService.searchInstruments(
-                new InstrumentSearchCriteria(null, null, null, null, null, remainingSymbols, null, "UPSTOX"));
-                
+                    new InstrumentSearchCriteria(null, null, null, null, null, remainingSymbols, null, "UPSTOX"));
+
             for (UpstoxInstrument inst : instruments) {
                 // Map based on trading symbol or asset symbol matching
                 if (remainingSymbols.contains(inst.getTradingSymbol())) {
-                   map.put(inst.getTradingSymbol(), inst.getInstrumentKey());
+                    map.put(inst.getTradingSymbol(), inst.getInstrumentKey());
                 } else if (remainingSymbols.contains(inst.getAssetSymbol())) {
-                   map.put(inst.getAssetSymbol(), inst.getInstrumentKey());
+                    map.put(inst.getAssetSymbol(), inst.getInstrumentKey());
                 }
             }
         }
-        
+
         return map;
     }
 
     private OHLCQuote mapToCommonOHLC(com.am.marketdata.provider.upstox.model.OHLCResponse.OHLCData data) {
         OHLCQuote quote = new OHLCQuote();
         quote.setLastPrice(data.getLast_price());
-        
+
         if (data.getOhlc() != null) {
             OHLCQuote.OHLC ohlc = new OHLCQuote.OHLC();
             ohlc.setOpen(data.getOhlc().getOpen());
@@ -197,22 +213,22 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             quote.setOhlc(ohlc);
         }
         if (data.getPrevious_close() != null) {
-             // quote.setPreviousClose(data.getPrevious_close());
+            // quote.setPreviousClose(data.getPrevious_close());
         }
         return quote;
     }
-    
+
     private HistoricalData mapToHistoricalData(List<List<Object>> candles, String symbol) {
         HistoricalData data = new HistoricalData();
         data.setTradingSymbol(symbol);
         List<OHLCVTPoint> points = new ArrayList<>();
-        
+
         if (candles != null) {
             for (List<Object> candle : candles) {
                 // [timestamp, open, high, low, close, volume, oi]
                 try {
                     String timestampStr = (String) candle.get(0);
-                    
+
                     OHLCVTPoint point = new OHLCVTPoint();
                     point.setTime(parseDateToLDT(timestampStr));
                     point.setOpen(toDouble(candle.get(1)));
@@ -220,10 +236,10 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
                     point.setLow(toDouble(candle.get(3)));
                     point.setClose(toDouble(candle.get(4)));
                     point.setVolume(toLong(candle.get(5)));
-                    
+
                     points.add(point);
                 } catch (Exception e) {
-                   log.debug("Error parsing candle for {}: {}", symbol, candle);
+                    log.debug("Error parsing candle for {}: {}", symbol, candle);
                 }
             }
         }
@@ -233,37 +249,39 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     private Instrument mapToCommonInstrument(UpstoxInstrument uInst) {
         return Instrument.builder()
-            .instrumentToken(uInst.getInstrumentKey())
-            .tradingSymbol(uInst.getTradingSymbol())
-            .name(uInst.getName())
-            .exchange(uInst.getExchange())
-            .exchangeToken(uInst.getExchangeToken())
-            .expiry(uInst.getExpiry() != null ? uInst.getExpiry().toString() : null)
-            .instrumentType(uInst.getInstrumentType())
-            //.isin(uInst.getIsin()) // ISIN not in common Instrument builder yet? Check Common.
-            .lotSize(uInst.getLotSize())
-            .tickSize(uInst.getTickSize())
-            .strikePrice(uInst.getStrikePrice())
-            .segment(uInst.getSegment())
-            .build();
+                .instrumentToken(uInst.getInstrumentKey())
+                .tradingSymbol(uInst.getTradingSymbol())
+                .name(uInst.getName())
+                .exchange(uInst.getExchange())
+                .exchangeToken(uInst.getExchangeToken())
+                .expiry(uInst.getExpiry() != null ? uInst.getExpiry().toString() : null)
+                .instrumentType(uInst.getInstrumentType())
+                // .isin(uInst.getIsin()) // ISIN not in common Instrument builder yet? Check
+                // Common.
+                .lotSize(uInst.getLotSize())
+                .tickSize(uInst.getTickSize())
+                .strikePrice(uInst.getStrikePrice())
+                .segment(uInst.getSegment())
+                .build();
     }
-    
+
     private double toDouble(Object val) {
-        if (val instanceof Number) return ((Number) val).doubleValue();
+        if (val instanceof Number)
+            return ((Number) val).doubleValue();
         return Double.parseDouble(val.toString());
     }
-    
+
     private long toLong(Object val) {
-        if (val instanceof Number) return ((Number) val).longValue();
+        if (val instanceof Number)
+            return ((Number) val).longValue();
         return Long.parseLong(val.toString());
     }
-    
+
     private java.time.LocalDateTime parseDateToLDT(String dateStr) {
         try {
-             return java.time.LocalDateTime.ofInstant(
-                 java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(dateStr, java.time.Instant::from),
-                 java.time.ZoneId.systemDefault()
-             );
+            return java.time.LocalDateTime.ofInstant(
+                    java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(dateStr, java.time.Instant::from),
+                    java.time.ZoneId.systemDefault());
         } catch (Exception e) {
             return java.time.LocalDateTime.now();
         }

@@ -5,6 +5,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
+import com.am.marketdata.provider.AMMarketDataProvider;
 
 /**
  * Factory for creating market data provider instances based on configuration
@@ -32,7 +33,7 @@ public class MarketDataProviderFactory {
      * 
      * @return MarketDataProvider implementation
      */
-    public MarketDataProvider getProvider() {
+    public AMMarketDataProvider getProvider() {
         return getProvider(activeProvider);
     }
 
@@ -40,9 +41,9 @@ public class MarketDataProviderFactory {
      * Get a specific market data provider by name
      * 
      * @param providerName Name of the provider (zerodha, upstox)
-     * @return MarketDataProvider implementation
+     * @return AMMarketDataProvider implementation
      */
-    public MarketDataProvider getProvider(String providerName) {
+    public AMMarketDataProvider getProvider(String providerName) {
         if (providerName == null || providerName.trim().isEmpty()) {
             providerName = activeProvider;
         }
@@ -51,12 +52,12 @@ public class MarketDataProviderFactory {
 
         switch (providerName.toLowerCase()) {
             case "zerodha":
-                return applicationContext.getBean("zerodhaMarketDataProvider", MarketDataProvider.class);
+                return applicationContext.getBean("zerodhaMarketDataProvider", AMMarketDataProvider.class);
             case "upstox":
-                return applicationContext.getBean("upstoxMarketDataProvider", MarketDataProvider.class);
+                return applicationContext.getBean("upstoxMarketDataProvider", AMMarketDataProvider.class);
             default:
                 log.warn("Unknown provider '{}', falling back to Upstox", providerName);
-                return applicationContext.getBean("upstoxMarketDataProvider", MarketDataProvider.class);
+                return applicationContext.getBean("upstoxMarketDataProvider", AMMarketDataProvider.class);
         }
     }
 }

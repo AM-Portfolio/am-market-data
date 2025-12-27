@@ -40,6 +40,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-service</artifactId>
             <version>${investment-service.version}</version>
@@ -122,15 +127,9 @@
 
         
         <dependency>
-            <groupId>com.zerodhatech.kiteconnect</groupId>
-            <artifactId>kiteconnect</artifactId>
-            <version>${kiteconnect.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.upstox.api</groupId>
-            <artifactId>upstox-java-sdk</artifactId>
-            <version>LATEST</version>
-            <scope>compile</scope>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-provider</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>

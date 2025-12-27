@@ -2,7 +2,7 @@ package com.am.marketdata.service.util;
 
 import com.am.marketdata.common.model.OHLCQuote;
 import com.am.marketdata.common.model.TimeFrame;
-import com.marketdata.common.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 
 import com.am.marketdata.service.MarketDataPersistenceService;
 
@@ -119,7 +119,7 @@ public class MarketDataRetrievalUtil {
      */
     @SneakyThrows
     public Map<String, OHLCQuote> retrieveFromProvider(
-            MarketDataProvider provider,
+            AMMarketDataProvider provider,
             List<String> symbols,
             TimeFrame timeFrame) {
 

@@ -1,8 +1,9 @@
 package com.am.marketdata.internal.service;
 
 import com.marketdata.common.model.HistoricalDataResponseV1;
-import com.am.marketdata.api.service.MarketDataFetchService;
-import com.am.marketdata.api.util.InstrumentUtils;
+import com.am.marketdata.service.MarketDataService;
+// import com.am.marketdata.api.service.MarketDataFetchService;
+// import com.am.marketdata.api.util.InstrumentUtils;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.internal.model.IngestionJobLog;
 import com.am.marketdata.internal.model.MarketDataIngestionStatus;
@@ -27,8 +28,8 @@ public class MarketDataHistoricalSyncService {
 
     private final AppLogger log = AppLogger.getLogger(MarketDataHistoricalSyncService.class);
 
-    private final MarketDataFetchService marketDataFetchService;
-    private final InstrumentUtils instrumentUtils;
+    private final MarketDataService marketDataService;
+    // private final InstrumentUtils instrumentUtils;
     private final MarketDataIngestionStatusRepository ingestionStatusRepository;
     private final IngestionJobLogRepository ingestionJobLogRepository;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
@@ -141,7 +142,9 @@ public class MarketDataHistoricalSyncService {
         Set<String> indices = new HashSet<>(Arrays.asList("NIFTY 50", "NIFTY BANK", "NIFTY 500"));
 
         // This resolves index to constituents
-        Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(new ArrayList<>(indices), true);
+        // Set<String> resolvedSymbols = instrumentUtils.resolveSymbols(new
+        // ArrayList<>(indices), true);
+        Set<String> resolvedSymbols = new HashSet<>();
 
         // Add indices themselves
         resolvedSymbols.addAll(indices);
@@ -286,31 +289,32 @@ public class MarketDataHistoricalSyncService {
             Date from = Date.from(fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
             Date to = Date.from(toDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
-            log.info("fetchBatch", "[API_CALL] Calling marketDataFetchService.getHistoricalDataMultipleSymbols...");
+            log.info("fetchBatch", "[API_CALL] Calling marketDataService.getHistoricalDataBatch...");
             long apiStartTime = System.currentTimeMillis();
 
-            // Use getHistoricalDataMultipleSymbols
-            HistoricalDataResponseV1 response = marketDataFetchService.getHistoricalDataMultipleSymbols(
-                    batch,
-                    from,
-                    to,
-                    TimeFrame.DAY,
-                    "STOCK", // Instrument Type
-                    new HashMap<>(), // Additional Params
-                    forceRefresh, // Force Refresh (we need to fetch from provider)
-                    fetchIndexStocks // Fetch individual stocks from index symbols if true
-            );
+            // Use getHistoricalDataBatch
+            Map<String, com.am.common.investment.model.historical.HistoricalData> dataMap = marketDataService
+                    .getHistoricalDataBatch(
+                            new ArrayList<>(batch),
+                            from,
+                            to,
+                            TimeFrame.DAY,
+                            false, // continuous
+                            new HashMap<>(), // Additional Params
+                            null, // providerName (auto-resolve)
+                            false, // isIndexSymbol (assumption)
+                            forceRefresh // Force Refresh
+                    );
 
             long apiDuration = System.currentTimeMillis() - apiStartTime;
             log.info("fetchBatch", "[API_RESPONSE] API call completed in {} ms", apiDuration);
 
             // Access data from response
-            Map<String, com.am.common.investment.model.historical.HistoricalData> dataMap = response.getData();
+            // Map<String, com.am.common.investment.model.historical.HistoricalData> dataMap
+            // = response.getData();
 
             // Log response metadata
-            String dataSource = (response.getMetadata() != null && response.getMetadata().getSource() != null)
-                    ? response.getMetadata().getSource()
-                    : "UNKNOWN";
+            String dataSource = "UNKNOWN"; // Metadata not available in Map return
             log.info("fetchBatch", "[RESPONSE_SOURCE] Data source: {}", dataSource);
 
             if (dataMap == null) {

@@ -3,7 +3,7 @@ package com.am.marketdata.service.util;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.common.model.TimeFrame;
 import com.am.marketdata.service.MarketDataPersistenceService;
-import com.marketdata.common.MarketDataProvider;
+import com.am.marketdata.provider.AMMarketDataProvider;
 import com.marketdata.common.MarketDataProviderFactory;
 import lombok.extern.slf4j.Slf4j;
 
@@ -137,7 +137,7 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
      * @return Map of symbol to historical data
      */
     @Override
-    protected Map<String, HistoricalData> retrieveFromProvider(MarketDataProvider provider, List<String> symbols) {
+    protected Map<String, HistoricalData> retrieveFromProvider(AMMarketDataProvider provider, List<String> symbols) {
         if (symbols.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -150,8 +150,10 @@ public class HistoricalDataRetriever extends AbstractMarketDataRetriever<String,
         for (String symbol : symbols) {
             try {
                 // Provider now returns the common HistoricalData model directly
-                HistoricalData historicalData = provider.getHistoricalData(symbol,
+                Map<String, HistoricalData> historicalDataMap = provider.getHistoricalDataEx(
+                        Collections.singletonList(symbol),
                         fromDate, toDate, interval, continuous, additionalParams);
+                HistoricalData historicalData = historicalDataMap != null ? historicalDataMap.get(symbol) : null;
 
                 if (historicalData != null && historicalData.getDataPoints() != null
                         && !historicalData.getDataPoints().isEmpty()) {
