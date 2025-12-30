@@ -6,8 +6,8 @@
 
 #mongoDB Configuration
 MONGODB_DATABASE: market_data
-MONGODB_USERNAME: ssd2658
-MONGODB_PASSWORD: ssd2658 
+MONGODB_USERNAME: admin
+MONGODB_PASSWORD: password123
 
 # InfluxDB Configuration
 INFLUXDB_TOKEN: my-super-secret-auth-token
@@ -18,7 +18,7 @@ INFLUXDB_URL: http://localhost:8086
 
 # Redis Configuration
 REDIS_HOSTNAME: localhost
-REDIS_PASSWORD: RedisPassword123!
+REDIS_PASSWORD: password123
 REDIS_PORT: 6379
 
 # Grafana Configuration
@@ -61,7 +61,7 @@ spring:
       password: ${REDIS_PASSWORD}
       port: ${REDIS_PORT:6379}
     mongodb:
-      uri: ${MONGODB_URL:mongodb://ssd2658:ssd2658@localhost:27017/market_data?authSource=admin}
+      uri: ${MONGODB_URL:mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@localhost:27017/market_data?authSource=admin}
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
