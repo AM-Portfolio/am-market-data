@@ -3,16 +3,17 @@ package com.am.marketdata.scraper.mapper;
 import com.am.common.investment.model.events.StockInsidicesEventData;
 import com.am.marketdata.common.model.NSEStockInsidicesData;
 
-import lombok.extern.slf4j.Slf4j;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Mapper for converting NSE stock indices data to domain model
  */
-@Slf4j
 public class StockIndicesMapper {
+
+    private static final Logger log = LoggerFactory.getLogger(StockIndicesMapper.class);
 
     /**
      * Convert NSE market insidices data to domain stock indices
@@ -26,27 +27,27 @@ public class StockIndicesMapper {
             return null;
         }
 
-        return new StockInsidicesEventData(
-                data.getName(),
-                data.getName(),
-                convertAdvance(data.getAdvance()),
-                data.getTimestamp(),
-                convertStockDataList(data.getData()),
-                convertIndexMetadata(data.getMetadata()),
-                convertMarketStatus(data.getMarketStatus()),
-                data.getDate30dAgo(),
-                data.getDate365dAgo(),
-                "1.0");
+        return StockInsidicesEventData.builder()
+                .name(data.getName())
+                .advance(convertAdvance(data.getAdvance()))
+                .timestamp(data.getTimestamp())
+                .data(convertStockDataList(data.getData()))
+                .metadata(convertIndexMetadata(data.getMetadata()))
+                .marketStatus(convertMarketStatus(data.getMarketStatus()))
+                .date30dAgo(data.getDate30dAgo())
+                .date365dAgo(data.getDate365dAgo())
+                .build();
     }
 
     protected static StockInsidicesEventData.Advance convertAdvance(NSEStockInsidicesData.Advance advance) {
         if (advance == null) {
             return null;
         }
-        return new StockInsidicesEventData.Advance(
-                Integer.parseInt(advance.getDeclines()),
-                Integer.parseInt(advance.getAdvances()),
-                Integer.parseInt(advance.getUnchanged()));
+        return StockInsidicesEventData.Advance.builder()
+                .declines(Integer.parseInt(advance.getDeclines()))
+                .advances(Integer.parseInt(advance.getAdvances()))
+                .unchanged(Integer.parseInt(advance.getUnchanged()))
+                .build();
     }
 
     protected static List<StockInsidicesEventData.StockData> convertStockDataList(

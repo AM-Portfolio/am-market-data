@@ -35,6 +35,7 @@ import java.util.Map;
 @EnableKafka
 @RequiredArgsConstructor
 @org.springframework.context.annotation.DependsOn("kafkaProperties")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.kafka.enabled", havingValue = "true", matchIfMissing = false)
 public class KafkaConfig {
 
     private final KafkaProperties kafkaProperties;
@@ -43,7 +44,7 @@ public class KafkaConfig {
     public KafkaAdmin kafkaAdmin() {
         Map<String, Object> configs = new HashMap<>();
         configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        return new KafkaAdmin(configs); 
+        return new KafkaAdmin(configs);
     }
 
     @Bean
@@ -60,24 +61,26 @@ public class KafkaConfig {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
 
-        if(kafkaProperties.getProperties() != null && kafkaProperties.getProperties().getSaslJaasConfig() != null && !kafkaProperties.getProperties().getSaslJaasConfig().isEmpty()) {
-            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaProperties.getProperties().getSecurityProtocol());
+        if (kafkaProperties.getProperties() != null && kafkaProperties.getProperties().getSaslJaasConfig() != null
+                && !kafkaProperties.getProperties().getSaslJaasConfig().isEmpty()) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                    kafkaProperties.getProperties().getSecurityProtocol());
             props.put(SaslConfigs.SASL_MECHANISM, kafkaProperties.getProperties().getSaslMechanism());
             props.put(SaslConfigs.SASL_JAAS_CONFIG, kafkaProperties.getProperties().getSaslJaasConfig());
         }
-
 
         return props;
     }
 
     /**
      * Generic producer factory that can handle any type of object
+     * 
      * @return ProducerFactory for any object type
      */
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = kafkaConfigs();
-        
+
         // Use producer properties if available, otherwise use defaults
         KafkaProperties.ProducerProperties producerProps = kafkaProperties.getProducer();
         if (producerProps != null) {
@@ -94,20 +97,21 @@ public class KafkaConfig {
             configProps.put(ProducerConfig.LINGER_MS_CONFIG, 1);
             configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
         }
-        
+
         JsonSerializer<Object> jsonSerializer = new JsonSerializer<>(objectMapper());
         return new DefaultKafkaProducerFactory<>(configProps, new StringSerializer(), jsonSerializer);
     }
 
     /**
      * Generic KafkaTemplate that can be used for any type of object
+     * 
      * @return KafkaTemplate for any object type
      */
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
-    
+
     @Bean
     public BaseKafkaProducer<EquityPriceUpdateEvent> equityProducer() {
         return new BaseKafkaProducer<>(kafkaTemplate());

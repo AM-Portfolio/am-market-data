@@ -51,7 +51,10 @@ UPSTOX_SECRET_KEY: jqre481zf0
 UPSTOX_CODE: rNLu2Q 
 
 
-# Spring Configuration
+app:
+  kafka:
+    enabled: false
+
 spring:
   application:
     name: market-data-service
