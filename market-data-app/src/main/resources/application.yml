@@ -101,8 +101,9 @@ spring:
       - classpath:application-zerodha.yml
 
 market-data:
+  provider: upstox
   stream:
-    poll-interval-seconds: 60
+    poll-interval-seconds: 10
   cache:
     enabled: true
     price-ttl-minutes: ${MARKET_DATA_CACHE_PRICE_TTL_MINUTES:15}
