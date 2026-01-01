@@ -64,6 +64,33 @@
                             ]
                         }
                     }
+                },
+                {
+                    "name": "Search Instruments (Advanced)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"provider\": \"UPSTOX\",\n  \"queries\": [\"RELIANCE\"],\n  \"exchanges\": [\"NSE_EQ\"],\n  \"instrumentTypes\": [\"EQUITY\"],\n  \"segments\": [\"NSE_EQ\"],\n  \"weekly\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/instruments/search",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "instruments",
+                                "search"
+                            ]
+                        }
+                    }
                 }
             ]
         },
@@ -146,6 +173,57 @@
                             "path": [
                                 "api",
                                 "instruments",
+                                "search"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Search Securities",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/securities/search?query=RELIANCE",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "securities",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "RELIANCE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Advanced Search Securities",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"query\": \"RELIANCE\",\n  \"sector\": \"ENERGY\",\n  \"index\": \"NIFTY 50\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/securities/search",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "securities",
                                 "search"
                             ]
                         }
@@ -758,7 +836,7 @@
     "variable": [
         {
             "key": "baseUrl",
-            "value": "http://localhost:8092",
+            "value": "https://am.munish.org/api/market",
             "type": "string"
         }
     ]

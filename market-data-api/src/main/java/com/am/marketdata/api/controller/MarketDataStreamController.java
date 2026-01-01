@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/market-data/stream")
+@RequestMapping("/v1/market-data/stream")
 @RequiredArgsConstructor
 @Tag(name = "Market Data Stream", description = "APIs for managing market data WebSocket streams")
 public class MarketDataStreamController {

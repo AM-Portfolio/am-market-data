@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
  * Provides endpoints for retrieving market data for various NSE indices
  */
 @RestController
-@RequestMapping("/api/v1/indices")
+@RequestMapping("/v1/indices")
 @RequiredArgsConstructor
 @Tag(name = "Indices", description = "APIs for retrieving market data for various indices")
 public class MarketIndexController {

@@ -18,7 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(marketDataWebSocketHandler, "/ws/market-data-stream")
+        registry.addHandler(marketDataWebSocketHandler, "/api/ws/market-data-stream")
                 .setAllowedOrigins("*");
     }
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * REST controller for brokerage and tax calculation
  */
 @RestController
-@RequestMapping("/api/v1/brokerage")
+@RequestMapping("/v1/brokerage")
 @Tag(name = "Brokerage Calculator", description = "API for calculating brokerage, taxes, and other charges for stock trades")
 public class BrokerageCalculatorController {
     private final AppLogger log = AppLogger.getLogger();

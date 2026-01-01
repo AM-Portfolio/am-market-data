@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/instruments")
+@RequestMapping("/v1/instruments")
 @RequiredArgsConstructor
 @Tag(name = "Instrument Management", description = "APIs for managing and searching financial instruments")
 public class InstrumentController {

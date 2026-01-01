@@ -25,82 +25,83 @@ import java.util.concurrent.CompletableFuture;
  * positions
  */
 @RestController
-@RequestMapping("/api/v1/margin")
+@RequestMapping("/v1/margin")
 @Tag(name = "Margin Calculator", description = "APIs for calculating margin requirements for trading positions across different exchanges and instruments")
 public class MarginCalculatorController {
 
-    private final AppLogger log = AppLogger.getLogger();
-    private final MarginCalculatorApiService marginCalculatorApiService;
+        private final AppLogger log = AppLogger.getLogger();
+        private final MarginCalculatorApiService marginCalculatorApiService;
 
-    public MarginCalculatorController(MarginCalculatorApiService marginCalculatorApiService) {
-        this.marginCalculatorApiService = marginCalculatorApiService;
-    }
-
-    /**
-     * Calculate margin requirement for a list of positions
-     * 
-     * @param request The margin calculation request containing positions
-     * @return MarginCalculationResponse with calculated margins
-     */
-    @PostMapping(value = "/calculate", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Calculate margin requirements", description = "Calculate SPAN margin, exposure margin, and total margin requirements for a list of positions across different segments")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Margin calculation successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MarginCalculationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<MarginCalculationResponse> calculateMargin(
-            @RequestBody MarginCalculationRequest request) {
-
-        log.info("calculateMargin", "Received margin calculation request for {} positions",
-                request.getPositions().size());
-
-        try {
-            MarginCalculationResponse response = marginCalculatorApiService.calculateMargin(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("calculateMargin", "Error calculating margin: " + e.getMessage(), e);
-
-            MarginCalculationResponse errorResponse = MarginCalculationResponse.builder()
-                    .status("ERROR")
-                    .error("Failed to calculate margin: " + e.getMessage())
-                    .build();
-
-            return ResponseEntity.badRequest().body(errorResponse);
+        public MarginCalculatorController(MarginCalculatorApiService marginCalculatorApiService) {
+                this.marginCalculatorApiService = marginCalculatorApiService;
         }
-    }
 
-    /**
-     * Calculate margin requirement asynchronously
-     * 
-     * @param request The margin calculation request containing positions
-     * @return CompletableFuture with MarginCalculationResponse
-     */
-    @PostMapping(value = "/calculate-async", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Calculate margin requirements asynchronously", description = "Asynchronously calculate SPAN margin, exposure margin, and total margin requirements for a list of positions across different segments")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Margin calculation successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MarginCalculationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public CompletableFuture<ResponseEntity<MarginCalculationResponse>> calculateMarginAsync(
-            @RequestBody MarginCalculationRequest request) {
+        /**
+         * Calculate margin requirement for a list of positions
+         * 
+         * @param request The margin calculation request containing positions
+         * @return MarginCalculationResponse with calculated margins
+         */
+        @PostMapping(value = "/calculate", produces = MediaType.APPLICATION_JSON_VALUE)
+        @Operation(summary = "Calculate margin requirements", description = "Calculate SPAN margin, exposure margin, and total margin requirements for a list of positions across different segments")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Margin calculation successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MarginCalculationResponse.class))),
+                        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<MarginCalculationResponse> calculateMargin(
+                        @RequestBody MarginCalculationRequest request) {
 
-        log.info("calculateMarginAsync", "Received async margin calculation request for {} positions",
-                request.getPositions().size());
+                log.info("calculateMargin", "Received margin calculation request for {} positions",
+                                request.getPositions().size());
 
-        return marginCalculatorApiService.calculateMarginAsync(request)
-                .thenApply(ResponseEntity::ok)
-                .exceptionally(ex -> {
-                    log.error("calculateMarginAsync", "Error calculating margin asynchronously: " + ex.getMessage(),
-                            ex);
+                try {
+                        MarginCalculationResponse response = marginCalculatorApiService.calculateMargin(request);
+                        return ResponseEntity.ok(response);
+                } catch (Exception e) {
+                        log.error("calculateMargin", "Error calculating margin: " + e.getMessage(), e);
 
-                    MarginCalculationResponse errorResponse = MarginCalculationResponse.builder()
-                            .status("ERROR")
-                            .error("Failed to calculate margin: " + ex.getMessage())
-                            .build();
+                        MarginCalculationResponse errorResponse = MarginCalculationResponse.builder()
+                                        .status("ERROR")
+                                        .error("Failed to calculate margin: " + e.getMessage())
+                                        .build();
 
-                    return ResponseEntity.badRequest().body(errorResponse);
-                });
-    }
+                        return ResponseEntity.badRequest().body(errorResponse);
+                }
+        }
+
+        /**
+         * Calculate margin requirement asynchronously
+         * 
+         * @param request The margin calculation request containing positions
+         * @return CompletableFuture with MarginCalculationResponse
+         */
+        @PostMapping(value = "/calculate-async", produces = MediaType.APPLICATION_JSON_VALUE)
+        @Operation(summary = "Calculate margin requirements asynchronously", description = "Asynchronously calculate SPAN margin, exposure margin, and total margin requirements for a list of positions across different segments")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Margin calculation successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MarginCalculationResponse.class))),
+                        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public CompletableFuture<ResponseEntity<MarginCalculationResponse>> calculateMarginAsync(
+                        @RequestBody MarginCalculationRequest request) {
+
+                log.info("calculateMarginAsync", "Received async margin calculation request for {} positions",
+                                request.getPositions().size());
+
+                return marginCalculatorApiService.calculateMarginAsync(request)
+                                .thenApply(ResponseEntity::ok)
+                                .exceptionally(ex -> {
+                                        log.error("calculateMarginAsync",
+                                                        "Error calculating margin asynchronously: " + ex.getMessage(),
+                                                        ex);
+
+                                        MarginCalculationResponse errorResponse = MarginCalculationResponse.builder()
+                                                        .status("ERROR")
+                                                        .error("Failed to calculate margin: " + ex.getMessage())
+                                                        .build();
+
+                                        return ResponseEntity.badRequest().body(errorResponse);
+                                });
+        }
 }

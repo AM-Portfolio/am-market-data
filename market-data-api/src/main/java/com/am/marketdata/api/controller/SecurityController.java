@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/securities")
+@RequestMapping("/v1/securities")
 @RequiredArgsConstructor
 @Tag(name = "Security Explorer", description = "endpoints for exploring security details")
 public class SecurityController {

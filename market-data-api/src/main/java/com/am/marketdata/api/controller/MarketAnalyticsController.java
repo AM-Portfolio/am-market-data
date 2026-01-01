@@ -21,7 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/market-analytics")
+@RequestMapping("/v1/market-analytics")
 @RequiredArgsConstructor
 @Tag(name = "Market Analytics", description = "APIs for market analysis including Top Movers, Sector Performance, Market Cap Analysis, and Historical Charts")
 public class MarketAnalyticsController {

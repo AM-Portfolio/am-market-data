@@ -52,6 +52,7 @@ public class SecurityConfig {
         log.info(methodName, "Configuring Security Filter Chain...");
 
         http
+                .cors(cors -> cors.configure(http))
                 .csrf(csrf -> {
                     csrf.disable();
                     log.debug("filterChain", "CSRF protection disabled (stateless API)");
@@ -74,7 +75,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml")
                         .permitAll()
-                        .requestMatchers("/api/v1/**").authenticated()
+                        .requestMatchers("/v1/**").authenticated()
                         .anyRequest().denyAll();
             })
                     .oauth2ResourceServer(oauth2 -> {
