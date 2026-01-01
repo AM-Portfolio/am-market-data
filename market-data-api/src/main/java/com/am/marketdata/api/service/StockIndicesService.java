@@ -97,35 +97,12 @@ public class StockIndicesService {
                         .findByIndexSymbols(indexSymbols.stream().collect(Collectors.toSet()));
                 Set<String> foundSymbols = new HashSet<>();
 
+                // FIX: Add found documents to finalResults
                 docs.forEach(doc -> {
-                    if (doc.getData() != null) {
-                        try {
-                            List<String> symbols = doc.getData().stream()
-                                    .map(obj -> {
-                                        try {
-                                            if (obj instanceof com.am.common.investment.model.stockindice.StockData) {
-                                                return ((com.am.common.investment.model.stockindice.StockData) obj)
-                                                        .getSymbol();
-                                            } else {
-                                                // Handle LinkedHashMap case
-                                                com.am.common.investment.model.stockindice.StockData sd = objectMapper
-                                                        .convertValue(obj,
-                                                                com.am.common.investment.model.stockindice.StockData.class);
-                                                return sd.getSymbol();
-                                            }
-                                        } catch (Exception e) {
-                                            log.warn(methodName, "Failed to map stock data object: " + e.getMessage());
-                                            return null;
-                                        }
-                                    })
-                                    .filter(s -> s != null)
-                                    .collect(Collectors.toList());
-                            symbolsToProcess.addAll(symbols);
-                            log.info(methodName,
-                                    "Found data for " + doc.getIndexSymbol() + " in database (via LocalRepo).");
-                        } catch (Exception e) {
-                            log.warn(methodName, "Mapping failed for " + doc.getIndexSymbol() + ": " + e.getMessage());
-                        }
+                    if (doc != null && doc.getIndexSymbol() != null) {
+                        finalResults.add(doc); // Add to results
+                        foundSymbols.add(doc.getIndexSymbol()); // Track found
+                        log.info(methodName, "Found data for " + doc.getIndexSymbol() + " in database");
                     }
                 });
 
@@ -140,11 +117,7 @@ public class StockIndicesService {
             } catch (Exception e) {
                 log.error(methodName, "Error reading from database", e);
                 // On DB error, treat all as missing
-                for (String symbol : indexSymbols) {
-                    if (!symbolsToProcess.contains(symbol)) {
-                        symbolsToProcess.add(symbol);
-                    }
-                }
+                symbolsToProcess.addAll(indexSymbols);
             }
         }
     }
@@ -168,6 +141,13 @@ public class StockIndicesService {
         try {
             // Add a small delay to ensure data is persisted
             TimeUnit.SECONDS.sleep(1);
+
+            // FIX: Retrieve freshly persisted data from database
+            List<StockIndicesMarketData> freshData = stockIndicesMarketDataService
+                    .findByIndexSymbols(symbolsToProcess.stream().collect(Collectors.toSet()));
+            finalResults.addAll(freshData);
+
+            log.info(methodName, "Retrieved " + freshData.size() + " freshly fetched indices from database");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

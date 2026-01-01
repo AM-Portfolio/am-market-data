@@ -19,7 +19,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/v1/admin")
 @RequiredArgsConstructor
 public class MarketDataAdminController {
 
