@@ -68,6 +68,21 @@
             <version>2.15.2</version>
         </dependency>
 
+        <!-- Kite Connect -->
+        <dependency>
+            <groupId>com.zerodhatech.kiteconnect</groupId>
+            <artifactId>kiteconnect</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+
+        <!-- MongoDB (for Entity annotations) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+            <version>${spring.boot.version}</version>
+            <scope>provided</scope> 
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

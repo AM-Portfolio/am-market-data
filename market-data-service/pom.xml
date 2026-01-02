@@ -40,6 +40,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.marketdata</groupId>
+            <artifactId>market-data-provider</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.am.common</groupId>
             <artifactId>am-common-investment-service</artifactId>
             <version>${investment-service.version}</version>

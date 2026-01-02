@@ -2,7 +2,7 @@ package com.marketdata.service.margin;
 
 import com.marketdata.common.model.margin.MarginCalculationRequest;
 import com.marketdata.common.model.margin.MarginCalculationResponse;
-import com.marketdata.service.zerodha.ZerodhaApiService;
+import com.am.marketdata.provider.zerodha.ZerodhaApiService;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

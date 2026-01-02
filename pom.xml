@@ -15,6 +15,7 @@
     <modules>
         
         <module>market-data-common</module>
+        <module>market-data-provider</module>  <!-- NEW: Provider implementations -->
         <module>market-data-kafka</module>
         <module>market-data-service</module>
         <!-- <module>market-data-external-api</module>  -->
