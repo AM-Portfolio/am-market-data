@@ -89,3 +89,4 @@ market_data_web/.flutter-plugins-dependencies
 market_data_web/.pub/
 market_data_web/.pub-cache/
 market_data_web/.metadata
+.env.docker

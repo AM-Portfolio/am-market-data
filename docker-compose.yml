@@ -10,6 +10,9 @@ services:
       args:
         - GITHUB_PACKAGES_USERNAME=${GITHUB_PACKAGES_USERNAME}
         - GITHUB_PACKAGES_TOKEN=${GITHUB_PACKAGES_TOKEN}
+    env_file:
+      - .env
+      - .env.docker
     environment:
       # Spring Profile
       - SPRING_PROFILES_ACTIVE=docker
