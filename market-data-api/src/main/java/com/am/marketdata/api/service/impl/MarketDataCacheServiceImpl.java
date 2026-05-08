@@ -77,45 +77,67 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
     }
 
     @Override
-    public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, boolean forceRefresh) {
+    public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, String provider, boolean isIndex, String timeFrame, boolean forceRefresh) {
         if (!cacheEnabled || forceRefresh) {
             cacheMisses.incrementAndGet();
             log.debug("Cache disabled or force refresh requested for quotes");
-            return fetchAndCacheQuotes(tradingSymbols);
+            return fetchAndCacheQuotes(tradingSymbols, provider, isIndex, timeFrame);
         }
         
-        String cacheKey = buildQuotesCacheKey(tradingSymbols);
+        String cacheKey = buildQuotesCacheKey(tradingSymbols, provider, isIndex, timeFrame);
         
-        @SuppressWarnings("unchecked")
-        Map<String, Map<String, Object>> cachedQuotes = (Map<String, Map<String, Object>>) redisTemplate.opsForValue().get(cacheKey);
-        
-        if (cachedQuotes != null) {
-            cacheHits.incrementAndGet();
-            log.debug("Cache hit for quotes with key: {}", cacheKey);
-            return cachedQuotes;
-        } else {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, Object>> cachedQuotes = (Map<String, Map<String, Object>>) redisTemplate.opsForValue().get(cacheKey);
+            
+            // Treat null OR empty cached maps as cache misses — empty maps should never be served
+            if (cachedQuotes != null && !cachedQuotes.isEmpty()) {
+                cacheHits.incrementAndGet();
+                log.debug("Cache hit for quotes with key: {}", cacheKey);
+                return cachedQuotes;
+            } else {
+                cacheMisses.incrementAndGet();
+                log.debug("Cache miss (null or empty) for quotes with key: {}", cacheKey);
+                return fetchAndCacheQuotes(tradingSymbols, provider, isIndex, timeFrame);
+            }
+        } catch (Exception e) {
+            log.warn("Redis error reading quotes, falling back to provider: {}", e.getMessage());
             cacheMisses.incrementAndGet();
-            log.debug("Cache miss for quotes with key: {}", cacheKey);
-            return fetchAndCacheQuotes(tradingSymbols);
+            return fetchAndCacheQuotes(tradingSymbols, provider, isIndex, timeFrame);
         }
     }
     
-    private Map<String, Map<String, Object>> fetchAndCacheQuotes(List<String> tradingSymbols) {
-        Map<String, Map<String, Object>> quotes = investmentInstrumentService.getQuotes(tradingSymbols);
+    private Map<String, Map<String, Object>> fetchAndCacheQuotes(List<String> tradingSymbols, String provider, boolean isIndex, String timeFrame) {
+        Map<String, Map<String, Object>> quotes = investmentInstrumentService.getQuotes(tradingSymbols, provider);
         
-        // Don't cache error responses
-        if (quotes != null && !quotes.containsKey("ERROR")) {
-            String cacheKey = buildQuotesCacheKey(tradingSymbols);
-            redisTemplate.opsForValue().set(cacheKey, quotes, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
-            log.debug("Cached quotes with key: {}", cacheKey);
+        // Only cache non-null, non-empty, non-error responses
+        if (quotes != null && !quotes.isEmpty() && !quotes.containsKey("ERROR")) {
+            String cacheKey = buildQuotesCacheKey(tradingSymbols, provider, isIndex, timeFrame);
+            try {
+                redisTemplate.opsForValue().set(cacheKey, quotes, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+                log.debug("Cached quotes with key: {}", cacheKey);
+            } catch (Exception e) {
+                log.warn("Redis error caching quotes (ignoring, returning broker data): {}", e.getMessage());
+            }
+        } else {
+            log.warn("Not caching quotes — response is null, empty, or contains ERROR key");
         }
         
-        return quotes;
+        return quotes != null ? quotes : new HashMap<>();
     }
     
-    private String buildQuotesCacheKey(List<String> tradingSymbols) {
-        return "quotes:" + (tradingSymbols != null ? String.join(",", tradingSymbols) : "all");
+    private String buildQuotesCacheKey(List<String> tradingSymbols, String provider, boolean isIndex, String timeFrame) {
+        // Normalize: uppercase, trim, sort — consistent key regardless of symbol order
+        String normalizedSymbols = tradingSymbols == null ? "all" :
+            tradingSymbols.stream()
+                .map(String::toUpperCase)
+                .map(String::trim)
+                .sorted()
+                .collect(Collectors.joining(","));
+        String normalizedProvider = provider != null ? provider.toUpperCase() : "UNKNOWN";
+        return "quotes:" + normalizedProvider + ":" + isIndex + ":" + timeFrame + ":" + normalizedSymbols;
     }
+
 
     @Override
     public Map<String, Object> getLivePrices(List<String> symbols, boolean forceRefresh) {
@@ -127,16 +149,22 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         String cacheKey = buildLivePricesCacheKey(symbols);
         
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cachedPrices = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
-        
-        if (cachedPrices != null) {
-            cacheHits.incrementAndGet();
-            log.debug("Cache hit for live prices with key: {}", cacheKey);
-            return cachedPrices;
-        } else {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> cachedPrices = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cachedPrices != null) {
+                cacheHits.incrementAndGet();
+                log.debug("Cache hit for live prices with key: {}", cacheKey);
+                return cachedPrices;
+            } else {
+                cacheMisses.incrementAndGet();
+                log.debug("Cache miss for live prices with key: {}", cacheKey);
+                return fetchAndCacheLivePrices(symbols);
+            }
+        } catch (Exception e) {
+            log.warn("Redis error reading live prices, falling back to provider: {}", e.getMessage());
             cacheMisses.incrementAndGet();
-            log.debug("Cache miss for live prices with key: {}", cacheKey);
             return fetchAndCacheLivePrices(symbols);
         }
     }
@@ -147,8 +175,12 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         // Don't cache error responses
         if (prices != null && !prices.containsKey("error")) {
             String cacheKey = buildLivePricesCacheKey(symbols);
-            redisTemplate.opsForValue().set(cacheKey, prices, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
-            log.debug("Cached live prices with key: {}", cacheKey);
+            try {
+                redisTemplate.opsForValue().set(cacheKey, prices, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+                log.debug("Cached live prices with key: {}", cacheKey);
+            } catch (Exception e) {
+                log.warn("Redis error caching live prices: {}", e.getMessage());
+            }
         }
         
         return prices;
@@ -609,16 +641,22 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         
         String cacheKey = buildOHLCCacheKey(symbols);
         
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cachedData = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
-        
-        if (cachedData != null) {
-            cacheHits.incrementAndGet();
-            log.debug("Cache hit for OHLC data with key: {}", cacheKey);
-            return cachedData;
-        } else {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> cachedData = (Map<String, Object>) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cachedData != null) {
+                cacheHits.incrementAndGet();
+                log.debug("Cache hit for OHLC data with key: {}", cacheKey);
+                return cachedData;
+            } else {
+                cacheMisses.incrementAndGet();
+                log.debug("Cache miss for OHLC data with key: {}", cacheKey);
+                return fetchAndCacheOHLC(symbols);
+            }
+        } catch (Exception e) {
+            log.warn("Redis error reading OHLC data, falling back to provider: {}", e.getMessage());
             cacheMisses.incrementAndGet();
-            log.debug("Cache miss for OHLC data with key: {}", cacheKey);
             return fetchAndCacheOHLC(symbols);
         }
     }
@@ -635,8 +673,12 @@ public class MarketDataCacheServiceImpl implements MarketDataCacheService {
         // Don't cache if null or empty
         if (ohlcData != null && !ohlcData.isEmpty()) {
             String cacheKey = buildOHLCCacheKey(symbols);
-            redisTemplate.opsForValue().set(cacheKey, response, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
-            log.debug("Cached OHLC data with key: {}", cacheKey);
+            try {
+                redisTemplate.opsForValue().set(cacheKey, response, cacheTimeToLiveSeconds, TimeUnit.SECONDS);
+                log.debug("Cached OHLC data with key: {}", cacheKey);
+            } catch (Exception e) {
+                log.warn("Redis error caching OHLC data: {}", e.getMessage());
+            }
         }
         
         return response;

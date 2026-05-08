@@ -48,9 +48,10 @@ public interface InvestmentInstrumentService {
     /**
      * Get quotes for a list of instruments
      * @param tradingSymbols List of trading symbols
+     * @param provider Market data provider to use (UPSTOX, ZERODHA)
      * @return Map containing quote data for each symbol
      */
-    Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols);
+    Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, String provider);
     
     /**
      * Get option chain data for a given underlying instrument

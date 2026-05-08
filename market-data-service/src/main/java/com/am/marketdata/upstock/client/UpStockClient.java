@@ -5,34 +5,37 @@ import com.am.marketdata.upstock.model.*;
 
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class UpStockClient {
+    private static final Logger log = LoggerFactory.getLogger(UpStockClient.class);
     private final UpstoxConfig upstoxConfig;
     private static final String BASE_URL = "https://api-v2.upstox.com/v2";
+
+    public UpStockClient(UpstoxConfig upstoxConfig) {
+        this.upstoxConfig = upstoxConfig;
+    }
 
     // Market Data APIs
     public MarketQuoteResponse getMarketQuotes(List<String> symbols) {
         String url = BASE_URL + "/market-quote/quotes";
-        return executeGet(url, MarketQuoteResponse.class, "symbol", formatSymbols(symbols));
+        return executeGet(url, MarketQuoteResponse.class, "instrument_key", formatSymbols(symbols));
     }
 
     public MarketQuoteResponse getFullMarketQuotes(List<String> symbols) {
         String url = BASE_URL + "/market-quote/full";
-        return executeGet(url, MarketQuoteResponse.class, "symbol", formatSymbols(symbols));
+        return executeGet(url, MarketQuoteResponse.class, "instrument_key", formatSymbols(symbols));
     }
 
     public OHLCResponse getOHLCData(List<String> symbols, String interval) {
         String url = BASE_URL + "/market-quote/ohlc";
-        return executeGet(url, OHLCResponse.class, "symbol", formatSymbols(symbols), "interval", interval);
+        return executeGet(url, OHLCResponse.class, "instrument_key", formatSymbols(symbols), "interval", interval);
     }
 
     // Historical Data APIs
@@ -58,7 +61,7 @@ public class UpStockClient {
 
             HttpResponse<T> response = request.asObject(responseType);
             log.info("Request successful. Status: {}", response.getStatus());
-            //logResponse(response);
+            logResponse(response);
             return response.getBody();
         } catch (Exception e) {
             log.error("Failed to execute GET request. URL: {}, Error: {}", url, e.getMessage(), e);
@@ -101,7 +104,7 @@ public class UpStockClient {
     private <T> void logResponse(HttpResponse<T> response) {
         log.info("Response Status: {}", response.getStatus());
         log.info("Response Headers: {}", response.getHeaders());
-        //log.info("Raw Response Body: {}", response.getRawBody());
+        log.info("Raw Response Body: {}", response.getBody());
         log.info("Parsed Response Body: {}", response.getBody());
         if (response.getBody() instanceof OHLCResponse) {
             OHLCResponse ohlcResponse = (OHLCResponse) response.getBody();
@@ -112,4 +115,4 @@ public class UpStockClient {
             }
         }
     }
-} 
+}

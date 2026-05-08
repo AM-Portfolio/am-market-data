@@ -75,18 +75,29 @@ public class MarketDataController {
     /**
      * Get quotes for symbols
      * @param symbols Comma-separated list of symbols
+     * @param provider Market data provider (UPSTOX, ZERODHA)
+     * @param isIndex Whether the symbols are index symbols
+     * @param timeFrame Timeframe for the quote (e.g. 5m, 1d)
+     * @param forceRefresh Whether to force refresh from provider (bypass cache)
      * @return Map of symbol to quote data with metadata
      */
     @GetMapping("/quotes")
     public ResponseEntity<Map<String, Object>> getQuotes(
             @RequestParam("symbols") String symbols,
+            @RequestParam(name = "provider", defaultValue = "UPSTOX") String provider,
+            @RequestParam(name = "isIndex", defaultValue = "false") boolean isIndex,
+            @RequestParam(name = "timeFrame", defaultValue = "5m") String timeFrame,
             @RequestParam(name = "refresh", defaultValue = "false") boolean forceRefresh) {
         try {
-            log.info("Controller received request for quotes for symbols: {}, forceRefresh: {}", symbols, forceRefresh);
-            List<String> symbolList = Arrays.asList(symbols.split(","));
+            log.info("Controller received request for quotes: symbols={}, provider={}, isIndex={}, timeFrame={}, forceRefresh={}",
+                    symbols, provider, isIndex, timeFrame, forceRefresh);
+            List<String> symbolList = Arrays.asList(symbols.split(",")).stream()
+                    .map(String::trim).map(String::toUpperCase).filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
             
-            // Use cache service instead of direct service call
-            Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(symbolList, forceRefresh);
+            // Use cache service with full context so the cache key is accurate
+            Map<String, Map<String, Object>> quotesMap = marketDataCacheService.getQuotes(
+                    symbolList, provider, isIndex, timeFrame, forceRefresh);
             
             // Check if there was an error
             if (quotesMap.containsKey("ERROR")) {
@@ -96,15 +107,24 @@ public class MarketDataController {
                 return ResponseEntity.internalServerError().body(errorResponse);
             }
             
-            // Convert to the response format expected by clients
+            // Build structured response matching what frontend expects (flat structure)
             Map<String, Object> response = new HashMap<>();
-            response.put("quotes", quotesMap);
-            response.put("count", quotesMap.size());
-            response.put("timestamp", new Date());
-            response.put("cached", !forceRefresh);
+            
+            // Add all quotes directly to the top level
+            if (quotesMap != null) {
+                response.putAll(quotesMap);
+            }
+            
+            // Add metadata fields
+            response.put("count", quotesMap != null ? quotesMap.size() : 0);
+            response.put("cached", !forceRefresh && quotesMap != null && !quotesMap.isEmpty());
+            response.put("source", (quotesMap != null && !quotesMap.isEmpty()) ? "broker" : "cache");
+            response.put("provider", provider);
+            response.put("timeFrame", timeFrame);
+            response.put("timestamp", System.currentTimeMillis());
             
             return ResponseEntity.ok(response);
-        } catch (Exception e) {                                                                                                                                                                        
+        } catch (Exception e) {
             log.error("Unexpected error in controller while getting quotes: {}", e.getMessage(), e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to fetch quotes");

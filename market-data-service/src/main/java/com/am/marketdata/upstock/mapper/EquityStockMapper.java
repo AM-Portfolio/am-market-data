@@ -29,9 +29,9 @@ public class EquityStockMapper {
             .open(stockQuote.getOpenPrice())
             .high(stockQuote.getHighPrice())
             .low(stockQuote.getLowPrice())
-            .close(stockQuote.getClosePrice())
+            .close(stockQuote.getLastPrice() != null ? stockQuote.getLastPrice() : stockQuote.getClosePrice())
             .volume(stockQuote.getVolume())
-            .time(ZonedDateTime.now().toInstant())
+            .time(java.time.Instant.now())
             .build();
     }
 
@@ -51,21 +51,21 @@ public class EquityStockMapper {
         var exchange = symbol.substring(0, 6);
         var extractedSymbol = getSymbol(symbol);
         return EquityPrice.builder()
-        .exchange(exchange)
-        .isin(ohlcData.getISIN())
+            .exchange(exchange)
+            .isin(ohlcData.getISIN())
             .symbol(extractedSymbol)
             .open(ohlcData.getOpen())
             .high(ohlcData.getHigh())
             .low(ohlcData.getLow())
-            .close(ohlcData.getClose())
-            .time(ZonedDateTime.now().toInstant())
+            .close(ohlcData.getLastPrice() != null ? ohlcData.getLastPrice() : ohlcData.getClose())
+            .time(java.time.Instant.now())
             .build();
     }
 
     public String getSymbol(String symbol) {
         if (symbol == null) return null;
-        String[] parts = symbol.split("\\:");
-        return parts.length > 1 ? parts[1] : null;
+        String[] parts = symbol.split("[:|]");
+        return parts.length > 1 ? parts[1] : symbol;
     }
 
 }

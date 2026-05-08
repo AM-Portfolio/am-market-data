@@ -2,25 +2,37 @@ package com.am.marketdata.upstock.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Map;
 
-@Data
-@Slf4j
 public class OHLCResponse {
+    private static final Logger log = LoggerFactory.getLogger(OHLCResponse.class);
     private String status;
     private Map<String, OHLCData> data;
 
-    @Data
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public Map<String, OHLCData> getData() { return data; }
+    public void setData(Map<String, OHLCData> data) { this.data = data; }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OHLCData {
         @JsonProperty("ohlc")
         private OHLC ohlc;
         
-        private Double last_price;
+        @JsonProperty("last_price")
+        private Double lastPrice;
         
-        private String instrument_token;
+        @JsonProperty("instrument_token")
+        private String instrumentToken;
+
+        public OHLC getOhlc() { return ohlc; }
+        public void setOhlc(OHLC ohlc) { this.ohlc = ohlc; }
+        public Double getLastPrice() { return lastPrice; }
+        public void setLastPrice(Double lastPrice) { this.lastPrice = lastPrice; }
+        public String getInstrumentToken() { return instrumentToken; }
+        public void setInstrumentToken(String instrumentToken) { this.instrumentToken = instrumentToken; }
 
         public Double getOpen() {
             return ohlc != null ? ohlc.getOpen() : null;
@@ -39,15 +51,15 @@ public class OHLCResponse {
         }
 
         public String getISIN() {
-            if (instrument_token == null) {
+            if (instrumentToken == null) {
                 log.debug("instrumentToken is null");
                 return null;
             }
-            log.debug("Processing instrumentToken: {}", instrument_token);
+            log.debug("Processing instrumentToken: {}", instrumentToken);
             // Extract ISIN from format like "NSE_EQ|INF204KB16I7"
-            int pipeIndex = instrument_token.indexOf('|');
-            if (pipeIndex >= 0 && pipeIndex + 1 < instrument_token.length()) {
-                String isin = instrument_token.substring(pipeIndex + 1);
+            int pipeIndex = instrumentToken.indexOf('|');
+            if (pipeIndex >= 0 && pipeIndex + 1 < instrumentToken.length()) {
+                String isin = instrumentToken.substring(pipeIndex + 1);
                 log.debug("Extracted ISIN: {}", isin);
                 return isin;
             }
@@ -56,12 +68,20 @@ public class OHLCResponse {
         }
     }
 
-    @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OHLC {
         private Double open;
         private Double high;
         private Double low;
         private Double close;
+
+        public Double getOpen() { return open; }
+        public void setOpen(Double open) { this.open = open; }
+        public Double getHigh() { return high; }
+        public void setHigh(Double high) { this.high = high; }
+        public Double getLow() { return low; }
+        public void setLow(Double low) { this.low = low; }
+        public Double getClose() { return close; }
+        public void setClose(Double close) { this.close = close; }
     }
 }

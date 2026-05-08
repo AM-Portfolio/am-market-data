@@ -14,8 +14,8 @@ import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 
-import lombok.extern.slf4j.Slf4j;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +32,10 @@ import java.util.stream.Collectors;
  * Service for interacting with Zerodha Kite Connect API
  * Implements resilient patterns including retry, circuit breaker, and metrics
  */
-@Slf4j
 @Service
 public class ZerodhaApiService {
+
+    private static final Logger log = LoggerFactory.getLogger(ZerodhaApiService.class);
 
     private KiteConnect kiteConnect;
     private KiteTicker tickerProvider;

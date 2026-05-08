@@ -5,7 +5,11 @@ import com.am.common.investment.model.equity.Instrument;
 import com.am.common.investment.model.historical.HistoricalData;
 import com.am.marketdata.api.service.InvestmentInstrumentService;
 import com.am.marketdata.service.MarketDataService;
+import com.am.marketdata.upstock.adapter.UpStockAdapter;
+import com.am.marketdata.service.impl.UpstoxInstrumentService;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -24,11 +28,18 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
 
     private static final Logger log = LoggerFactory.getLogger(InvestmentInstrumentServiceImpl.class);
     private final MarketDataService marketDataService;
+    private final UpStockAdapter upStockAdapter;
+    private final UpstoxInstrumentService upstoxInstrumentService;
     private final MeterRegistry meterRegistry;
     private final SimpleDateFormat dateFormat;
 
-    public InvestmentInstrumentServiceImpl(MarketDataService marketDataService, MeterRegistry meterRegistry) {
+    public InvestmentInstrumentServiceImpl(MarketDataService marketDataService,
+                                           UpStockAdapter upStockAdapter,
+                                           UpstoxInstrumentService upstoxInstrumentService,
+                                           MeterRegistry meterRegistry) {
         this.marketDataService = marketDataService;
+        this.upStockAdapter = upStockAdapter;
+        this.upstoxInstrumentService = upstoxInstrumentService;
         this.meterRegistry = meterRegistry;
         this.dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
@@ -169,44 +180,74 @@ public class InvestmentInstrumentServiceImpl implements InvestmentInstrumentServ
     }
 
     @Override
-    public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols) {
+    public Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, String provider) {
         Timer.Sample timer = Timer.start(meterRegistry);
         try {
-            log.info("Processing quotes request for {} instruments", tradingSymbols != null ? tradingSymbols.size() : 0);
+            log.info("Processing quotes request for {} instruments via provider={}", 
+                    tradingSymbols != null ? tradingSymbols.size() : 0, provider);
             
             long startTime = System.currentTimeMillis();
-            
-            // This is a placeholder for future implementation
-            // In a real implementation, this would call marketDataService.getQuotes
-            
-            // Create a mock response with placeholder data for each symbol
             Map<String, Map<String, Object>> response = new HashMap<>();
             
-            if (tradingSymbols != null && !tradingSymbols.isEmpty()) {
-                for (String symbol : tradingSymbols) {
-                    Map<String, Object> quoteData = new HashMap<>();
-                    quoteData.put("lastPrice", 0.0);
-                    quoteData.put("change", 0.0);
-                    quoteData.put("changePercent", 0.0);
-                    quoteData.put("volume", 0);
-                    quoteData.put("averagePrice", 0.0);
-                    quoteData.put("lastTradeTime", new Date());
-                    quoteData.put("status", "NOT_IMPLEMENTED");
-                    
-                    response.put(symbol, quoteData);
+            if (tradingSymbols == null || tradingSymbols.isEmpty()) {
+                return response;
+            }
+
+            boolean useUpstox = "UPSTOX".equalsIgnoreCase(provider);
+            
+            if (useUpstox) {
+                // Upstox v2 requires instrument_key in format EXCHANGE|ISIN for Equity stocks (e.g. NSE_EQ|INE002A01018)
+                // We now fetch these keys dynamically from the MongoDB collection 'upstock_instruments'.
+                List<String> upstoxSymbols = tradingSymbols.stream()
+                    .map(s -> {
+                        Optional<String> dbKey = upstoxInstrumentService.getInstrumentKey(s);
+                        return dbKey.orElse(s.contains(":") ? s : "NSE_EQ|" + s);
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+                log.info("Fetching quotes from Upstox for symbols (using dynamic database mapping): {}", upstoxSymbols);
+                
+                List<EquityPrice> equityPrices = upStockAdapter.getStocks(upstoxSymbols);
+                log.info("Upstox returned {} equity prices", equityPrices.size());
+                
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.findAndRegisterModules(); // handle Instant/ZonedDateTime
+                for (EquityPrice ep : equityPrices) {
+                    if (ep.getSymbol() != null) {
+                        Map<String, Object> quoteMap = mapper.convertValue(ep, new TypeReference<Map<String, Object>>() {});
+                        // Ensure lastPrice is present in the map for frontend/API consumers
+                        if (ep.getClose() != null) {
+                            quoteMap.put("lastPrice", ep.getClose());
+                        }
+                        response.put(ep.getSymbol(), quoteMap);
+                    }
+                }
+            } else {
+                // Default: Zerodha / generic provider path
+                String[] symbolsArray = tradingSymbols.toArray(new String[0]);
+                Map<String, Object> providerQuotes = marketDataService.getQuotes(symbolsArray);
+                
+                if (providerQuotes != null) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    for (Map.Entry<String, Object> entry : providerQuotes.entrySet()) {
+                        String symbol = entry.getKey();
+                        Object quoteObj = entry.getValue();
+                        if (quoteObj instanceof Map) {
+                            response.put(symbol, (Map<String, Object>) quoteObj);
+                        } else {
+                            response.put(symbol, mapper.convertValue(quoteObj, new TypeReference<Map<String, Object>>() {}));
+                        }
+                    }
                 }
             }
             
-            log.info("Processed quotes for {} symbols in {}ms", 
-                    tradingSymbols != null ? tradingSymbols.size() : 0, 
-                    System.currentTimeMillis() - startTime);
+            log.info("Processed quotes for {} symbols via {} in {}ms", 
+                    tradingSymbols.size(), provider, System.currentTimeMillis() - startTime);
             
             return response;
         } catch (Exception e) {
-            log.error("Error processing quotes: {}", e.getMessage(), e);
+            log.error("Error processing quotes via {}: {}", provider, e.getMessage(), e);
             meterRegistry.counter("api.investment.failure.count", "operation", "getQuotes").increment();
             
-            // Return an empty map with error information in case of exception
             Map<String, Map<String, Object>> errorResponse = new HashMap<>();
             Map<String, Object> errorDetails = new HashMap<>();
             errorDetails.put("error", "Failed to fetch quotes");

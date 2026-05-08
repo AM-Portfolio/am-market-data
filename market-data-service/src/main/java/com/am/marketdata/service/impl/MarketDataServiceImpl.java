@@ -15,6 +15,7 @@ import com.am.marketdata.mapper.InstrumentMapper;
 import com.am.marketdata.mapper.OHLCMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

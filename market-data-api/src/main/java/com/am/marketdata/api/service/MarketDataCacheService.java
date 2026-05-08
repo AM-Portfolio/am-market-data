@@ -15,10 +15,13 @@ public interface MarketDataCacheService {
      * Get quotes from cache or service
      * 
      * @param tradingSymbols List of trading symbols
+     * @param provider Market data provider (UPSTOX, ZERODHA)
+     * @param isIndex Whether the symbols are index symbols
+     * @param timeFrame Timeframe for the quote (e.g. 5m, 1d)
      * @param forceRefresh Whether to force a refresh from the source
      * @return Map containing quote data for each symbol
      */
-    Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, boolean forceRefresh);
+    Map<String, Map<String, Object>> getQuotes(List<String> tradingSymbols, String provider, boolean isIndex, String timeFrame, boolean forceRefresh);
     
     /**
      * Get live prices from cache or service
